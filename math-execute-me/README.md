@@ -1,6 +1,6 @@
 # math.execute (me) ; —— 非官方同人 MV
 
-**在线观看：** https://408.bemly.moe/mv/ （浏览器实时渲染）
+**在线观看：** https://bili.bemly.moe/math-execute-me/ （浏览器实时渲染）
 
 > 原曲 Mili — world.execute (me) ; 受版权保护，**未随网页发布**。打开页面后选择你本地的音频文件即可同步播放，也可以无声观看。
 

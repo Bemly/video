@@ -44,11 +44,11 @@ npm run render        # remotion render MV408 out/408_MV.mp4
 ## 网页版部署
 
 ```bash
-npm run web:build     # 产物到 dist/（只推 gh-pages 分支，不进 main）
+npm run web:build     # 产物到 dist/，放到 gh-pages 分支的 408/ 目录（线上 https://bili.bemly.moe/408/）
 ```
 
 - 网页入口 `index.html` + `web/`（Player 实时渲染，带章节跳转，可静音/有声切换）
-- 线上字体在 `web-public/fonts/`，`CNAME` 也在 `web-public/` 里（防止部署覆盖域名）
+- 线上字体在 `web-public/fonts/`；`CNAME`（bili.bemly.moe）在 gh-pages 根目录，不随本项目构建
 - 背景音乐用的是压缩版 `public/music2.mp3`（18M，随仓库）；母带 `music.wav` 43M / `music2.wav` 326M 只放本地，被 ignore
 
 ## 音频
@@ -62,7 +62,7 @@ npm run web:build     # 产物到 dist/（只推 gh-pages 分支，不进 main�
 ```
 src/            Remotion 主工程（Root/Main/timeline/scenes/components/theme）
 web/            网页实时版（Player + 章节 UI）
-web-public/     网页静态资源（fonts / music2.mp3 / CNAME）
+web-public/     网页静态资源（fonts / music2.mp3）
 public/         渲染用静态资源（music2.mp3 随仓库，*.wav 本地自备）
 audio/          配乐脚本与电平数据
 scripts/        辅助脚本（timeline 导出 / 地球仪 / 分镜表 / 静帧）

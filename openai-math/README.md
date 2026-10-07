@@ -1,6 +1,6 @@
 # 读懂 openai/math —— 讲解视频
 
-**在线观看：** https://408.bemly.moe/ex/ （浏览器实时渲染，配音与配乐随页面加载）
+**在线观看：** https://bili.bemly.moe/openai-math/ （浏览器实时渲染，配音与配乐随页面加载）
 
 约 13 分 46 秒的中文科普：2026-10-06 OpenAI 公开的数学稿件仓库 [openai/math](https://github.com/openai/math) 是什么、怎样用 Lean 验证，以及平面染色、π 的无理性指数、Mahler 猜想三段数学。
 
@@ -15,7 +15,7 @@
 | 文件 | 作用 |
 |---|---|
 | `index.html` `player.js` | 网页播放器（以音频时钟驱动实时渲染） |
-| `engine.js` `lib.js` | 渲染引擎与通用图形（与 `../mv` 同源） |
+| `engine.js` `lib.js` | 渲染引擎与通用图形（与 `../math-execute-me` 同源） |
 | `stage.js` | 世界摄像机、章节间飞行、字幕 |
 | `ch_a.js` `ch_b.js` `ch_c.js` | 第 0–3 / 4–6 / 7–9 章画面 |
 | `script.py` `SOURCES.md` | 解说稿与事实核对表 |
