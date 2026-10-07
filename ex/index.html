@@ -1,0 +1,31 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>读懂 openai/math</title>
+<style>
+html,body{margin:0;height:100%;background:#000;color:#F5EAD5;font:14px "PingFang SC",system-ui,sans-serif;overflow:hidden}
+#out{position:absolute;inset:0;margin:auto;display:block;cursor:pointer;background:#11100E}
+#ui{position:fixed;left:0;right:0;bottom:0;padding:10px 16px 14px;background:linear-gradient(transparent,rgba(0,0,0,.75));transition:opacity .4s}
+#ui.playing{opacity:0}#ui.playing:hover,body:not(.idle) #ui.playing{opacity:1}
+#row{display:flex;align-items:center;gap:12px}
+button{background:none;border:1px solid #5CC7C0;color:#5CC7C0;border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+button:disabled{opacity:.35;cursor:default}
+#bar{flex:1;height:6px;background:#333;border-radius:3px;cursor:pointer;position:relative}#fill{height:100%;width:0;background:#03948D;border-radius:3px}
+#time{font-variant-numeric:tabular-nums;color:#8C877C;min-width:96px;text-align:right}
+#top{position:fixed;left:16px;top:12px;right:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#status{color:#8C877C}#top a{color:#5CC7C0}
+#file{color:#8C877C}
+</style></head><body>
+<canvas id="out"></canvas>
+<div id="top"><b>读懂 openai/math</b><span id="status">加载中…</span><input id="file" type="file" accept="audio/*" style="display:none"><button id="mute" style="display:none">无声播放</button><a href="../">← 返回</a></div>
+<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fs">⛶</button></div></div>
+<script src="engine.js"></script>
+<script src="lib.js"></script>
+<script src="stage.js"></script>
+<script src="ch_a.js"></script>
+<script src="ch_b.js"></script>
+<script src="ch_c.js"></script>
+<script src="ch_d.js"></script>
+<script src="player.js"></script>
+<script>
+let idleT; addEventListener('mousemove', () => { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 2500); });
+startPlayer({ audioSrc: 'mix.mp3' }).catch(e => document.getElementById('status').textContent = '出错：' + e);
+</script></body></html>
