@@ -1,0 +1,33 @@
+# 依赖
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# 渲染输出 (1.0G，含 772M/201M 成片)
+out/
+
+# 大音频：public/music2.wav 326M, public/music.wav 43M（母带，只留本地）
+# 如需本地渲染请自行放回 public/*.wav（被忽略不进仓库）
+public/*.wav
+public/*.mp3
+# 网页流播版：public/music2.mp3 18M（提交进仓库，Pages 用）
+!public/music2.mp3
+
+# 历史版本大文件：versions/v1/*.mp4 201M+25M, *.wav 43M
+versions/**/*.mp4
+versions/**/*.wav
+versions/**/*.mov
+
+# 系统 / 日志 / 缓存
+.DS_Store
+*.log
+.remotion/
+.turbo/
+
+# 网页版构建产物（只推 gh-pages 分支，不进 main）
+dist/
+
+# 保留：public/fonts/ (最大24M，需随仓库分发渲染用)
+# 保留：audio/*.py, *.json, *.npy (均<100K，可再生音频)
+# 保留：versions/v1/src/, *.py (小文件代码)

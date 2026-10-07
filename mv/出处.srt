@@ -1,0 +1,319 @@
+1
+00:00:00,000 --> 00:00:03,870
+启动：math.execute (me) ;
+画面为原创；全片数学出处见各镜头字幕 · openai/math 结果均为 OpenAI 声称、预印本
+
+2
+00:00:03,910 --> 00:00:07,562
+冯·诺依曼序数 n+1 := n ∪ {n} — von Neumann (1923) 《Zur Einführung der transfiniten Zahlen》；ZFC 公理：Zermelo (1908) / Fraenkel (1922)
+相关：openai/math 结果族 244《The Partition Principle does not imply Choice》（ZF 集合论）
+
+3
+00:00:07,602 --> 00:00:11,255
+平面 ℝ² 与 ε-邻域 — Dedekind (1872) 《Stetigkeit und irrationale Zahlen》（实数的构造）
+（经典数学；openai/math 中无直接对应）
+
+4
+00:00:11,295 --> 00:00:14,947
+把立绘采样成点集（像素点云）
+原创画面效果，无对应文献
+
+5
+00:00:14,987 --> 00:00:18,639
+三角剖分拼出角色 — Delaunay (1934) 《Sur la sphère vide》（Delaunay 三角剖分）
+（经典数学；openai/math 中无直接对应）
+
+6
+00:00:18,679 --> 00:00:22,332
+低多边形网格 — Delaunay (1934)
+（经典数学；openai/math 中无直接对应）
+
+7
+00:00:22,372 --> 00:00:26,024
+立绘扫描显现与标注（三叶结 3₁ 等为戏称标注）
+原创画面效果
+
+8
+00:00:26,064 --> 00:00:29,716
+标题背景：Julia 集 — G. Julia (1918) 《Mémoire sur l'itération des fonctions rationnelles》；P. Fatou (1919)
+（经典数学；openai/math 中无直接对应）
+
+9
+00:00:29,756 --> 00:00:33,408
+ℕ ⊂ ℤ ⊂ ℚ ⊂ ℝ 的稠密数轴 — Dedekind (1872)；Cantor (1874)
+（经典数学；openai/math 中无直接对应）
+
+10
+00:00:33,448 --> 00:00:37,101
+埃拉托斯特尼筛法 — 见 Nicomachus《算术入门》（约公元 100 年）记载
+相关：openai/math 结果族 026《Positive lower density of large prime gaps》（质数间隙）
+
+11
+00:00:37,141 --> 00:00:40,793
+乌拉姆螺旋 — Stein, Ulam & Wells (1964) 《A Visual Display of Some Properties of the Distribution of Primes》, Amer. Math. Monthly 71
+相关：openai/math 结果族 026（质数分布）
+
+12
+00:00:40,833 --> 00:00:44,485
+欧拉公式 e^{iθ} = cos θ + i sin θ — Euler (1748) 《Introductio in analysin infinitorum》
+相关：openai/math 结果族 017《The irrationality exponent of π is 2》
+
+13
+00:00:44,525 --> 00:00:48,178
+斐波那契方块与黄金螺线 φ = (1+√5)/2 — Fibonacci (1202) 《Liber Abaci》；Kepler (1611) 指出比值趋于黄金比
+（经典数学；openai/math 中无直接对应）
+
+14
+00:00:48,218 --> 00:00:51,870
+向日葵叶序（黄金角 137.5°）— H. Vogel (1979) 《A better way to construct the sunflower head》, Math. Biosci. 44
+（经典数学；openai/math 中无直接对应）
+
+15
+00:00:51,910 --> 00:00:55,562
+利萨如曲线 / 谐振图 — J. A. Lissajous (1857)；H. Blackburn 的谐振摆（1844）
+（经典数学；openai/math 中无直接对应）
+
+16
+00:00:55,602 --> 00:00:59,255
+玫瑰线 r = cos(kθ) — Guido Grandi (1723–1728)
+（经典数学；openai/math 中无直接对应）
+
+17
+00:00:59,295 --> 00:01:01,101
+门格海绵（体积→0，表面积→∞）— K. Menger (1926) 《Allgemeine Räume und Cartesische Räume》
+（经典数学；openai/math 中无直接对应）
+
+18
+00:01:01,141 --> 00:01:02,947
+万花筒：二面体群 D₆ 的对称 — D. Brewster (1817) 万花筒；群论见 Klein (1872) 埃尔朗根纲领
+（经典数学；openai/math 中无直接对应）
+
+19
+00:01:02,987 --> 00:01:04,793
+超立方体的四维旋转 — C. H. Hinton (1888) 《A New Era of Thought》（tesseract 一词）
+相关：openai/math 结果族 171《The hypercube Ramsey conjecture》
+
+20
+00:01:04,833 --> 00:01:06,639
+Julia 集 z ← z² + c — Julia (1918)；Fatou (1919)
+（经典数学；openai/math 中无直接对应）
+
+21
+00:01:06,679 --> 00:01:08,485
+三角形炸裂 + 八重万花筒（二面体群 D₈）
+原创画面效果
+
+22
+00:01:08,525 --> 00:01:10,332
+洛伦兹吸引子 σ=10, ρ=28, β=8/3 — E. N. Lorenz (1963) 《Deterministic Nonperiodic Flow》, J. Atmos. Sci. 20
+相关：openai/math 结果族 146《Positive metric entropy for the standard map》（混沌动力学）
+
+23
+00:01:10,372 --> 00:01:12,178
+环面纽结 T(3,7) — 经典纽结论；Tait (1877) 纽结分类起点
+相关：openai/math 结果族 306《The purely cosmetic surgery conjecture》（S³ 中的纽结）
+
+24
+00:01:12,218 --> 00:01:14,024
+ε-δ 连续性定义 — Bolzano (1817)；Cauchy (1821) 《Cours d'analyse》；Weierstrass 定型
+（经典数学；openai/math 中无直接对应）
+
+25
+00:01:14,064 --> 00:01:17,716
+对角线论证 |ℕ| < |ℝ| — G. Cantor (1891) 《Über eine elementare Frage der Mannigfaltigkeitslehre》
+（经典数学；openai/math 中无直接对应）
+
+26
+00:01:17,756 --> 00:01:21,408
+康托尔集，维数 log 2 / log 3 — Cantor (1883)；维数：F. Hausdorff (1918) 《Dimension und äußeres Maß》
+相关：openai/math 结果族 148《The entropy-rate dimension formula for self-similar measures》
+
+27
+00:01:21,448 --> 00:01:25,101
+芝诺悖论与几何级数 Σ 1/2ⁿ = 1 — 亚里士多德《物理学》第六卷转述
+（经典数学；openai/math 中无直接对应）
+
+28
+00:01:25,141 --> 00:01:28,793
+画中画递归 / 不动点 f(me) = me — Banach (1922) 不动点定理；de Smit & Lenstra (2003) 《The Mathematical Structure of Escher's Print Gallery》, Notices AMS
+（经典数学；openai/math 中无直接对应）
+
+29
+00:01:28,833 --> 00:01:32,485
+希尔伯特曲线 — D. Hilbert (1891) 《Über die stetige Abbildung einer Linie auf ein Flächenstück》, Math. Ann. 38；Peano (1890)
+（经典数学；openai/math 中无直接对应）
+
+30
+00:01:32,525 --> 00:01:36,178
+龙曲线（反复对折纸带）— Heighway, Banks, Harter 发现；M. Gardner (1967) Scientific American 介绍
+（经典数学；openai/math 中无直接对应）
+
+31
+00:01:36,218 --> 00:01:39,870
+莫比乌斯带 — A. F. Möbius (1865)；J. B. Listing (1858) ／ 自指句“这句话是假的”：说谎者悖论
+（经典数学；openai/math 中无直接对应）
+
+32
+00:01:39,910 --> 00:01:43,562
+悖论与不可判定 — K. Gödel (1931) 《Über formal unentscheidbare Sätze der Principia Mathematica…》
+相关：openai/math 结果族 004《Hilbert's tenth problem over ℚ》（不可判定性）
+
+33
+00:01:43,602 --> 00:01:47,255
+谢尔宾斯基三角形，维数 log 3 / log 2 — W. Sierpiński (1915), Comptes Rendus 160
+相关：openai/math 结果族 148（自相似测度的维数公式）
+
+34
+00:01:47,295 --> 00:01:50,947
+科赫曲线，周长→∞，维数 log 4 / log 3 — H. von Koch (1904), Arkiv för Matematik 1
+（经典数学；openai/math 中无直接对应）
+
+35
+00:01:50,987 --> 00:01:54,639
+巴恩斯利蕨（4 个仿射变换的迭代函数系统）— M. Barnsley & S. Demko (1985), Proc. R. Soc. A 399；Barnsley (1988)《Fractals Everywhere》；IFS：J. Hutchinson (1981)
+（经典数学；openai/math 中无直接对应）
+
+36
+00:01:54,679 --> 00:02:02,024
+曼德博集合放大 — R. Brooks & J. P. Matelski (1978/1981)；B. Mandelbrot (1980) 《Fractal aspects of the iteration of z → λz(1−z)…》
+（经典数学；openai/math 中无直接对应）
+
+37
+00:02:02,064 --> 00:02:05,716
+牛顿分形 z³ − 1 — A. Cayley (1879) 《The Newton–Fourier imaginary problem》, Amer. J. Math. 2
+（经典数学；openai/math 中无直接对应）
+
+38
+00:02:05,756 --> 00:02:09,408
+Clifford 吸引子 — C. A. Pickover (1994) 《Chaos in Wonderland》
+相关：openai/math 结果族 146（混沌与熵）
+
+39
+00:02:09,448 --> 00:02:13,101
+高尔顿板与正态分布 — F. Galton (1889) 《Natural Inheritance》；de Moivre (1733)；Laplace (1812)
+（经典数学；openai/math 中无直接对应）
+
+40
+00:02:13,141 --> 00:02:16,793
+提取角色轮廓（闭曲线 S¹ → ℂ）
+原创画面效果
+
+41
+00:02:16,833 --> 00:02:24,178
+傅里叶级数用本轮画出角色 — J. Fourier (1822) 《Théorie analytique de la chaleur》；系数用 FFT 计算：Cooley & Tukey (1965), Math. Comp. 19
+相关：openai/math 结果族 075《The L log L Fourier-convergence conjecture》与 130《Exact Fourier transforms below n log n》
+
+42
+00:02:24,218 --> 00:02:27,870
+方波的傅里叶合成与吉布斯现象 — H. Wilbraham (1848)；J. W. Gibbs (1899) Nature 59
+相关：openai/math 结果族 075（傅里叶级数的几乎处处收敛）
+
+43
+00:02:27,910 --> 00:02:31,562
+溜冰：心形线 r = a(1 − cos θ) — J. Castillon (1741) 命名
+（经典数学；openai/math 中无直接对应）
+
+44
+00:02:31,602 --> 00:02:35,255
+溜冰：伯努利双纽线 (x²+y²)² = a²(x²−y²) — Jacob Bernoulli (1694), Acta Eruditorum
+（经典数学；openai/math 中无直接对应）
+
+45
+00:02:35,295 --> 00:02:38,947
+沃罗诺伊图 — G. Voronoi (1908), J. reine angew. Math. 133；Dirichlet (1850)
+相关：openai/math 结果族 224《Critical and quenched near-critical universality for Poisson–Voronoi percolation》
+
+46
+00:02:38,987 --> 00:02:42,639
+杨辉三角 mod 2 → 谢尔宾斯基三角形 — 杨辉 (1261)；Pascal (1654)；Lucas 定理 (1878)
+（经典数学；openai/math 中无直接对应）
+
+47
+00:02:42,679 --> 00:02:44,485
+最终副歌 ① 门格海绵穿越 — Menger (1926)
+（经典数学；openai/math 中无直接对应）
+
+48
+00:02:44,525 --> 00:02:46,332
+② 螺旋二十四面体 gyroid — A. H. Schoen (1970) NASA Technical Note D-5541
+（经典数学；openai/math 中无直接对应）
+
+49
+00:02:46,372 --> 00:02:48,178
+③ 十二重万花筒（二面体群 D₁₂）
+（经典数学；openai/math 中无直接对应）
+
+50
+00:02:48,218 --> 00:02:50,024
+④ 随音乐变化的 Julia 集 — Julia (1918)
+（经典数学；openai/math 中无直接对应）
+
+51
+00:02:50,064 --> 00:02:51,870
+⑤ 牛顿分形 × 万花筒 — Cayley (1879)
+（经典数学；openai/math 中无直接对应）
+
+52
+00:02:51,910 --> 00:02:53,716
+⑥ 超立方体 — Hinton (1888)
+相关：openai/math 结果族 171（超立方体 Ramsey 数）
+
+53
+00:02:53,756 --> 00:02:55,562
+⑦ 叶序爆发 — Vogel (1979)
+（经典数学；openai/math 中无直接对应）
+
+54
+00:02:55,602 --> 00:02:57,408
+⑧ ∴ me ∈ math
+原创台词
+
+55
+00:02:57,448 --> 00:02:59,255
+⑨ 曼德博集合快速放大 — Mandelbrot (1980)
+（经典数学；openai/math 中无直接对应）
+
+56
+00:02:59,295 --> 00:03:01,101
+⑩ 一小节内用本轮画完她 — Fourier (1822)；Cooley & Tukey (1965)
+相关：openai/math 结果族 075、130
+
+57
+00:03:01,141 --> 00:03:02,947
+⑪ 沃罗诺伊图 — Voronoi (1908)
+相关：openai/math 结果族 224
+
+58
+00:03:02,987 --> 00:03:04,793
+⑫ 洛伦兹吸引子 + 环面纽结 T(2,5) — Lorenz (1963)
+相关：openai/math 结果族 146、306
+
+59
+00:03:04,833 --> 00:03:06,639
+⑬ 三角形炸裂 → 六重万花筒 — Delaunay (1934)
+（经典数学；openai/math 中无直接对应）
+
+60
+00:03:06,679 --> 00:03:08,485
+⑭ 画中画递归加速 — Banach (1922)；de Smit & Lenstra (2003)
+（经典数学；openai/math 中无直接对应）
+
+61
+00:03:08,525 --> 00:03:10,332
+⑮ 公式光环：本片出现过的所有公式
+e^{iπ}+1=0 · φ · Σ2⁻ⁿ=1 · z²+c · |ℕ|<|ℝ| · me(t)=Σcₙe^{2πint} …
+
+62
+00:03:10,372 --> 00:03:12,178
+⑯ 碎裂 → 坍缩 → ∎（Q.E.D.，证毕符号，Halmos 推广）
+（经典数学；openai/math 中无直接对应）
+
+63
+00:03:12,218 --> 00:03:21,408
+return QED ;  ∴ me ∈ math
+原创台词
+
+64
+00:03:21,448 --> 00:03:31,870
+音乐：Mili — world.execute (me) ;（版权归 Project Mili）｜ 画面：Canvas 2D + WebGL 逐帧代码生成
+openai/math：github.com/openai/math（2026-10-06 发布，结果为预印本，部分附 Lean 形式化）
