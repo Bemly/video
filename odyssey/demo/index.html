@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>叠界 · Two Worlds, One Body</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0c0a10; overflow: hidden; font-family: "PingFang SC", "Helvetica Neue", sans-serif; color: #efe6d6; }
+  canvas { width: 100vw; height: 100vh; display: block; image-rendering: auto; }
+  #hud { position: fixed; left: 18px; top: 16px; font-size: 13px; line-height: 1.7; text-shadow: 0 1px 0 #000a; pointer-events: none; }
+  #hud b { font-family: Menlo, monospace; font-weight: 600; }
+  kbd { font-family: Menlo, monospace; font-size: 11px; background: #ffffff1c; border: 1px solid #ffffff38; border-radius: 4px; padding: 1px 5px; }
+  #meter { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); width: 340px; pointer-events: none; text-align: center; font-size: 12px; letter-spacing: .12em; }
+  #bar { height: 8px; border: 1px solid #ffffff55; margin-top: 6px; position: relative; }
+  #fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #d1ff33, #ff29b8); }
+  #thr { position: absolute; left: 66.6%; top: -4px; bottom: -4px; width: 1px; background: #fff; }
+  #msg { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); font-size: 22px; letter-spacing: .2em; opacity: 0; transition: opacity .25s; pointer-events: none; text-shadow: 0 0 12px #ff29b8; }
+  #stats { position: fixed; right: 14px; top: 12px; font: 11px Menlo, monospace; opacity: .6; text-align: right; pointer-events: none; }
+</style>
+<script type="importmap">{ "imports": { "three": "../node_modules/three/build/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <b>叠界</b> — 一个身体，两个世界<br>
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动　<kbd>空格</kbd> 跳 / 上浮　<kbd>C</kbd> 下潜　<kbd>Shift</kbd> 冲刺（穿墙）<br>
+  <kbd>Q</kbd> 切换注视的世界　<kbd>F</kbd> 冲突场显示　<kbd>G</kbd> 世界修正　<kbd>R</kbd> 重置　拖动鼠标转视角
+</div>
+<div id="msg"></div>
+<div id="meter">冲突 CONFLICT<div id="bar"><div id="fill"></div><div id="thr"></div></div></div>
+<div id="stats"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

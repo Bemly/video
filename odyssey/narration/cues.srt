@@ -1,0 +1,687 @@
+1
+00:00:00,000 --> 00:00:05,533
+Today I'd like to try cramming two worlds into the same space.
+
+2
+00:00:05,533 --> 00:00:09,348
+Here's what I ended up with.
+
+3
+00:00:09,348 --> 00:00:15,743
+One place, two overlapping worlds: one dried out, one drowned.
+
+4
+00:00:15,743 --> 00:00:20,800
+And I have one body in each of them.
+
+5
+00:00:20,800 --> 00:00:25,690
+When their rules of physics disagree…
+
+6
+00:00:25,690 --> 00:00:30,365
+…space itself tears into what I'm calling a conflict field.
+
+7
+00:00:31,367 --> 00:00:35,827
+Also, something not entirely friendly is watching.
+
+8
+00:00:35,827 --> 00:00:40,287
+But we'll get to that. Let's start from the beginning.
+
+9
+00:00:40,900 --> 00:00:43,640
+First, the rules.
+
+10
+00:00:43,640 --> 00:00:48,960
+World A and world B occupy the exact same space.
+
+11
+00:00:48,960 --> 00:00:54,495
+They can't see or touch each other. Neither can interfere with the other.
+
+12
+00:00:54,495 --> 00:01:00,030
+A wall in A simply doesn't exist as far as B is concerned.
+
+13
+00:01:00,030 --> 00:01:03,700
+The one exception is the player.
+
+14
+00:01:03,700 --> 00:01:07,515
+The player exists in both worlds at once.
+
+15
+00:01:07,515 --> 00:01:13,695
+So I gave them two bodies, each colliding only with its own world.
+
+16
+00:01:13,695 --> 00:01:18,155
+The same input drives both bodies.
+
+17
+00:01:18,155 --> 00:01:23,905
+As long as the worlds agree, the bodies overlap perfectly.
+
+18
+00:01:23,905 --> 00:01:30,730
+But the moment A says 'there's a wall here' and B says 'no there isn't'…
+
+19
+00:01:30,730 --> 00:01:35,405
+…the two bodies come apart. That's a contradiction.
+
+20
+00:01:35,405 --> 00:01:41,367
+This whole video is about figuring out what to do with it.
+
+21
+00:01:41,367 --> 00:01:45,827
+First we need to see something. I'm going with voxels.
+
+22
+00:01:45,827 --> 00:01:52,222
+The whole scene is a single 128×40×64 3D texture.
+
+23
+00:01:52,222 --> 00:01:56,467
+The key idea: every cell stores two numbers.
+
+24
+00:01:56,467 --> 00:02:03,507
+One is its material in world A, the other its material in world B.
+
+25
+00:02:03,507 --> 00:02:07,922
+Two worlds, one texture.
+
+26
+00:02:07,933 --> 00:02:12,608
+All the rendering happens in one fragment shader.
+
+27
+00:02:12,608 --> 00:02:18,358
+Each pixel fires a ray that steps through the grid one cell at a time.
+
+28
+00:02:18,358 --> 00:02:25,398
+The algorithm is called DDA: each step lands exactly on the next cell boundary.
+
+29
+00:02:25,398 --> 00:02:33,633
+Because each cell holds two numbers, one ray learns about both worlds at once.
+
+30
+00:02:33,633 --> 00:02:37,018
+In code it looks roughly like this.
+
+31
+00:02:37,018 --> 00:02:43,198
+Compare the distance to the next boundary on each axis, and take the nearest.
+
+32
+00:02:43,198 --> 00:02:47,828
+Then read both materials for that cell.
+
+33
+00:02:47,833 --> 00:02:50,358
+Let's run it.
+
+34
+00:02:50,358 --> 00:02:54,818
+Well, we can see blocks. That's the good news.
+
+35
+00:02:54,818 --> 00:03:00,998
+The bad news is both worlds are mashed into one blob. You can't tell which is which.
+
+36
+00:03:01,000 --> 00:03:08,195
+Add a palette per world, three-band cel shading, and ink outlines.
+
+37
+00:03:08,195 --> 00:03:14,590
+Much prettier, but the problem remains: which wall belongs to which world?
+
+38
+00:03:14,600 --> 00:03:22,070
+The outlines aren't a post-process: when a ray hits a face, it checks the neighbouring cells.
+
+39
+00:03:22,070 --> 00:03:27,390
+If the neighbour is solid too, the surface is flat. No line.
+
+40
+00:03:27,390 --> 00:03:31,850
+If there's something diagonally above, it's a crease.
+
+41
+00:03:31,850 --> 00:03:36,525
+If the neighbour is empty, we've reached the silhouette.
+
+42
+00:03:36,533 --> 00:03:43,358
+As for telling the worlds apart: I have the player "attend" to one of them.
+
+43
+00:03:43,358 --> 00:03:46,958
+The attended world is drawn solid.
+
+44
+00:03:46,958 --> 00:03:52,278
+The other is left as glowing outlines and a little haze.
+
+45
+00:03:52,278 --> 00:03:59,103
+A ray hitting a ghost surface doesn't stop. It picks up a little colour and keeps going.
+
+46
+00:03:59,103 --> 00:04:06,528
+And if a cell is solid in both worlds, then it's just… solid.
+
+47
+00:04:06,533 --> 00:04:10,993
+The implementation is plain front-to-back compositing.
+
+48
+00:04:10,993 --> 00:04:17,818
+Opacity depends on which world the surface belongs to, and which one we're attending to.
+
+49
+00:04:17,833 --> 00:04:20,788
+That's a lot clearer.
+
+50
+00:04:20,788 --> 00:04:24,603
+Warm colours: the dried-out world A.
+
+51
+00:04:24,603 --> 00:04:30,998
+Tap a key to attend to the other side: the cold, drowned world B.
+
+52
+00:04:30,998 --> 00:04:37,823
+Incidentally, each world has its own sun, so the shadows point different ways.
+
+53
+00:04:37,823 --> 00:04:43,788
+Things in A cast no shadow in B, and vice versa.
+
+54
+00:04:43,788 --> 00:04:52,667
+And these residents belong to one world only, so they drift straight through the other world's walls.
+
+55
+00:04:52,667 --> 00:04:55,407
+Now for the physics.
+
+56
+00:04:55,407 --> 00:05:01,797
+Two bodies, each moving and colliding in its own world.
+
+57
+00:05:01,800 --> 00:05:05,400
+Let's just run it with nothing else.
+
+58
+00:05:05,400 --> 00:05:10,075
+Walk up to a wall that only exists in A…
+
+59
+00:05:10,075 --> 00:05:15,825
+A's body is blocked. B's body just keeps going.
+
+60
+00:05:15,825 --> 00:05:19,640
+Great. I am now two people.
+
+61
+00:05:19,640 --> 00:05:22,810
+And there's no way to put me back together.
+
+62
+00:05:23,600 --> 00:05:28,490
+So something has to pull the bodies back together.
+
+63
+00:05:28,490 --> 00:05:32,090
+The simplest thing is a spring.
+
+64
+00:05:32,090 --> 00:05:35,475
+The further apart, the harder it pulls.
+
+65
+00:05:35,475 --> 00:05:42,455
+I made it stiffen as it stretches, so the bodies can never drift too far.
+
+66
+00:05:42,467 --> 00:05:45,207
+It's only a few lines of code.
+
+67
+00:05:45,207 --> 00:05:52,400
+The force acts on A, and the opposite force acts on B.
+
+68
+00:05:52,400 --> 00:05:54,710
+Try again.
+
+69
+00:05:54,710 --> 00:06:00,890
+This time B does get pulled back, and then… bounces out again.
+
+70
+00:06:00,890 --> 00:06:04,700
+The two worlds are using me as a slingshot.
+
+71
+00:06:04,700 --> 00:06:09,805
+Here's the distance between the bodies over time.
+
+72
+00:06:09,805 --> 00:06:14,910
+A spring only stores energy and hands it straight back.
+
+73
+00:06:14,910 --> 00:06:21,660
+Add damping proportional to their relative velocity to burn that energy off.
+
+74
+00:06:21,667 --> 00:06:23,977
+That's better.
+
+75
+00:06:23,977 --> 00:06:30,157
+A hits the wall, B leans forward a little, and is held firmly.
+
+76
+00:06:30,157 --> 00:06:34,617
+I keep pushing forward, and B can't move either.
+
+77
+00:06:34,617 --> 00:06:40,797
+The world with the wall is reaching through the spring to restrain me in the other one.
+
+78
+00:06:40,797 --> 00:06:46,117
+Let go, and the bodies merge again, back to a stable state.
+
+79
+00:06:46,933 --> 00:06:52,898
+The contradiction now has a number: the tension in the spring.
+
+80
+00:06:52,898 --> 00:06:55,853
+I want to make it visible.
+
+81
+00:06:55,853 --> 00:07:02,248
+So I added another, lower-resolution 3D texture and called it the conflict field.
+
+82
+00:07:02,248 --> 00:07:09,933
+Each frame I splat some intensity between the bodies and onto whatever they're pushing against.
+
+83
+00:07:09,933 --> 00:07:13,918
+The higher the tension, the more gets splatted.
+
+84
+00:07:13,933 --> 00:07:19,038
+On the physics side, two splats per frame, scaled by tension.
+
+85
+00:07:19,038 --> 00:07:25,003
+In the shader, every step of the ray also samples the conflict field.
+
+86
+00:07:25,003 --> 00:07:31,613
+For colour I picked an obnoxious complementary pair, drawn as moving interference bands.
+
+87
+00:07:31,613 --> 00:07:36,288
+It is, after all, two worlds interfering.
+
+88
+00:07:36,300 --> 00:07:38,825
+That looks pretty good!
+
+89
+00:07:38,825 --> 00:07:42,425
+…it just doesn't seem to stop.
+
+90
+00:07:42,425 --> 00:07:49,890
+I forgot to make it decay. Everywhere I go turns permanently pink.
+
+91
+00:07:49,900 --> 00:07:55,800
+Multiplying by something less than one each frame fixes it.
+
+92
+00:07:55,800 --> 00:08:01,335
+Now the field glows with the conflict and fades once I let go.
+
+93
+00:08:01,335 --> 00:08:07,730
+I also added chromatic aberration and screen tearing, driven by the same tension.
+
+94
+00:08:07,730 --> 00:08:14,770
+Walls touched by the field get hatched, so you can tell at a glance what's causing the argument.
+
+95
+00:08:14,770 --> 00:08:19,875
+And that lightning between the bodies is the spring itself.
+
+96
+00:08:20,667 --> 00:08:25,772
+As it stands, one thin wall can stop me forever.
+
+97
+00:08:25,772 --> 00:08:30,662
+That's a bit dull. What if I'm going fast enough?
+
+98
+00:08:30,662 --> 00:08:35,552
+Here's the rule: when the tension exceeds a threshold…
+
+99
+00:08:35,552 --> 00:08:39,582
+…and the bodies are still separating at speed…
+
+100
+00:08:39,582 --> 00:08:46,192
+…the blocked body 'phases out': it temporarily leaves its own world.
+
+101
+00:08:46,192 --> 00:08:52,527
+It stops colliding with its own walls and gets yanked across by the spring.
+
+102
+00:08:52,533 --> 00:09:00,567
+Version one was blunt: over the threshold, switch collision off for 0.12 seconds.
+
+103
+00:09:00,567 --> 00:09:04,812
+Give the player a dash and try the thin wall.
+
+104
+00:09:04,812 --> 00:09:07,337
+Straight through!
+
+105
+00:09:07,337 --> 00:09:13,947
+The bodies re-merge on the far side: a new stable state.
+
+106
+00:09:13,947 --> 00:09:17,717
+What about a thicker wall?
+
+107
+00:09:17,717 --> 00:09:20,812
+…Ah.
+
+108
+00:09:20,812 --> 00:09:27,852
+The 0.12 seconds ran out, collision came back, and A's body is still inside the wall.
+
+109
+00:09:27,852 --> 00:09:33,602
+It's entombed in stone, with B's body tethered outside.
+
+110
+00:09:34,200 --> 00:09:37,370
+So a timer won't do.
+
+111
+00:09:37,370 --> 00:09:44,410
+A phased body should stay phased until it has actually left solid matter.
+
+112
+00:09:44,410 --> 00:09:52,095
+While phased, it obeys the other world's geometry instead. It's a guest there, after all.
+
+113
+00:09:52,095 --> 00:09:59,350
+Meanwhile the wall grips it like friction; only a strong enough pull can drag it through.
+
+114
+00:09:59,350 --> 00:10:05,530
+If the pull fades before it's out, the wall spits it back the way it came.
+
+115
+00:10:05,533 --> 00:10:11,493
+In code, it's a very small state machine.
+
+116
+00:10:11,500 --> 00:10:14,025
+Thin wall: through.
+
+117
+00:10:14,025 --> 00:10:19,345
+It works the other way too: this coral wall exists only in B.
+
+118
+00:10:19,345 --> 00:10:23,805
+Thick wall: halfway in, then spat back out.
+
+119
+00:10:23,805 --> 00:10:29,340
+How thick a wall you can pass depends entirely on how far the dash can stretch the spring.
+
+120
+00:10:29,340 --> 00:10:35,305
+I didn't hard-code that. It just falls out of the spring.
+
+121
+00:10:35,900 --> 00:10:39,500
+Which means we can build little puzzles.
+
+122
+00:10:39,500 --> 00:10:46,325
+A's thick wall has a doorway, but in B the doorway is plugged with coral.
+
+123
+00:10:46,325 --> 00:10:51,430
+Walk through A's door while smashing through B's coral.
+
+124
+00:10:52,233 --> 00:10:56,908
+There was one more bug I really did not see coming.
+
+125
+00:10:56,908 --> 00:11:03,088
+Climbing stairs, I'd occasionally twitch and drop into the steps.
+
+126
+00:11:03,088 --> 00:11:10,773
+The cause: stepping up lifts A's body one cell in an instant, yanking the spring taut.
+
+127
+00:11:10,773 --> 00:11:18,667
+Tension spikes past the threshold, and A "tunnels" through its own floor as if it were a wall.
+
+128
+00:11:18,667 --> 00:11:25,707
+Hence that second condition from earlier: the bodies must still be separating at speed.
+
+129
+00:11:25,707 --> 00:11:32,962
+On stairs, B is catching up rather than pulling away, so it no longer misfires.
+
+130
+00:11:32,967 --> 00:11:38,287
+So far the worlds only differ in where their walls are.
+
+131
+00:11:38,287 --> 00:11:43,392
+It's more interesting if their physics differ too.
+
+132
+00:11:43,392 --> 00:11:50,862
+Take this sunken court: dry in A, flooded in B.
+
+133
+00:11:50,862 --> 00:11:57,257
+A's body is pulled down by gravity; B's body is pushed up by buoyancy.
+
+134
+00:11:57,257 --> 00:12:01,287
+The spring sits between them, pulled both ways.
+
+135
+00:12:01,287 --> 00:12:06,733
+They settle somewhere neither of them is happy with.
+
+136
+00:12:06,733 --> 00:12:12,268
+In code, each body only feels the forces of its own world.
+
+137
+00:12:12,268 --> 00:12:17,158
+The only thing linking them is still that spring.
+
+138
+00:12:17,167 --> 00:12:19,477
+Walking into the court.
+
+139
+00:12:19,477 --> 00:12:25,872
+In A I'm on dry ground, and yet my body slowly lifts off.
+
+140
+00:12:25,872 --> 00:12:32,912
+The conflict field stays lit but steady: a state that's 'close enough' to balance.
+
+141
+00:12:32,912 --> 00:12:37,157
+In A there's a low wall too high to jump.
+
+142
+00:12:37,157 --> 00:12:42,692
+But B's buoyancy can carry A's body right over it.
+
+143
+00:12:42,692 --> 00:12:48,012
+Next, B has a reef ceiling that can't be swum over.
+
+144
+00:12:48,012 --> 00:12:55,697
+Now A's weight helps out: hold dive, and it drags B's body to the bottom.
+
+145
+00:12:55,697 --> 00:13:01,662
+Walking in one world, swimming in the other, each dragging the other along.
+
+146
+00:13:02,667 --> 00:13:06,482
+Here's how it looks from B's side.
+
+147
+00:13:06,482 --> 00:13:14,800
+The rings on the water, by the way, are just a few sines in the shader.
+
+148
+00:13:14,800 --> 00:13:17,540
+One last idea.
+
+149
+00:13:17,540 --> 00:13:24,795
+Right now contradictions are permanent: the wall is forever in A and never in B.
+
+150
+00:13:24,795 --> 00:13:28,610
+What if the worlds corrected themselves?
+
+151
+00:13:28,610 --> 00:13:33,715
+I track a 'stress' value for each voxel involved in a contradiction.
+
+152
+00:13:33,715 --> 00:13:40,755
+Keep pushing on a wall until the stress fills up, and that voxel gets written into the other world.
+
+153
+00:13:40,755 --> 00:13:44,355
+Both sides now have a wall. Contradiction gone.
+
+154
+00:13:44,355 --> 00:13:51,180
+Conversely, if you phase through, the voxels you passed are erased outright.
+
+155
+00:13:51,180 --> 00:13:56,025
+Neither side has a wall. Contradiction also gone.
+
+156
+00:13:56,033 --> 00:14:03,498
+Either way, the worlds converge towards agreeing with each other.
+
+157
+00:14:03,500 --> 00:14:07,745
+Lean on this membrane that only exists in B.
+
+158
+00:14:07,745 --> 00:14:11,130
+The field gets brighter…
+
+159
+00:14:11,130 --> 00:14:16,880
+…and then it sets. These cells now belong to both worlds.
+
+160
+00:14:16,880 --> 00:14:20,050
+Move over and dash through instead.
+
+161
+00:14:20,050 --> 00:14:23,220
+This time it leaves a hole.
+
+162
+00:14:23,220 --> 00:14:29,400
+Walk around enough and I'll eventually grind the two worlds into one.
+
+163
+00:14:30,000 --> 00:14:32,955
+There is one small problem, though.
+
+164
+00:14:32,955 --> 00:14:39,350
+With every conflict and every correction, that thing in the sky opens a little wider.
+
+165
+00:14:39,350 --> 00:14:43,595
+It doesn't belong to A. It doesn't belong to B.
+
+166
+00:14:43,595 --> 00:14:49,990
+It lives in the gap between them, and I've been helpfully prying that gap open.
+
+167
+00:14:49,990 --> 00:14:54,450
+…I've decided not to fix that bug for now.
+
+168
+00:14:55,967 --> 00:14:59,352
+And that's everything so far.
+
+169
+00:14:59,352 --> 00:15:06,392
+There's lots more to try: different gravity directions, different rates of time…
+
+170
+00:15:06,392 --> 00:15:09,347
+Or a third world.
+
+171
+00:15:09,347 --> 00:15:16,172
+The demo and source are in the project folder if you'd like to walk around yourself.
+
+172
+00:15:16,172 --> 00:15:18,482
+Thanks for watching.
