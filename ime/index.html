@@ -27,7 +27,7 @@
 <div id="wrap">
 <div id="top"><b>AFM 拼音 · 介绍视频</b><span id="status">加载素材中…</span><span id="note">空格播放/暂停，←/→ 3 秒</span><a href="../">← 返回</a></div>
 <div id="stage"><canvas id="out" width="1920" height="1080"></canvas></div>
-<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fs">⛶</button></div></div>
+<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fsbtn">⛶</button></div></div>
 </div>
 <script type="x-shader/x-fragment" id="fs">#version 300 es
 precision highp float;
@@ -412,7 +412,7 @@ function live(){
     bar.addEventListener('pointermove', move);
     bar.addEventListener('pointerup', up);
   });
-  document.getElementById('fs').addEventListener('click', () => {
+  document.getElementById('fsbtn').addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
   });
