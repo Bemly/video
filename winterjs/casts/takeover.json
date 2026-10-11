@@ -1,0 +1,29 @@
+{
+ "cols": 96,
+ "rows": 16,
+ "cwd": "/home/user/winterjs/demo",
+ "env": {
+  "PATH": "/home/user/wjs-build/target/debug:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin"
+ },
+ "steps": [
+  {
+   "type": "cd bun-app && winterjs --run server.js\r"
+  },
+  {
+   "until": "Bun.serve  →",
+   "timeout": 30,
+   "after": 1.2
+  },
+  {
+   "type": "cd ../deno-app && winterjs --run main.ts\r"
+  },
+  {
+   "until": "Deno.serve →",
+   "timeout": 30,
+   "after": 2.0
+  }
+ ],
+ "setup": [
+  "alias winterjs='winterjs -hide_banner'"
+ ]
+}

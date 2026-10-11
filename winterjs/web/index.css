@@ -1,0 +1,13 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: #02040a;
+  color: #eef3ff;
+  font-family: 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+}
+
+a {
+  color: #8ab4ff;
+}

@@ -1,0 +1,51 @@
+{
+ "cols": 100,
+ "rows": 24,
+ "cwd": "/home/user/vue-demo",
+ "env": {
+  "PATH": "/home/user/wjs-build/target/debug:/usr/local/bin:/usr/bin:/bin"
+ },
+ "steps": [
+  {
+   "type": "winterjs -a create-vue\r"
+  },
+  {
+   "until": "$ ",
+   "timeout": 120,
+   "after": 1.0
+  },
+  {
+   "type": "winterjs -r node_modules/.bin/create-vue -- hello-vue --ts --router\r"
+  },
+  {
+   "until": "Done",
+   "timeout": 120,
+   "after": 1.0
+  },
+  {
+   "type": "cd hello-vue && winterjs -I -y\r"
+  },
+  {
+   "wait": 60
+  },
+  {
+   "type": "winterjs -r build\r"
+  },
+  {
+   "until": "built in",
+   "timeout": 240,
+   "after": 1.5
+  },
+  {
+   "type": "winterjs -r dev\r"
+  },
+  {
+   "until": "Local",
+   "timeout": 120,
+   "after": 3.0
+  }
+ ],
+ "setup": [
+  "alias winterjs='winterjs -hide_banner'"
+ ]
+}

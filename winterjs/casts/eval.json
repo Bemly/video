@@ -1,0 +1,6 @@
+{ "cols": 92, "rows": 12, "cwd": "/home/user/winterjs/demo", "env": {"PATH": "/home/user/wjs-build/target/debug:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin"},
+  "steps": [
+    { "type": "winterjs --eval '40 + 2'\r" }, { "until": "42", "after": 0.8 },
+    { "type": "winterjs --eval 'await (await fetch(\"data:text/plain,hi\")).text()'\r" }, { "until": "hi", "after": 0.8 },
+    { "type": "winterjs --eval 'new URL(\"https://ex.com/?a=1\").search'\r" }, { "until": "?a=1", "after": 1.5 }
+  ] }

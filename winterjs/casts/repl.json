@@ -1,0 +1,59 @@
+{
+ "cols": 100,
+ "rows": 24,
+ "cwd": "/home/user/winterjs/demo",
+ "env": {
+  "PATH": "/home/user/wjs-build/target/debug:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin"
+ },
+ "steps": [
+  {
+   "type": "winterjs --repl\r"
+  },
+  {
+   "until": "❄>",
+   "timeout": 30,
+   "after": 0.8
+  },
+  {
+   "type": "WinterJS.media.",
+   "cps": 10
+  },
+  {
+   "key": "\t",
+   "after": 1.5
+  },
+  {
+   "key": "\t",
+   "after": 1.2
+  },
+  {
+   "key": "\t",
+   "after": 2.0
+  },
+  {
+   "key": "\u0015",
+   "after": 0.3
+  },
+  {
+   "key": "\u001b",
+   "after": 0.5
+  },
+  {
+   "type": ".doc WinterJS.media.decodeAudio\r",
+   "cps": 12
+  },
+  {
+   "wait": 3.0
+  },
+  {
+   "type": "await fetch(\"data:text/plain,hi\").then((r) => r.text())\r",
+   "cps": 14
+  },
+  {
+   "wait": 2.0
+  }
+ ],
+ "setup": [
+  "alias winterjs='winterjs -hide_banner'"
+ ]
+}

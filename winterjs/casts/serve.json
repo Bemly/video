@@ -1,0 +1,33 @@
+{
+ "cols": 96,
+ "rows": 30,
+ "cwd": "/home/user/winterjs/demo",
+ "env": {
+  "PATH": "/home/user/wjs-build/target/debug:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin"
+ },
+ "steps": [
+  {
+   "type": "winterjs --serve --handler handler.mjs --port 8080 2>/dev/null &\r"
+  },
+  {
+   "wait": 2.5
+  },
+  {
+   "type": "curl localhost:8080/api/hello\r"
+  },
+  {
+   "until": "hello from winterjs",
+   "after": 0.8
+  },
+  {
+   "type": "curl localhost:8080/any/path\r"
+  },
+  {
+   "until": "\"path\"",
+   "after": 2.0
+  }
+ ],
+ "setup": [
+  "alias winterjs='winterjs -hide_banner'"
+ ]
+}

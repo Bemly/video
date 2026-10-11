@@ -1,0 +1,8 @@
+node_modules/
+out/
+.cache/
+public/voice/*.mp3
+public/voice/timeline.json
+# public/sfx/ 提交进 video 仓库供网页版用（纯 Python 合成，无版权，约 2.8M）
+# 原 winterjs2 promo-video 分支此行是 public/sfx/ 忽略
+__pycache__/

@@ -12,10 +12,11 @@
 | [`agentart/`](agentart/) | 提示词美学 · Prompt Aesthetic —— Fish S2 英文配音，浏览器实时渲染，中英双语字幕 | https://bili.bemly.moe/agentart/ |
 | [`bot/`](bot/) | Ayu.Core —— 纯 shell SNS 机器人框架宣传短片（1:19），浏览器实时渲染 | https://bili.bemly.moe/bot/ |
 | [`ime/`](ime/) | AFM 拼音 —— macOS 液态玻璃风格输入法介绍视频（4:33），浏览器实时渲染 | https://bili.bemly.moe/ime/ |
+| [`winterjs/`](winterjs/) | WinterJS 宣传片 —— SpiderMonkey 运行时介绍（Remotion，浏览器实时渲染） | https://bili.bemly.moe/winterjs/ |
 
 `openai-math/` 与 `math-execute-me/` 不需要构建：页面直接在浏览器里实时渲染每一帧（Canvas 2D + WebGL）。
 `odyssey/` 也不需要构建：`odyssey/demo`（对应线上 `/odyssey/`）与 `odyssey/film`（对应线上 `/coding-adventure/`）都是纯静态网页（Three.js 走 CDN），直接复制到 gh-pages 同名目录即可。
 
 首页导航：https://bili.bemly.moe/
 
-> `408/` 的网页版需要构建（`cd 408 && npm i && npm run web:build`），产物放到 gh-pages 的 `408/` 下；另外两个直接复制网页文件即可。
+> `408/` 与 `winterjs/` 的网页版需要构建（`cd 408 && npm i && npm run web:build` / `cd winterjs && npm i --legacy-peer-deps && npm run web:build`），产物分别放到 gh-pages 的 `408/`、`winterjs/` 下；另外两个直接复制网页文件即可。

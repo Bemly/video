@@ -4,4 +4,5 @@ review/
 .DS_Store
 *.log
 *.wav
+!winterjs/public/sfx/*.wav
 dist/

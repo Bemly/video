@@ -1,0 +1,29 @@
+{
+ "cols": 100,
+ "rows": 32,
+ "cwd": "/home/user/winterjs/demo",
+ "env": {
+  "PATH": "/home/user/wjs-build/target/debug:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin"
+ },
+ "steps": [
+  {
+   "type": "winterjs --run media.js\r"
+  },
+  {
+   "until": "formats",
+   "timeout": 60,
+   "after": 2.0
+  },
+  {
+   "type": "winterjs --run tools.js\r"
+  },
+  {
+   "until": "种格式",
+   "timeout": 30,
+   "after": 3.0
+  }
+ ],
+ "setup": [
+  "alias winterjs='winterjs -hide_banner'"
+ ]
+}

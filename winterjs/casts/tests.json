@@ -1,0 +1,4 @@
+{ "cols": 90, "rows": 14, "cwd": "/home/user/winterjs/demo",
+  "env": {"PATH": "/home/user/wjs-build/target/debug:/usr/local/bin:/usr/bin:/bin"},
+  "setup": ["alias winterjs='winterjs -hide_banner'"],
+  "steps": [ { "type": "winterjs -t\r" }, { "until": "pass 1", "timeout": 60, "after": 2.0 } ] }

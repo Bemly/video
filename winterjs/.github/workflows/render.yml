@@ -1,0 +1,58 @@
+name: render-promo
+
+on:
+  push:
+    branches: [promo-video]
+  workflow_dispatch:
+
+concurrency:
+  group: render-promo
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 中文与 emoji 字体
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji
+          fc-cache -f
+
+      - name: 依赖
+        run: |
+          pip install edge-tts mutagen
+          npm ci
+
+      - name: 配音 + 时间轴 + 字幕
+        run: python3 tools/tts.py
+
+      - name: 类型检查
+        run: npx tsc --noEmit
+
+      - name: 渲染封面
+        run: npx remotion still src/index.ts WinterJSPromo out/cover.png --frame=1240
+
+      - name: 渲染正片
+        run: npx remotion render src/index.ts WinterJSPromo out/winterjs-promo.mp4 --concurrency=100%
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winterjs-promo
+          path: |
+            out/winterjs-promo.mp4
+            out/winterjs-promo.srt
+            out/cover.png
+          retention-days: 30

@@ -1,0 +1,620 @@
+{
+  "cast": {
+    "whale": {
+      "name": "DeepSeek娘",
+      "voice": "zh-CN-XiaoyiNeural",
+      "pitch": "+18Hz",
+      "rate": "+8%",
+      "color": "#7cc8ff"
+    },
+    "claude": {
+      "name": "Claude娘",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "pitch": "+30Hz",
+      "rate": "+14%",
+      "color": "#ffb347"
+    }
+  },
+  "scenes": [
+    {
+      "id": "opening",
+      "title": "开场",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "哈喽大家好！",
+          "meme": "jump"
+        },
+        {
+          "who": "whale",
+          "text": "今天给大家安利一个硬核项目——WinterJS！",
+          "say": "今天给大家安利一个硬核项目，Winter J S！",
+          "meme": "horn"
+        },
+        {
+          "who": "claude",
+          "text": "又一个 JS 运行时？不是已经有 Node、Deno、Bun 三巨头了吗？",
+          "say": "又一个 J S 运行时？不是已经有 Node、Deno、Bun 三巨头了吗？",
+          "meme": "huh"
+        },
+        {
+          "who": "whale",
+          "text": "这次不一样。那三家用的是 V8 或 JavaScriptCore，",
+          "say": "这次不一样。那三家用的是 V8 或者 JavaScript Core，",
+          "meme": "nerd"
+        },
+        {
+          "who": "whale",
+          "text": "而 WinterJS 用的，是火狐浏览器的 JS 引擎——SpiderMonkey！",
+          "say": "而 Winter J S 用的，是火狐浏览器的 J S 引擎，Spider Monkey！",
+          "meme": "wow"
+        },
+        {
+          "who": "claude",
+          "text": "哇奥！Firefox 的心脏？！",
+          "meme": "waa"
+        },
+        {
+          "who": "whale",
+          "text": "没错。它是首个同时兼容 Node、Bun、Deno 三大生态的 SpiderMonkey 运行时。",
+          "say": "没错。它是首个同时兼容 Node、Bun、Deno 三大生态的 Spider Monkey 运行时。",
+          "meme": "cool"
+        },
+        {
+          "who": "claude",
+          "text": "一句话概括？",
+          "meme": "owo"
+        },
+        {
+          "who": "whale",
+          "text": "一个二进制，跑遍 JS 生态。",
+          "say": "一个二进制，跑遍 J S 生态。",
+          "meme": "pat",
+          "burst": [
+            "heart",
+            "flower",
+            "jump",
+            "bobo",
+            "tail",
+            "love"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "engine",
+      "title": "底层：SpiderMonkey × mozjs",
+      "lines": [
+        {
+          "who": "whale",
+          "text": "先说底层。SpiderMonkey 是世界上第一个 JavaScript 引擎，",
+          "say": "先说底层。Spider Monkey 是世界上第一个 JavaScript 引擎，",
+          "meme": "news"
+        },
+        {
+          "who": "whale",
+          "text": "1995 年，由 JS 之父 Brendan Eich 在网景公司写下。",
+          "say": "1995 年，由 J S 之父布兰登·艾克在网景公司写下。",
+          "meme": "side"
+        },
+        {
+          "who": "claude",
+          "text": "三十年的老字号引擎！",
+          "meme": "nerd"
+        },
+        {
+          "who": "whale",
+          "text": "今天它依然驱动着 Firefox，JIT 编译、分代 GC，一直紧跟最新的 ECMAScript 标准。",
+          "say": "今天它依然驱动着 Firefox，J I T 编译、分代 G C，一直紧跟最新的 ECMAScript 标准。",
+          "meme": "cool"
+        },
+        {
+          "who": "whale",
+          "text": "WinterJS 通过 Servo 项目维护的 mozjs Rust 绑定，直连 SpiderMonkey，版本精确钉在 Gecko 153。",
+          "say": "Winter J S 通过 Servo 项目维护的 moz J S Rust 绑定，直连 Spider Monkey，版本精确钉在 Gecko 153。",
+          "meme": "sit"
+        },
+        {
+          "who": "claude",
+          "text": "那引擎之外的部分呢？",
+          "meme": "think"
+        },
+        {
+          "who": "whale",
+          "text": "事件循环、模块加载器、Web API、Node 兼容层、包管理器——全部是纯 Rust。",
+          "say": "事件循环、模块加载器、Web A P I、Node 兼容层、包管理器，全部是纯 Rust。",
+          "meme": "press"
+        },
+        {
+          "who": "whale",
+          "text": "unsafe 只允许出现在引擎边界；JS 跑在独占线程，和 Rust 侧只经消息队列通信。",
+          "say": "unsafe 只允许出现在引擎边界；J S 跑在独占线程，和 Rust 侧只经过消息队列通信。",
+          "meme": "pinch"
+        },
+        {
+          "who": "claude",
+          "text": "懂了，稳！",
+          "meme": "bowl"
+        }
+      ]
+    },
+    {
+      "id": "compare",
+      "title": "横向：WinterJS × Node × Deno × Bun",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "那和三巨头比，WinterJS 站在哪？",
+          "say": "那和三巨头比，Winter J S 站在哪？",
+          "meme": "think"
+        },
+        {
+          "who": "whale",
+          "text": "看这张表。Node 是 V8 加 C++，Deno 是 V8 加 Rust，Bun 是 JavaScriptCore 加 Zig。",
+          "say": "看这张表。Node 是 V8 加 C 加加，Deno 是 V8 加 Rust，Bun 是 JavaScript Core 加 Zig。",
+          "meme": "blabla"
+        },
+        {
+          "who": "whale",
+          "text": "WinterJS 则是 SpiderMonkey 加 Rust——四家四条引擎路线，火狐这块拼图终于补上了。",
+          "say": "Winter J S 则是 Spider Monkey 加 Rust，四家四条引擎路线，火狐这块拼图终于补上了。",
+          "meme": "tail"
+        },
+        {
+          "who": "claude",
+          "text": "重点来了，兼容性呢？",
+          "meme": "huh"
+        },
+        {
+          "who": "whale",
+          "text": "WinterJS 以 node: 模块为地基，兼容目标对标 Bun 自带的 Node 测试清单。",
+          "say": "Winter J S 以 node 冒号模块为地基，兼容目标对标 Bun 自带的 Node 测试清单。",
+          "meme": "horn"
+        },
+        {
+          "who": "whale",
+          "text": "同时内置 Bun 全局对象：Bun.serve、Bun.file、Bun.spawn，外加 bun:sqlite 和 bun:ffi。",
+          "say": "同时内置 Bun 全局对象：Bun 点 serve、Bun 点 file、Bun 点 spawn，外加 bun sqlite 和 bun f f i。",
+          "meme": "lick"
+        },
+        {
+          "who": "whale",
+          "text": "还有 Deno 命名空间：Deno.serve、Deno.readTextFile、Deno.Command，一应俱全。",
+          "say": "还有 Deno 命名空间：Deno 点 serve、Deno 点 read text file、Deno 点 Command，一应俱全。",
+          "meme": "cattongue"
+        },
+        {
+          "who": "claude",
+          "text": "等等，一个运行时同时认 Node、Bun、Deno 三家的 API？",
+          "say": "等等，一个运行时同时认 Node、Bun、Deno 三家的 A P I？",
+          "meme": "rage",
+          "burst": [
+            "doubleclick",
+            "wow",
+            "waa",
+            "yell",
+            "pounce"
+          ]
+        },
+        {
+          "who": "whale",
+          "text": "对。代码原本写给谁的都行，WinterJS 全都接得住。",
+          "say": "对。代码原本写给谁的都行，Winter J S 全都接得住。",
+          "meme": "enough"
+        },
+        {
+          "who": "claude",
+          "text": "给我也整一个！",
+          "meme": "want"
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "title": "纵向：SpiderMonkey 运行时家谱",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "不过我记得，以前也有基于 SpiderMonkey 的运行时？",
+          "say": "不过我记得，以前也有基于 Spider Monkey 的运行时？",
+          "meme": "huh"
+        },
+        {
+          "who": "whale",
+          "text": "有。我们来翻翻这本家谱。",
+          "meme": "news"
+        },
+        {
+          "who": "whale",
+          "text": "第一位，wasmerio 的 winterjs：一个 WinterCG 规范的 HTTP 服务端，2026 年 3 月已归档停更。",
+          "say": "第一位，wasmer 的 winter j s：一个 Winter C G 规范的 H T T P 服务端，2026 年 3 月已经归档停更。",
+          "meme": "sleepy"
+        },
+        {
+          "who": "claude",
+          "text": "诶？名字一样？",
+          "meme": "blink"
+        },
+        {
+          "who": "whale",
+          "text": "只是同名。我们的 WinterJS 基于 mozjs 从零重写，是通用运行时，不是服务器框架。",
+          "say": "只是同名。我们的 Winter J S 基于 moz J S 从零重写，是通用运行时，不是服务器框架。",
+          "meme": "cringe"
+        },
+        {
+          "who": "whale",
+          "text": "第二位，spiderfire：更新越来越少，最后一次提交停在 2025 年 8 月，已经慢性弃用。",
+          "say": "第二位，spider fire：更新越来越少，最后一次提交停在 2025 年 8 月，已经慢性弃用。",
+          "meme": "curl"
+        },
+        {
+          "who": "whale",
+          "text": "第三位，GJS：GNOME 桌面的 JavaScript 绑定，专做桌面应用和扩展，不面向 npm 与 Node 生态。",
+          "say": "第三位，G J S：GNOME 桌面的 JavaScript 绑定，专做桌面应用和扩展，不面向 n p m 与 Node 生态。",
+          "meme": "box"
+        },
+        {
+          "who": "claude",
+          "text": "所以它们要么只做服务器，要么只做桌面，要么已经慢性弃用。",
+          "meme": "watermelon"
+        },
+        {
+          "who": "whale",
+          "text": "而 WinterJS 是完整的运行时：跑脚本、包管理、测试、lint、HTTP 服务，一个二进制全包。",
+          "say": "而 Winter J S 是完整的运行时：跑脚本、包管理、测试、lint、H T T P 服务，一个二进制全包。",
+          "meme": "heart"
+        },
+        {
+          "who": "claude",
+          "text": "这才叫真正的 JS runtime！",
+          "say": "这才叫真正的 J S runtime！",
+          "meme": "horn",
+          "burst": [
+            "jump",
+            "kiss",
+            "flower",
+            "tail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vue",
+      "title": "实战：一条龙创建 Vue 项目",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "光说不练假把式，来点实战！",
+          "meme": "hachi"
+        },
+        {
+          "who": "whale",
+          "text": "那就现场建一个 Vue 项目。第一步，用 WinterJS 装上官方脚手架 create-vue。",
+          "say": "那就现场建一个 Vue 项目。第一步，用 Winter J S 装上官方脚手架 create vue。",
+          "meme": "gimme"
+        },
+        {
+          "who": "whale",
+          "text": "第二步，直接用 WinterJS 运行它，项目骨架生成完毕。",
+          "say": "第二步，直接用 Winter J S 运行它，项目骨架生成完毕。",
+          "meme": "drool"
+        },
+        {
+          "who": "whale",
+          "text": "第三步，winterjs -I，读取 package.json，把依赖装进 node_modules。",
+          "say": "第三步，winter j s 杠大 I，读取 package 点 json，把依赖装进 node modules。",
+          "meme": "orange"
+        },
+        {
+          "who": "claude",
+          "text": "全程没碰 node 和 npm？",
+          "say": "全程没碰 node 和 n p m？",
+          "meme": "think"
+        },
+        {
+          "who": "whale",
+          "text": "一次都没有。.bin 里的 JS 命令都由 WinterJS 自己执行，机器上没装 Node 也照样跑。",
+          "say": "一次都没有。点 bin 里的 J S 命令都由 Winter J S 自己执行，机器上没装 Node 也照样跑。",
+          "meme": "hiss"
+        },
+        {
+          "who": "whale",
+          "text": "接着 winterjs -r build，Vite 构建开跑，rolldown 的 N-API 原生插件直接加载。",
+          "say": "接着 winter j s 杠 r build，Vite 构建开跑，rolldown 的 N A P I 原生插件直接加载。",
+          "meme": "work"
+        },
+        {
+          "who": "whale",
+          "text": "再来 winterjs -r dev，开发服务器就位；Vue 的服务端渲染同样开箱即用。",
+          "say": "再来 winter j s 杠 r dev，开发服务器就位；Vue 的服务端渲染同样开箱即用。",
+          "meme": "cake"
+        },
+        {
+          "who": "claude",
+          "text": "太丝滑了！",
+          "meme": "tail",
+          "burst": [
+            "lipsmack",
+            "bobo",
+            "rub",
+            "jump"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "takeover",
+      "title": "接管：yarn / pnpm / bun / deno 项目",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "那我手上用 yarn、pnpm、bun 装好依赖的老项目呢？",
+          "say": "那我手上用 yarn、p n p m、bun 装好依赖的老项目呢？",
+          "meme": "grab"
+        },
+        {
+          "who": "whale",
+          "text": "随时接管。WinterJS 直接读现成的 node_modules，不用重新安装。",
+          "say": "随时接管。Winter J S 直接读现成的 node modules，不用重新安装。",
+          "meme": "pile"
+        },
+        {
+          "who": "whale",
+          "text": "在项目里敲 winterjs -r dev，按 package.json 的 scripts 执行；monorepo 也会逐级向上查找。",
+          "say": "在项目里敲 winter j s 杠 r dev，按 package 点 json 的 scripts 执行；monorepo 也会逐级向上查找。",
+          "meme": "press"
+        },
+        {
+          "who": "whale",
+          "text": "Bun 项目里的 Bun.serve、bun:sqlite，照常运行。",
+          "say": "Bun 项目里的 Bun 点 serve、bun sqlite，照常运行。",
+          "meme": "bread"
+        },
+        {
+          "who": "whale",
+          "text": "Deno 项目的 main.ts 用了 Deno.serve 和 Deno.readTextFile？TypeScript 也直接跑。",
+          "say": "Deno 项目的 main 点 t s 用了 Deno 点 serve 和 Deno 点 read text file？TypeScript 也直接跑。",
+          "meme": "lick"
+        },
+        {
+          "who": "claude",
+          "text": "换运行时，零迁移成本！",
+          "meme": "nowuser",
+          "burst": [
+            "wantcake",
+            "pounce",
+            "hugleg"
+          ]
+        },
+        {
+          "who": "whale",
+          "text": "测试也一样：winterjs -t 自动发现测试文件，vitest 这样的第三方测试框架也能直接跑。",
+          "say": "测试也一样：winter j s 杠 t 自动发现测试文件，vitest 这样的第三方测试框架也能直接跑。",
+          "meme": "owo"
+        }
+      ]
+    },
+    {
+      "id": "wintercg",
+      "title": "WinterCG：标准 Web API 服务端",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "服务端标准呢？现在都讲 WinterCG。",
+          "say": "服务端标准呢？现在都讲 Winter C G。",
+          "meme": "huh"
+        },
+        {
+          "who": "whale",
+          "text": "fetch、Request、Response、URL、Web Streams、TextEncoder、WebCrypto、structuredClone，全都在。",
+          "say": "fetch、Request、Response、U R L、Web Streams、Text Encoder、Web Crypto、structured Clone，全都在。",
+          "meme": "blabla"
+        },
+        {
+          "who": "whale",
+          "text": "写一个带 fetch 方法的默认导出，一行 winterjs --serve 就能上线。",
+          "say": "写一个带 fetch 方法的默认导出，一行 winter j s 杠杠 serve 就能上线。",
+          "meme": "horn"
+        },
+        {
+          "who": "whale",
+          "text": "HTTP/1.1、HTTP/2、HTTP/3 一起支持，还有 WebSocket、静态文件，证书能走 ACME 自动申请。",
+          "say": "H T T P 1.1、H T T P 2、H T T P 3 一起支持，还有 Web Socket、静态文件，证书能走 A C M E 自动申请。",
+          "meme": "wow"
+        },
+        {
+          "who": "claude",
+          "text": "连 HTTP/3 都有！",
+          "say": "连 H T T P 3 都有！",
+          "meme": "waa",
+          "burst": [
+            "wow",
+            "yell",
+            "jump"
+          ]
+        },
+        {
+          "who": "whale",
+          "text": "同一份 handler，搬到其他遵循 WinterCG 的平台，写法也一模一样。",
+          "say": "同一份 handler，搬到其他遵循 Winter C G 的平台，写法也一模一样。",
+          "meme": "hugleg"
+        },
+        {
+          "who": "whale",
+          "text": "另外，CompressionStream 支持 zstd，localStorage 直接持久化到本地数据库。",
+          "say": "另外，Compression Stream 支持 z s t d，local Storage 直接持久化到本地数据库。",
+          "meme": "fumo"
+        }
+      ]
+    },
+    {
+      "id": "repl",
+      "title": "REPL：像 irb 一样补全 + 看文档",
+      "lines": [
+        {
+          "who": "claude",
+          "text": "我最爱在命令行里试代码，REPL 好用吗？",
+          "say": "我最爱在命令行里试代码，R E P L 好用吗？",
+          "meme": "meow"
+        },
+        {
+          "who": "whale",
+          "text": "敲 winterjs 回车，就进入雪花提示符的 REPL。",
+          "say": "敲 winter j s 回车，就进入雪花提示符的 R E P L。",
+          "meme": "sit"
+        },
+        {
+          "who": "whale",
+          "text": "像 Ruby 的 irb 一样，按 Tab 补全变量和成员，右侧同步弹出文档面板。",
+          "say": "像 Ruby 的 i r b 一样，按 Tab 补全变量和成员，右侧同步弹出文档面板。",
+          "meme": "doubleclick"
+        },
+        {
+          "who": "claude",
+          "text": "参数和返回值直接送到眼前？",
+          "meme": "heart"
+        },
+        {
+          "who": "whale",
+          "text": "输入 .doc 加任意 API 名，就能读整篇文档：MDN、Bun、Deno 和 WinterJS 自己的文档都内置在二进制里。",
+          "say": "输入 点 doc 加任意 A P I 名，就能读整篇文档：M D N、Bun、Deno 和 Winter J S 自己的文档，都内置在二进制里。",
+          "meme": "news"
+        },
+        {
+          "who": "whale",
+          "text": "顶层 await 直接用，括号没闭合自动续行，还有语法高亮和历史记录。",
+          "meme": "nerd"
+        },
+        {
+          "who": "claude",
+          "text": "这手感，爱了爱了！",
+          "meme": "thinkpat",
+          "burst": [
+            "love",
+            "kiss",
+            "rub"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "native",
+      "title": "独有原生 API：WinterJS.*",
+      "lines": [
+        {
+          "who": "whale",
+          "text": "最后是压轴：WinterJS 独有的原生 API，统统挂在 WinterJS 全局命名空间下。",
+          "say": "最后是压轴：Winter J S 独有的原生 A P I，统统挂在 Winter J S 全局命名空间下。",
+          "meme": "horn"
+        },
+        {
+          "who": "claude",
+          "text": "快端上来！",
+          "meme": "cake"
+        },
+        {
+          "who": "whale",
+          "text": "先看多媒体。WinterJS.media.decodeAudio，一行解码 MP3、FLAC、OGG、WAV、M4A，直接拿到 Float32 PCM。",
+          "say": "先看多媒体。Winter J S 点 media 点 decode Audio，一行解码 M P 3、FLAC、OGG、WAV、M 4 A，直接拿到 Float 32 的 P C M 数据。",
+          "meme": "yell"
+        },
+        {
+          "who": "whale",
+          "text": "WinterJS.media.play，音频直送声卡，后台线程播放，不阻塞脚本。",
+          "say": "Winter J S 点 media 点 play，音频直送声卡，后台线程播放，不阻塞脚本。",
+          "meme": "hugpig"
+        },
+        {
+          "who": "whale",
+          "text": "WinterJS.media.videoEncode，把 RGBA 帧直接编码成 AV1 视频。",
+          "say": "Winter J S 点 media 点 video Encode，把 R G B A 帧直接编码成 A V 1 视频。",
+          "meme": "pounce"
+        },
+        {
+          "who": "whale",
+          "text": "还有 MP4 解复用：读轨道信息，逐个取出采样。",
+          "say": "还有 M P 4 解复用：读轨道信息，逐个取出采样。",
+          "meme": "faded"
+        },
+        {
+          "who": "claude",
+          "text": "在 JS 运行时里直接编码 AV1？这也太硬核了！",
+          "say": "在 J S 运行时里直接编码 A V 1？这也太硬核了！",
+          "meme": "waa",
+          "burst": [
+            "rage",
+            "wow",
+            "hiss",
+            "bite",
+            "yell"
+          ]
+        },
+        {
+          "who": "whale",
+          "text": "图片也不含糊：WinterJS.image 十六种格式编解码，PNG、JPEG、WebP、GIF，连 JPEG XL 和 SVG 都能解。",
+          "say": "图片也不含糊：Winter J S 点 image 十六种格式编解码，P N G、JPEG、WebP、GIF，连 JPEG X L 和 S V G 都能解。",
+          "meme": "love"
+        },
+        {
+          "who": "whale",
+          "text": "这些能力全部内置在运行时里，不用另装任何 npm 包。",
+          "say": "这些能力全部内置在运行时里，不用另装任何 n p m 包。",
+          "meme": "dontdrop"
+        },
+        {
+          "who": "whale",
+          "text": "还有 semver、YAML、JSONC、二维码、IP 计算、Git 读取、TypeScript 转译，常用小工具开箱即用。",
+          "say": "还有 semver、YAML、JSONC、二维码、I P 计算、Git 读取、TypeScript 转译，常用小工具开箱即用。",
+          "meme": "owo"
+        },
+        {
+          "who": "claude",
+          "text": "连二维码都能一行生成！",
+          "meme": "pat"
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "title": "总结",
+      "lines": [
+        {
+          "who": "whale",
+          "text": "总结一下：火狐的引擎，Rust 的身体，Node、Bun、Deno 三家通吃。",
+          "meme": "heart"
+        },
+        {
+          "who": "claude",
+          "text": "还有 Vue 一条龙、REPL 带文档、原生多媒体！",
+          "say": "还有 Vue 一条龙、R E P L 带文档、原生多媒体！",
+          "meme": "jump"
+        },
+        {
+          "who": "whale",
+          "text": "WinterJS 已在 GitHub 开源：Bemly/winterjs，文档站 winterjs.bemly.moe。",
+          "say": "Winter J S 已经在 GitHub 开源：Bemly 斜杠 winter j s，文档站 winter j s 点 bemly 点 moe。",
+          "meme": "gimme"
+        },
+        {
+          "who": "claude",
+          "text": "觉得不错的话，一键三连，我们下期见！",
+          "meme": "behindscreen",
+          "burst": [
+            "heart",
+            "flower",
+            "kiss",
+            "love",
+            "hugleg",
+            "tail",
+            "bobo"
+          ]
+        },
+        {
+          "who": "whale",
+          "text": "拜拜～",
+          "meme": "night"
+        }
+      ]
+    }
+  ]
+}
