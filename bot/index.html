@@ -25,22 +25,23 @@
 <body>
 <div id="wrap">
 <div id="top"><b>Ayu.Core</b><span id="status">pure shell SNS bot framework</span><span id="note">空格播放/暂停，←/→ 3 秒，R 重播</span><a href="../">← 返回</a></div>
-<div id="stage"><canvas id="gl" width="1920" height="1080"></canvas></div>
+<div id="stage"><canvas id="gl"></canvas></div>
 <div id="ui"><div id="row"><button id="play">▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fs">⛶</button></div></div>
 </div>
-<div id="hint" style="display:none">click: play / pause · ← → seek · R restart</div>
 <audio id="au" src="audio/mix.mp3" preload="auto"></audio>
 <script src="timeline.js"></script>
+<script src="images.js"></script>
 <script>
 'use strict';
-const W = 1920, H = 1080;
+const _qs = new URLSearchParams(location.search);
+const W = +(_qs.get('w') || 1920), H = +(_qs.get('h') || 1080);
 const TL = window.TIMELINE, DUR = TL.duration;
 const Q = {}; TL.cues.forEach(c => Q[c.id] = c);
 const q = id => Q[id].t;
 
 /* ---------- scenes ---------- */
-const SCENES = ['boot', 'title', 'box', 'flow', 'wire', 'cover', 'sync', 'test', 'outro'];
-const TABS   = ['hush', 'ayu', 'box', 'flow', 'wire', 'cover', 'sync', 'test', 'exit'];
+const SCENES = ['boot', 'title', 'box', 'flow', 'wire', 'cover', 'sync', 'live', 'test', 'outro'];
+const TABS   = ['hush', 'ayu', 'box', 'flow', 'wire', 'cover', 'sync', 'live', 'test', 'exit'];
 const START = {};
 SCENES.forEach((s, i) => START[s] = i ? TL.cues.find(c => c.scene === s).t - 0.4 : 0);
 const sceneAt = t => { let k = 0; SCENES.forEach((s, i) => { if (t >= START[s]) k = i; }); return k; };
@@ -372,6 +373,36 @@ S.sync = t => {
   ctx.globalAlpha = 1;
 };
 
+const PICS = window.IMGS.map(src => { const i = new Image(); i.src = src; return i; });
+window.READY = Promise.all(PICS.map(i => i.decode()));
+S.live = t => {
+  const j1 = q('j1'), j3 = Q.j3;
+  const D = [['QQ → Discord', 'm', q('j2')], ['Telegram → QQ', 'c', j3.t], ['Telegram → QQ', 'c', j3.t + j3.d * 0.55], ['QQ → Telegram', 'b', q('j4')]];
+  let cur = 0; D.forEach((d, i) => { if (t >= d[2]) cur = i; });
+  const frame = (i, x, y, w, h, bright, on, fs) => {
+    const [label, c] = D[i];
+    ctx.fillStyle = '#000'; ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha *= bright; ctx.drawImage(PICS[i], x, y, w, h); ctx.globalAlpha /= bright;
+    ctx.strokeStyle = on ? COL[c] : COL.k; ctx.lineWidth = on ? 4 : 2; ctx.strokeRect(x, y, w, h);
+    const tw = (label.length + 2) * fs * CW, th = fs * 1.5;
+    ctx.fillStyle = on ? COL[c] : '#000'; ctx.fillRect(x + 20, y - th / 2, tw, th);
+    ctx.font = `bold ${fs}px ${FONT}`; ctx.fillStyle = on ? '#010a06' : COL.d; ctx.fillText(label, x + 20 + fs * CW, y + fs * 0.36);
+  };
+  // main view
+  const a = ease((t - j1) / 0.5), sw = t - D[cur][2], live = t >= D[0][2];
+  ctx.globalAlpha = a * (cur && sw < 0.25 ? 0.35 + 0.65 * sw / 0.25 : 1);
+  frame(cur, 90, 170, 900, 690, live ? 0.72 + 0.2 * clamp(1 - sw * 2) : 0.3, live, 26);
+  // thumbnails
+  D.forEach((d, i) => {
+    const ta = ease((t - j1 - 0.15 - i * 0.18) / 0.4); if (ta <= 0) return;
+    const seen = t >= d[2];
+    ctx.globalAlpha = ta;
+    frame(i, 1030 + (i % 2) * 410, 170 + Math.floor(i / 2) * 352, 390, 299, i === cur && live ? 0.7 : seen ? 0.4 : 0.2, i === cur && live, 19);
+  });
+  ctx.globalAlpha = 1;
+  if (t > j1 + 0.3) text(1030, 850, '«d»plugin/sync · «g»' + (live ? cur + 1 : 0) + '/4 «d»routes live', 22);
+};
+
 S.test = t => {
   const h1 = q('h1'), h2 = q('h2'), h3 = q('h3');
   panel(90, 150, 1740, 730, 'test/run.sh');
@@ -448,7 +479,7 @@ function paint(t) {
 }
 
 /* ---------- WebGL ---------- */
-const cv = document.getElementById('gl');
+const cv = document.getElementById('gl'); cv.width = W; cv.height = H;
 const gl = cv.getContext('webgl', { preserveDrawingBuffer: true, antialias: false, alpha: false });
 const VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
 const FS = `
@@ -466,7 +497,7 @@ float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
 vec4 term(vec2 st){ if(st.x<0.||st.x>1.||st.y<0.||st.y>1.) return vec4(0.); return texture2D(uTex, vec2(st.x, 1.-st.y)); }
 
 vec3 rain(vec2 st){
-  vec2 grid = vec2(96., 40.);
+  vec2 grid = vec2(floor(uRes.x/uRes.y*54.), 40.);
   vec2 p = st*grid, id = floor(p), f = fract(p);
   float sp = 0.25 + h1(id.x*7.13)*0.9;
   float head = mod(uTime*sp*9. + h1(id.x*3.7)*70., grid.y*1.9);
@@ -563,7 +594,7 @@ gl.uniform1i(U('uTex'), 0); gl.uniform1i(U('uAtlas'), 1); gl.uniform2f(U('uRes')
 const LOOK = {                // rain, net, tint
   boot: [0.25, 0.0, [0.3, 1.0, 0.5]], title: [0.9, 0.25, [0.3, 1.0, 0.5]], box: [0.5, 0.15, [0.3, 1.0, 0.5]],
   flow: [0.3, 0.7, [0.3, 0.85, 1.0]], wire: [0.35, 1.0, [1.0, 0.35, 0.8]], cover: [0.6, 0.35, [0.4, 0.6, 1.0]],
-  sync: [0.35, 0.8, [0.3, 0.9, 1.0]], test: [0.7, 0.2, [0.3, 1.0, 0.5]], outro: [0.55, 0.3, [0.3, 1.0, 0.5]],
+  sync: [0.35, 0.8, [0.3, 0.9, 1.0]], live: [0.45, 0.6, [0.3, 1.0, 0.5]], test: [0.7, 0.2, [0.3, 1.0, 0.5]], outro: [0.55, 0.3, [0.3, 1.0, 0.5]],
 };
 function frame(t) {
   t = clamp(t, 0, DUR);
@@ -577,6 +608,54 @@ function frame(t) {
   gl.uniform1f(U('uFade'), Math.min(clamp(t / 0.6), clamp((DUR - t) / 1.2)));
   gl.viewport(0, 0, W, H); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
+
+/* ---------- still cover (any aspect ratio) ---------- */
+function paintCover() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+  const cx = W / 2, u = H / 1080, mid = (y, str, fs, a = 1) => text(cx - plain(str).length * fs * CW / 2, y, str, fs, 1e9, a);
+  // tmux bar
+  const fs = 24 * u, by = 52 * u, m = 70 * u;
+  ctx.fillStyle = COL.g; ctx.fillRect(m, by - fs * 1.1, 5 * fs * CW + 16, fs * 1.5); ctx.font = `bold ${fs}px ${FONT}`; ctx.fillStyle = '#021'; ctx.fillText('[ayu]', m + 8, by);
+  text(m + 5 * fs * CW + 40, by, '«w»0:hush*  «d»1:httpd  2:nc  3:ssl_client', fs);
+  const r = 'busybox:musl │ tls1.2 │ 141 tests ok'; text(W - m - r.length * fs * CW, by, '«g»' + r, fs, 1e9, 0.8);
+  ctx.fillStyle = COL.g; ctx.fillRect(m, by + 20 * u, W - 2 * m, 2);
+  // the hook
+  const pw = Math.min(W - 2 * m - 40 * u, 1500 * u);
+  panel(cx - pw / 2, 120 * u, pw, 150 * u, 'tty0');
+  const f1 = 34 * u, lx = cx - pw / 2 + 40 * u;
+  text(lx, 182 * u, '«d»/ # «w»type python node curl bash', f1);
+  text(lx, 236 * u, '«r»python: not found   node: not found   bash: not found', Math.min(f1, (pw - 80 * u) / 53 / CW));
+  // logo
+  const cell = Math.floor(W * 0.84 / 47);
+  logo(cx, 440 * u, cell, 99, 0);
+  // headline
+  const hl = '纯 Shell 写的 Bot 框架', hf = Math.min(104 * u, W * 0.075);
+  ctx.textAlign = 'center'; ctx.font = `900 ${hf}px ${CJK}`;
+  ctx.fillStyle = COL.w; ctx.fillText(hl, cx, 710 * u);
+  const wSh = ctx.measureText(hl).width, pre = ctx.measureText('纯 ').width, shw = ctx.measureText('Shell').width;
+  ctx.textAlign = 'left'; ctx.fillStyle = COL.g; ctx.fillText('Shell', cx - wSh / 2 + pre, 710 * u);
+  ctx.fillStyle = COL.g; ctx.fillRect(cx - wSh / 2 + pre, 728 * u, shw, 8 * u);
+  mid(790 * u, '«d»# «g»hush «d»+ «c»httpd CGI «d»+ «m»nc «d»+ «m»ssl_client «d»+ «y»hush-json', Math.min(36 * u, W / 62 / CW * 1.15));
+  // platforms
+  const tags = [['QQ', 'c'], ['Telegram', 'b'], ['Discord', 'm']], bw = Math.min(360 * u, W * 0.24), gap = 44 * u, bh = 96 * u;
+  let x = cx - (3 * bw + 2 * gap) / 2;
+  tags.forEach(([n, c]) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x, 850 * u, bw, bh);
+    ctx.fillStyle = COL[c]; ctx.globalAlpha = 0.2; ctx.fillRect(x, 850 * u, bw, bh); ctx.globalAlpha = 1;
+    ctx.strokeStyle = COL[c]; ctx.lineWidth = 4; ctx.strokeRect(x, 850 * u, bw, bh);
+    const tf = 42 * u; text(x + (bw - n.length * tf * CW) / 2, 850 * u + bh / 2 + tf * 0.34, `«${c}»${n}`, tf);
+    x += bw + gap;
+  });
+  mid(1010 * u, '«d»github.com/Bemly/Ayu.Core', 26 * u);
+}
+window.renderCover = (seed = 31.7) => {
+  paintCover();
+  gl.activeTexture(gl.TEXTURE0); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, term);
+  gl.uniform1f(U('uTime'), seed); gl.uniform1f(U('uGlitch'), 0); gl.uniform1f(U('uPulse'), 9);
+  gl.uniform1f(U('uRain'), 1.0); gl.uniform1f(U('uNet'), 0.9); gl.uniform3fv(U('uTint'), [0.3, 1.0, 0.5]); gl.uniform1f(U('uFade'), 1.12);
+  gl.viewport(0, 0, W, H); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  return cv.toDataURL('image/png');
+};
 window.DURATION = DUR;
 window.renderFrame = t => { frame(t); return cv.toDataURL('image/jpeg', 0.93); };
 

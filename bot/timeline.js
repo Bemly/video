@@ -1,5 +1,5 @@
 window.TIMELINE={
- "duration": 79.398,
+ "duration": 89.781,
  "cues": [
   {
    "id": "a1",
@@ -242,13 +242,53 @@ window.TIMELINE={
    "d": 3.902
   },
   {
+   "id": "j1",
+   "scene": "live",
+   "say": "And this is it, running in real group chats.",
+   "en": "And this is it, running in real group chats.",
+   "zh": "这是它在真实群聊里跑起来的样子。",
+   "gap": 0.35,
+   "t": 66.59,
+   "d": 2.455
+  },
+  {
+   "id": "j2",
+   "scene": "live",
+   "say": "Q Q messages land in Discord.",
+   "en": "QQ messages land in Discord.",
+   "zh": "QQ 的消息落进 Discord。",
+   "gap": 0.3,
+   "t": 69.395,
+   "d": 2.02
+  },
+  {
+   "id": "j3",
+   "scene": "live",
+   "say": "Telegram shows up in Q Q.",
+   "en": "Telegram shows up in QQ.",
+   "zh": "Telegram 的消息出现在 QQ。",
+   "gap": 0.3,
+   "t": 71.716,
+   "d": 1.854
+  },
+  {
+   "id": "j4",
+   "scene": "live",
+   "say": "And Q Q flows back to Telegram.",
+   "en": "And QQ flows back to Telegram.",
+   "zh": "QQ 再流回 Telegram。",
+   "gap": 0.9,
+   "t": 73.869,
+   "d": 2.204
+  },
+  {
    "id": "h1",
    "scene": "test",
    "say": "One hundred forty one tests.",
    "en": "141 tests.",
    "zh": "141 个测试。",
    "gap": 0.3,
-   "t": 66.59,
+   "t": 76.973,
    "d": 1.905
   },
   {
@@ -258,7 +298,7 @@ window.TIMELINE={
    "en": "Zero failures.",
    "zh": "零失败。",
    "gap": 0.3,
-   "t": 68.795,
+   "t": 79.178,
    "d": 1.115
   },
   {
@@ -268,7 +308,7 @@ window.TIMELINE={
    "en": "No API keys required.",
    "zh": "不需要任何 API key。",
    "gap": 1.0,
-   "t": 70.21,
+   "t": 80.594,
    "d": 1.8
   },
   {
@@ -278,7 +318,7 @@ window.TIMELINE={
    "en": "Ayu.Core.",
    "zh": "Ayu.Core。",
    "gap": 0.4,
-   "t": 73.01,
+   "t": 83.393,
    "d": 0.833
   },
   {
@@ -288,7 +328,7 @@ window.TIMELINE={
    "en": "If it has a shell, it can run a bot.",
    "zh": "只要有 shell，就能跑 Bot。",
    "gap": 3.0,
-   "t": 74.243,
+   "t": 84.627,
    "d": 2.154
   }
  ]

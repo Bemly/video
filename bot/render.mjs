@@ -12,6 +12,7 @@ page.on('pageerror', e => { console.error('PAGE ERROR', e.message); process.exit
 page.on('console', m => m.type() === 'error' && console.error('console:', m.text()));
 await page.setViewport({ width: 1920, height: 1080 });
 await page.goto('file://' + encodeURI(path.join(decodeURI(dir), 'index.html')) + '?render');
+await page.evaluate(() => window.READY);
 const grab = async t => Buffer.from((await page.evaluate(t => window.renderFrame(t), t)).split(',')[1], 'base64');
 if (shots.length) {
   const fs = await import('node:fs');
