@@ -1,0 +1,9 @@
+[matter-of-fact] Here's a prompt most of us have written. One file. Build steps, test commands, style rules, architecture, and a warning about that one flaky test.
+
+[dry humor] Every task pays for all of it. Fixing a typo in the docs? (break) [sarcastic] The agent still reads how the garbage collector works.
+
+[calm, confident] Firefox does something different. The root file holds only what is true everywhere. Then it lists five directories, and says: when you work in here, open the agents file that lives in here.
+
+[warm] The JavaScript engine has one. Layout has one. WebRender has one. (break) Each is around a hundred lines or less, and each is only read when you step inside.
+
+[thoughtful] It's the same move as extracting a function. (break) The instruction didn't get shorter. [emphatic] It got a scope.

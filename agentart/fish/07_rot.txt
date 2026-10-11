@@ -1,0 +1,7 @@
+[serious] Prompts have the same disease as comments. (break) Nothing checks them.
+
+[dry humor] The compiler won't warn you when an instruction goes out of date. The agent will just follow it. (break) [dry humor] Confidently.
+
+[warm] Firefox has a rule for this, and I love it. Reference a name, (break) not a position. This text outlives the code it describes.
+
+[matter-of-fact] So, no line numbers. No, the function above. Names, and links that are pinned to a revision.

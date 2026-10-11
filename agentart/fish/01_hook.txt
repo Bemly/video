@@ -1,0 +1,9 @@
+[calm, confident] I'm going to say something that might be controversial. (break) [emphatic] Don't write prompts.
+
+[matter-of-fact] I don't mean stop talking to your agent. (break) I mean the big one. The giant instruction file at the root of your project, that tries to explain everything.
+
+[curious] To see why, let's open one of the largest codebases on earth. (break) Firefox. (break) Tens of millions of lines of code. C++, Rust, JavaScript, Kotlin.
+
+[thoughtful] You would expect its agent instructions to be enormous. (long-break) [surprised] The root file is seventy-three lines.
+
+[amused] And the very first rule in it? (break) Almost never add comments. (long-break) [dry humor] So, we're off to a good start.

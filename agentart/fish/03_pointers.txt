@@ -1,0 +1,9 @@
+[curious] Now look inside the layout one. It's thirty-one lines, and most of them say the same thing. (break) [emphatic] Read this document first.
+
+[matter-of-fact] It doesn't explain the frame tree. It points to the file that does. (break) Because that document is maintained by the people who change the code, and a copy inside a prompt would be stale by Friday.
+
+[impressed] The JavaScript engine's file goes one step further. It is a map. One line per directory, in the order a script flows through the engine. Parser, (break) interpreter, (break) compilers, (break) garbage collector.
+
+[thoughtful] A map tells you where to look. (break) It doesn't try to be the territory.
+
+[amused] And the Claude specific file? (break) It is one line. It imports the agents file. One source of truth, for every tool.

@@ -1,0 +1,9 @@
+[curious] So should you never write a prompt? (break) [warm] Of course not.
+
+[serious] Write down what the code can't tell you. (break) The traps.
+
+[matter-of-fact] Like this one. A default screenshot does not show the real renderer output. So never conclude a rendering bug is fixed from a screenshot.
+
+[serious] Or this. Never submit a patch without explicit approval.
+
+[thoughtful] No amount of reading the source would teach an agent that. (break) [emphatic] That is what prompts are for.

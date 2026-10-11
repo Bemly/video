@@ -1,0 +1,5 @@
+[calm] One more layer. During code review, nobody should have to remember which guidance applies.
+
+[matter-of-fact] So there is a small config file of rules. If a patch touches a web interface definition and a C++ file, load the web standards guide. If it touches front end code, but not tests, load the front end guide.
+
+[emphatic] The prompt is selected by the diff. (break) [emphatic] Not by somebody's memory.

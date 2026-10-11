@@ -1,0 +1,263 @@
+1
+1
+00:00:00,000 --> 00:00:04,640
+我要说一个可能有争议的观点：别写提示词。
+I'm going to say something that might be controversial. Don't write prompts.
+
+2
+2
+00:00:04,640 --> 00:00:12,400
+我不是让你别和智能体说话。我说的是那个大家伙——放在项目根目录、试图解释一切的巨型指令文件。
+I don't mean stop talking to your agent. I mean the big one. The giant instruction file at the root of your project, that tries to explain everything.
+
+3
+3
+00:00:12,400 --> 00:00:22,400
+想知道为什么，我们来打开地球上最大的代码库之一：Firefox。数千万行代码，C++、Rust、JavaScript、Kotlin。
+To see why, let's open one of the largest codebases on earth. Firefox. Tens of millions of lines of code. C++, Rust, JavaScript, Kotlin.
+
+4
+4
+00:00:22,400 --> 00:00:27,200
+你可能以为它给智能体的指令会长得吓人。根文件只有 73 行。
+You would expect its agent instructions to be enormous. The root file is seventy-three lines.
+
+5
+5
+00:00:27,200 --> 00:00:32,229
+而它的第一条规则是什么？几乎不要写注释。嗯，开了个好头。
+And the very first rule in it? Almost never add comments. So, we're off to a good start.
+
+6
+6
+00:00:32,229 --> 00:00:41,509
+这是我们大多数人都写过的提示词：一个文件，塞着构建步骤、测试命令、代码风格、架构说明，外加一条关于某个不稳定测试的警告。
+Here's a prompt most of us have written. One file. Build steps, test commands, style rules, architecture, and a warning about that one flaky test.
+
+7
+7
+00:00:41,509 --> 00:00:48,379
+每个任务都要为这一整份买单。只是改文档里的一个错别字？智能体照样得读一遍垃圾回收器的原理。
+Every task pays for all of it. Fixing a typo in the docs? The agent still reads how the garbage collector works.
+
+8
+8
+00:00:49,029 --> 00:00:58,789
+Firefox 的做法不一样。根文件只放放之四海而皆准的东西。然后它列出五个目录，并说：在这里干活时，打开这里面的那份 AGENTS.md。
+Firefox does something different. The root file holds only what is true everywhere. Then it lists five directories, and says: when you work in here, open the agents file that lives in here.
+
+9
+9
+00:00:58,789 --> 00:01:07,989
+JavaScript 引擎有一份，排版有一份，WebRender 有一份。每份也就一百行上下，而且只有走进那个目录时才会被读到。
+The JavaScript engine has one. Layout has one. WebRender has one. Each is around a hundred lines or less, and each is only read when you step inside.
+
+10
+10
+00:01:07,989 --> 00:01:13,659
+这和提取函数是同一个动作。指令并没有变短，它只是有了作用域。
+It's the same move as extracting a function. The instruction didn't get shorter. It got a scope.
+
+11
+11
+00:01:13,747 --> 00:01:20,707
+再看排版模块那份。一共 31 行，而且大部分在说同一件事：先去读这份文档。
+Now look inside the layout one. It's thirty-one lines, and most of them say the same thing. Read this document first.
+
+12
+12
+00:01:20,707 --> 00:01:31,187
+它不解释帧树，它指向解释帧树的那个文件。因为那份文档由改代码的人维护，而提示词里的副本到周五就过期了。
+It doesn't explain the frame tree. It points to the file that does. Because that document is maintained by the people who change the code, and a copy inside a prompt would be stale by Friday.
+
+13
+13
+00:01:31,187 --> 00:01:43,507
+JavaScript 引擎那份更进一步：它是一张地图。每个目录一行，按脚本流经引擎的顺序排列：解析器、解释器、编译器、垃圾回收器。
+The JavaScript engine's file goes one step further. It is a map. One line per directory, in the order a script flows through the engine. Parser, interpreter, compilers, garbage collector.
+
+14
+14
+00:01:43,507 --> 00:01:47,267
+地图告诉你该往哪看，它不会试图成为疆域本身。
+A map tells you where to look. It doesn't try to be the territory.
+
+15
+15
+00:01:47,267 --> 00:01:54,377
+那 Claude 专用的那个文件呢？只有一行：引入 AGENTS.md。所有工具，同一个事实来源。
+And the Claude specific file? It is one line. It imports the agents file. One source of truth, for every tool.
+
+16
+16
+00:01:54,381 --> 00:01:59,581
+下一个问题。你没法 grep Firefox。好吧，可以，但你得等。
+Next problem. You can't grep Firefox. Well, you can, but you'll wait.
+
+17
+17
+00:01:59,581 --> 00:02:05,341
+你可以为此写上一段话：谨慎搜索，限定路径，保持耐心。
+You could write a paragraph about that. Search carefully. Restrict your paths. Be patient.
+
+18
+18
+00:02:05,341 --> 00:02:13,661
+或者，你可以递给智能体一个工具。Firefox 自带一个理解代码的命令行搜索：问它某个定义，它就回答。
+Or, you can hand the agent a tool. Firefox ships a command line search that understands the code. Ask it for a definition, and it answers.
+
+19
+19
+00:02:13,661 --> 00:02:17,021
+四条示例命令，替代了一整页的忠告。
+Four example commands replace a whole page of advice.
+
+20
+20
+00:02:17,021 --> 00:02:24,621
+这就是提示词里的类型系统。一句话是在请求模型守规矩；一个工具让正确的事变成容易的事。
+This is the type system of prompting. A sentence asks the model to behave. A tool makes the right thing the easy thing.
+
+21
+21
+00:02:24,621 --> 00:02:29,251
+紧接着下面还有一句很可爱的话：如果不能很快找到，问一下更好。
+And there's a lovely line right below it. If you can't find something quickly, it is better to ask.
+
+22
+22
+00:02:29,444 --> 00:02:36,964
+但有些知识确实很长：排查性能回退、迁移翻译字符串、为评审拆分提交。
+But some knowledge really is long. Triaging a performance regression. Migrating translated strings. Splitting a commit for review.
+
+23
+23
+00:02:36,964 --> 00:02:44,964
+Firefox 有 24 个这样的东西，叫做 skill。每个都是一个文件夹，带着自己的说明、脚本和参考资料。
+Firefox keeps twenty-four of these, and calls them skills. Each one is a folder, with its own instructions, scripts, and references.
+
+24
+24
+00:02:44,964 --> 00:02:53,844
+诀窍在这里：一开始只加载描述，就一段话。剩下的几百行躺在磁盘上，直到任务真正需要它们。
+Here's the trick. Only the description is loaded up front. One paragraph. The other few hundred lines stay on disk, until the task actually needs them.
+
+25
+25
+00:02:53,844 --> 00:03:03,284
+而且团队对代价很坦诚。README 里写着：每条描述都带着常驻成本。如果一个 skill 不是对所有人都有用，它就不该放进代码树。
+And the team is honest about the price. Their readme says every description carries an always-on cost. If a skill isn't useful to everyone, it doesn't belong in the tree.
+
+26
+26
+00:03:03,284 --> 00:03:11,684
+于是描述变成了接口。写得好的会说明什么时候用，以及什么时候不用：不是用来跑测试的，请用另一个 skill。
+So the description becomes an interface. The good ones say when to use them, and when not to. Not for running tests. Use the other skill.
+
+27
+27
+00:03:11,684 --> 00:03:17,231
+有些甚至声明了自己被允许运行哪些命令。这已经不是提示词了，这是函数签名。
+Some even declare which commands they are allowed to run. That's not a prompt anymore. That's a signature.
+
+28
+28
+00:03:17,230 --> 00:03:22,510
+还有一层。代码评审时，不该靠谁去记住该用哪份指南。
+One more layer. During code review, nobody should have to remember which guidance applies.
+
+29
+29
+00:03:22,510 --> 00:03:33,710
+所以有一个很小的规则配置文件。补丁同时碰了 WebIDL 和 C++ 文件，就加载 Web 标准实现指南；碰了前端代码但不是测试，就加载前端指南。
+So there is a small config file of rules. If a patch touches a web interface definition and a C++ file, load the web standards guide. If it touches front end code, but not tests, load the front end guide.
+
+30
+30
+00:03:33,710 --> 00:03:37,338
+提示词由 diff 来选择，而不是靠某个人的记性。
+The prompt is selected by the diff. Not by somebody's memory.
+
+31
+31
+00:03:37,339 --> 00:03:41,499
+提示词和注释得的是同一种病：没有任何东西检查它们。
+Prompts have the same disease as comments. Nothing checks them.
+
+32
+32
+00:03:41,499 --> 00:03:46,859
+指令过期时编译器不会警告你。智能体只会照做，而且信心十足。
+The compiler won't warn you when an instruction goes out of date. The agent will just follow it. Confidently.
+
+33
+33
+00:03:46,859 --> 00:03:54,539
+Firefox 为此有一条规则，我很喜欢：引用名字，而不是位置。这段文字会比它描述的代码活得更久。
+Firefox has a rule for this, and I love it. Reference a name, not a position. This text outlives the code it describes.
+
+34
+34
+00:03:54,539 --> 00:04:00,327
+所以，不写行号，不写“上面那个函数”。只写名字，以及固定到某个版本的链接。
+So, no line numbers. No, the function above. Names, and links that are pinned to a revision.
+
+35
+35
+00:04:00,327 --> 00:04:03,447
+那是不是永远都不该写提示词？当然不是。
+So should you never write a prompt? Of course not.
+
+36
+36
+00:04:03,447 --> 00:04:07,367
+把代码没法告诉你的东西写下来：那些坑。
+Write down what the code can't tell you. The traps.
+
+37
+37
+00:04:07,367 --> 00:04:14,887
+比如这条：默认截图显示的并不是真实的渲染器输出。所以永远不要凭一张截图就断定渲染 bug 修好了。
+Like this one. A default screenshot does not show the real renderer output. So never conclude a rendering bug is fixed from a screenshot.
+
+38
+38
+00:04:14,887 --> 00:04:18,247
+或者这条：未经明确批准，绝不提交补丁。
+Or this. Never submit a patch without explicit approval.
+
+39
+39
+00:04:18,247 --> 00:04:22,797
+读再多源码，智能体也学不到这些。提示词就是为此而存在的。
+No amount of reading the source would teach an agent that. That is what prompts are for.
+
+40
+40
+00:04:22,803 --> 00:04:29,763
+还有一点是我没想到的：这些文件是学习一个大型项目的最佳途径。对智能体如此，对人也一样。
+And here is the part I didn't expect. These files are the best way to learn a large project. For agents, and for people.
+
+41
+41
+00:04:29,763 --> 00:04:39,283
+从根目录开始，了解哪些事处处成立。走进一个模块，读它的地图。再扫一遍 skill 的描述，看看这里实际在做哪些工作。
+Start at the root, to learn what is true everywhere. Step into a module, and read its map. Then skim the skill descriptions, to see what work actually gets done here.
+
+42
+42
+00:04:39,283 --> 00:04:42,563
+几百行读下来，你就知道每样东西住在哪里。
+A few hundred lines, and you know where everything lives.
+
+43
+43
+00:04:42,563 --> 00:04:51,603
+所以在给提示词再加一段之前，换个问题问自己：这东西该住在哪？作用域、指针、工具、skill，还是触发器。
+So before you add another paragraph to your prompt, ask a different question. Where should this live? A scope, a pointer, a tool, a skill, or a trigger.
+
+44
+44
+00:04:51,603 --> 00:04:54,196
+别写提示词。去建造它们该在的地方。
+Don't write prompts. Build the place they belong.

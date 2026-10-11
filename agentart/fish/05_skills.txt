@@ -1,0 +1,11 @@
+[thoughtful] But some knowledge really is long. Triaging a performance regression. Migrating translated strings. Splitting a commit for review.
+
+[matter-of-fact] Firefox keeps twenty-four of these, and calls them skills. Each one is a folder, with its own instructions, scripts, and references.
+
+[excited] Here's the trick. Only the description is loaded up front. One paragraph. The other few hundred lines stay on disk, until the task actually needs them.
+
+[sincere] And the team is honest about the price. Their readme says every description carries an always-on cost. (break) If a skill isn't useful to everyone, it doesn't belong in the tree.
+
+[confident] So the description becomes an interface. The good ones say when to use them, (break) and when not to. Not for running tests. Use the other skill.
+
+[impressed] Some even declare which commands they are allowed to run. (break) That's not a prompt anymore. (break) [emphatic] That's a signature.

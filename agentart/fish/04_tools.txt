@@ -1,0 +1,11 @@
+[matter-of-fact] Next problem. You can't grep Firefox. (break) [amused] Well, you can, but you'll wait.
+
+[dry humor] You could write a paragraph about that. Search carefully. Restrict your paths. Be patient.
+
+[confident] Or, you can hand the agent a tool. (break) Firefox ships a command line search that understands the code. Ask it for a definition, and it answers.
+
+[satisfied] Four example commands replace a whole page of advice.
+
+[emphatic] This is the type system of prompting. (break) A sentence asks the model to behave. A tool makes the right thing the easy thing.
+
+[warm] And there's a lovely line right below it. If you can't find something quickly, (break) it is better to ask.

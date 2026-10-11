@@ -1,0 +1,9 @@
+[surprised] And here is the part I didn't expect. These files are the best way to learn a large project. For agents, (break) and for people.
+
+[calm, confident] Start at the root, to learn what is true everywhere. Step into a module, and read its map. Then skim the skill descriptions, to see what work actually gets done here.
+
+[satisfied] A few hundred lines, and you know where everything lives.
+
+[thoughtful] So before you add another paragraph to your prompt, ask a different question. (break) [curious] Where should this live? (long-break) A scope, a pointer, a tool, a skill, or a trigger.
+
+[calm, confident] Don't write prompts. (long-break) [warm, emphatic] Build the place they belong.
