@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ayu.Core — pure shell SNS bot framework</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#EFFFF4;font:14px Menlo,"SF Mono",Monaco,monospace}
+  #wrap{position:fixed;inset:0;display:flex;flex-direction:column}
+  #stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+  #gl{max-width:100vw;max-height:100%;aspect-ratio:16/9;width:auto;height:auto;cursor:pointer}
+  #top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px 4px}
+  #top b{letter-spacing:.1em}#status{color:#3d8a57}#top a{color:#5EE6FF;text-decoration:none}
+  #note{color:#3d8a57;font-size:12px}
+  #ui{padding:10px 16px 14px;background:linear-gradient(transparent,rgba(0,0,0,.8));transition:opacity .4s}
+  #ui.playing{opacity:0}#ui.playing:hover{opacity:1}
+  #row{display:flex;align-items:center;gap:12px}
+  button{background:none;border:1px solid #7CFF9B;color:#7CFF9B;border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+  button:disabled{opacity:.35;cursor:default}
+  #bar{flex:1;height:6px;background:#1c4a30;border-radius:3px;cursor:pointer;position:relative}#fill{height:100%;width:0;background:#7CFF9B;border-radius:3px}
+  .tick{position:absolute;top:-3px;width:2px;height:12px;background:#2c6a44}
+  #time{font-variant-numeric:tabular-nums;color:#3d8a57;min-width:112px;text-align:right}
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="top"><b>Ayu.Core</b><span id="status">pure shell SNS bot framework</span><span id="note">空格播放/暂停，←/→ 3 秒，R 重播</span><a href="../">← 返回</a></div>
+<div id="stage"><canvas id="gl" width="1920" height="1080"></canvas></div>
+<div id="ui"><div id="row"><button id="play">▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fs">⛶</button></div></div>
+</div>
+<div id="hint" style="display:none">click: play / pause · ← → seek · R restart</div>
+<audio id="au" src="audio/mix.mp3" preload="auto"></audio>
+<script src="timeline.js"></script>
+<script>
+'use strict';
+const W = 1920, H = 1080;
+const TL = window.TIMELINE, DUR = TL.duration;
+const Q = {}; TL.cues.forEach(c => Q[c.id] = c);
+const q = id => Q[id].t;
+
+/* ---------- scenes ---------- */
+const SCENES = ['boot', 'title', 'box', 'flow', 'wire', 'cover', 'sync', 'test', 'outro'];
+const TABS   = ['hush', 'ayu', 'box', 'flow', 'wire', 'cover', 'sync', 'test', 'exit'];
+const START = {};
+SCENES.forEach((s, i) => START[s] = i ? TL.cues.find(c => c.scene === s).t - 0.4 : 0);
+const sceneAt = t => { let k = 0; SCENES.forEach((s, i) => { if (t >= START[s]) k = i; }); return k; };
+
+const COL = { g: '#7CFF9B', d: '#3f9460', c: '#5EE6FF', m: '#FF5EC8', y: '#FFD166', r: '#FF5566', w: '#EFFFF4', b: '#7FA8FF', k: '#1c4a30' };
+const FONT = 'Menlo, "SF Mono", Monaco, monospace';
+const CJK = '"PingFang SC", "Hiragino Sans GB", sans-serif';
+const CW = 0.602;                       // Menlo advance / font-size
+
+const term = document.createElement('canvas'); term.width = W; term.height = H;
+const ctx = term.getContext('2d');
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+
+// «x» switches colour. n = number of visible chars.
+function text(x, y, str, fs, n = 1e9, alpha = 1) {
+  ctx.font = `${fs}px ${FONT}`; ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = alpha;
+  let col = COL.g, cx = x, left = n;
+  for (const part of str.split(/(«\w»)/)) {
+    if (!part) continue;
+    if (part[0] === '«' && part.length === 3) { col = COL[part[1]]; continue; }
+    if (left <= 0) break;
+    const s = part.slice(0, left); left -= s.length;
+    ctx.fillStyle = col; ctx.fillText(s, cx, y); cx += s.length * fs * CW;
+  }
+  ctx.globalAlpha = 1;
+  return cx;
+}
+const plain = s => s.replace(/«\w»/g, '');
+function panel(x, y, w, h, title, col = COL.d) {
+  ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.7; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2); ctx.globalAlpha = 1;
+  if (title) {
+    const fs = 20, tw = (title.length + 2) * fs * CW;
+    ctx.fillStyle = '#000'; ctx.fillRect(x + 24, y - 12, tw, 24);
+    text(x + 24 + fs * CW, y + 7, '«d»' + title, fs);
+  }
+}
+// A terminal log: entries {at, s, cmd?, cps?}. Commands type out, output pops in.
+function log(x, y, fs, lh, t, entries, prompt = '«d»/ # «w»') {
+  let row = 0, cur = null;
+  for (const e of entries) {
+    if (t < e.at) break;
+    const yy = y + row * lh;
+    if (e.cmd) {
+      const len = plain(e.s).length, n = Math.floor((t - e.at) * (e.cps || 42));
+      const ex = text(x, yy, prompt + e.s, fs, plain(prompt).length + n);
+      cur = [n < len ? ex : x + (plain(prompt).length + len) * fs * CW, yy, n < len];
+    } else { text(x, yy, e.s, fs); cur = null; }
+    row++;
+  }
+  if (cur && (cur[2] || Math.floor(t * 2.5) % 2 === 0)) { ctx.fillStyle = COL.g; ctx.fillRect(cur[0] + 2, cur[1] - fs * 0.82, fs * 0.55, fs); }
+  return row;
+}
+
+/* 5x7 block font for the logo */
+const GLY = {
+  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
+  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+  '.': ['00000', '00000', '00000', '00000', '00000', '01100', '01100'],
+  C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+};
+function logo(cx, cy, cell, t, t0) {
+  const word = 'AYU.CORE', gw = 6 * cell, x0 = cx - (word.length * gw - cell) / 2, y0 = cy - 3.5 * cell;
+  const p = (t - t0) / 1.1;
+  for (let i = 0; i < word.length; i++) for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) {
+    const on = GLY[word[i]][r][c] === '1', k = i * 35 + r * 5 + c, th = hash(k) * 0.8 + i * 0.03;
+    let a = 0;
+    if (p > th) a = on ? 1 : 0;
+    else if (p > th - 0.35 && hash(k + Math.floor(t * 24) * 7.7) > 0.6) a = 0.35;   // decrypt noise
+    if (!a) continue;
+    ctx.globalAlpha = a; ctx.fillStyle = i < 3 ? COL.g : i === 3 ? COL.y : COL.c;
+    ctx.fillRect(x0 + i * gw + c * cell + 2, y0 + r * cell + 2, cell - 4, cell - 4);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- scene painters ---------- */
+const S = {};
+
+S.boot = t => {
+  const fs = 46, lh = 68, x = 300, y = 260;
+  panel(x - 60, y - 100, 1440, 660, 'tty0');
+  const e = [{ at: 0.15, s: 'type python node curl jq bash', cmd: 1, cps: 44 }];
+  ['python', 'node', 'curl', 'jq', 'bash'].forEach((n, i) => e.push({ at: q('a' + (i + 1)) + 0.05, s: `«r»${n}: not found` }));
+  e.push({ at: q('a6') - 0.5, s: 'echo $0', cmd: 1, cps: 30 });
+  e.push({ at: q('a6') + 0.05, s: '«w»hush' });
+  e.push({ at: q('a6') + 0.8, s: '', cmd: 1 });
+  log(x, y, fs, lh, t, e);
+};
+
+S.title = t => {
+  logo(W / 2, 400, 28, t, q('b1') - 0.2);
+  const s = '«d»# «w»pure shell «g»SNS bot framework';
+  const n = Math.floor((t - q('b1') - 0.7) * 34);
+  const fs = 42, wd = plain(s).length * fs * CW;
+  if (n > 0) text((W - wd) / 2, 600, s, fs, n);
+  const b = Q.b2, tags = [['QQ', 'c', 0.52], ['Telegram', 'b', 0.64], ['Discord', 'm', 0.82]];
+  let x = W / 2 - 560;
+  tags.forEach(([name, c, f]) => {
+    const on = t > b.t + b.d * f, w = 340;
+    ctx.strokeStyle = on ? COL[c] : COL.k; ctx.lineWidth = 3; ctx.strokeRect(x, 690, w, 90);
+    if (on) { ctx.fillStyle = COL[c]; ctx.globalAlpha = 0.14 + 0.25 * clamp(1 - (t - b.t - b.d * f) * 3); ctx.fillRect(x, 690, w, 90); ctx.globalAlpha = 1; }
+    const fs2 = 38, tw = name.length * fs2 * CW;
+    text(x + (w - tw) / 2, 748, `«${on ? c : 'k'}»${name}`, fs2);
+    x += w + 50;
+  });
+  if (t > b.t + b.d + 0.1) { const u = 'github.com/Bemly/Ayu.Core'; text((W - u.length * 28 * CW) / 2, 860, '«d»' + u, 28); }
+};
+
+S.box = t => {
+  panel(90, 150, 1060, 700, 'host');
+  log(130, 230, 28, 44, t, [
+    { at: q('c1') - 0.2, s: 'docker build -t ayu-core .', cmd: 1, cps: 50 },
+    { at: q('c1') + 0.5, s: '«d»FROM busybox:musl' },
+    { at: q('c1') + 0.9, s: 'docker run -d -p 6160:6160 --name ayu ayu-core', cmd: 1, cps: 50 },
+    { at: q('c2') - 0.5, s: 'docker exec ayu ps', cmd: 1, cps: 50 },
+    { at: q('c2') - 0.05, s: '«d»PID   USER     COMMAND' },
+    { at: q('c2'), s: '«w»    1 root     «g»hush «w»cgi-bin/start.sh' },
+    { at: q('c3') + 0.9, s: '«w»   14 root     «c»httpd «w»-f -p 6160 -c etc/httpd.conf' },
+    { at: q('c3') + 1.3, s: '«w»   15 root     «y»crond «w»-l 5' },
+    { at: q('c3') + 2.9, s: 'ls cgi-bin/', cmd: 1, cps: 40 },
+    { at: q('c3') + 3.3, s: '«g»router.sh  start.sh' },
+    { at: q('c3') + 3.9, s: '', cmd: 1 },
+  ]);
+  // container stack
+  const a = ease((t - q('c1')) / 0.5), x = 1230, y = 150, w = 600;
+  if (a <= 0) return;
+  ctx.globalAlpha = a; panel(x, y, w, 700, 'busybox:musl', COL.g);
+  const L = [['hush', 'interpreter', 'g', q('c2')], ['httpd', 'CGI web server', 'c', q('c3') + 0.9],
+             ['nc + ssl_client', 'raw TCP / TLS 1.2', 'm', 1e9], ['hush-json', 'JSON in pure shell', 'y', 1e9], ['crond', 'scheduled tasks', 'b', 1e9]];
+  L.forEach(([n, d, c, at], i) => {
+    const yy = y + 50 + i * 104, on = t > at, fl = on ? clamp(1 - (t - at) * 2.5) : 0;
+    ctx.globalAlpha = a; ctx.strokeStyle = on ? COL[c] : COL.k; ctx.lineWidth = on ? 3 : 2; ctx.strokeRect(x + 40, yy, w - 80, 80);
+    if (on) { ctx.fillStyle = COL[c]; ctx.globalAlpha = a * (0.12 + 0.4 * fl); ctx.fillRect(x + 40, yy, w - 80, 80); }
+    text(x + 64, yy + 38, `«${on ? c : 'd'}»${n}`, 30, 1e9, a);
+    text(x + 64, yy + 66, `«d»${d}`, 20, 1e9, a * 0.9);
+  });
+  text(x + 40, y + 630, '«r»✗ «d»bash  «r»✗ «d»gawk  «r»✗ «d»curl  «r»✗ «d»jq  «r»✗ «d»python', 22, 1e9, a);
+  ctx.globalAlpha = 1;
+};
+
+S.flow = t => {
+  const N = ['Platform', 'webhook', 'httpd CGI', 'router.sh', 'adapter', 'dispatch.sh', 'handler'];
+  const AT = [q('d1'), q('d1') + 2.0, q('d1') + 2.7, q('d2'), q('d2') + 0.8, q('d3'), q('d4')];
+  const CL = ['m', 'm', 'c', 'c', 'y', 'y', 'g'];
+  const bw = 216, gap = 36, x0 = (W - (7 * bw + 6 * gap)) / 2, y = 190, bh = 86;
+  let act = -1; AT.forEach((a, i) => { if (t >= a) act = i; });
+  N.forEach((n, i) => {
+    const x = x0 + i * (bw + gap), on = i <= act, fl = on ? clamp(1 - (t - AT[i]) * 2) : 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(x, y, bw, bh);
+    if (on) { ctx.fillStyle = COL[CL[i]]; ctx.globalAlpha = 0.12 + 0.5 * fl; ctx.fillRect(x, y, bw, bh); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = on ? COL[CL[i]] : COL.k; ctx.lineWidth = i === act ? 4 : 2; ctx.strokeRect(x, y, bw, bh);
+    const fs = 26; text(x + (bw - n.length * fs * CW) / 2, y + 53, `«${on ? (i === act ? 'w' : CL[i]) : 'd'}»${n}`, fs);
+    if (i < 6) {
+      const ax = x + bw, lit = i < act;
+      ctx.strokeStyle = lit ? COL[CL[i + 1]] : COL.k; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ax + 4, y + bh / 2); ctx.lineTo(ax + gap - 6, y + bh / 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ax + gap - 14, y + bh / 2 - 8); ctx.lineTo(ax + gap - 4, y + bh / 2); ctx.lineTo(ax + gap - 14, y + bh / 2 + 8); ctx.stroke();
+    }
+  });
+  // travelling packet
+  if (act >= 0) {
+    const from = x0 + Math.max(0, act - 1) * (bw + gap) + bw / 2, to = x0 + act * (bw + gap) + bw / 2;
+    const px = from + (to - from) * ease((t - AT[act]) / 0.35);
+    ctx.fillStyle = COL.w; ctx.fillRect(px - 9, y - 30, 18, 18);
+    ctx.fillStyle = COL[CL[act]]; ctx.globalAlpha = 0.5; ctx.fillRect(px - 60, y - 24, 48, 6); ctx.globalAlpha = 1;
+  }
+  const P = [
+    { at: q('d1'), title: 'POST /cgi-bin/router.sh/qq', L: [
+      '«m»POST «w»/cgi-bin/router.sh/qq «d»HTTP/1.1',
+      '«d»Content-Type: «w»application/json', '',
+      '«w»{«c»"event_type"«w»:«y»"message_receive"«w»,«c»"data"«w»:{«c»"sender_id"«w»:«y»111«w»,',
+      '«w» «c»"message_scene"«w»:«y»"friend"«w»,«c»"segments"«w»:[{«c»"type"«w»:«y»"text"«w»,',
+      '«w»  «c»"data"«w»:{«c»"text"«w»:«g»"/ping"«w»}}]}}'] },
+    { at: q('d2'), title: 'cgi-bin/router.sh', L: [
+      '«d»# detect platform from URL path',
+      '«m»case «w»"$_path" «m»in',
+      '«w»  «g»*/qq|*/qq/*) _platform="qq" ;;',
+      '«d»  */telegram|*/telegram/*) _platform="telegram" ;;',
+      '«d»  */discord|*/discord/*) _platform="discord" ;;',
+      '«m»esac',
+      '«c». «w»"$_HB/adapter/qq/webhook.sh" «d»&& «y»qq_webhook «w»"$_body"'] },
+    { at: q('d3'), title: 'etc/rules', L: [
+      '«d»# <pattern>|<handler_script>|<handler_func>',
+      '«g»/ping|qq/handler.sh|handler_ping          «w»◀ match',
+      '«d»/echo|qq/handler.sh|handler_echo',
+      '«d»/info|qq/handler.sh|handler_info',
+      '«d»*|../plugin/sync/handler.sh|sync_handler'] },
+    { at: q('d4'), title: 'adapter/qq/handler.sh', L: [
+      '«y»handler_ping«w»() {',
+      '«w»  _pf="$1" _evt="$2" _uid="$3" _txt="$4" _raw="$5"',
+      '«w»  «c». «w»"$_HB/adapter/qq/message.sh"',
+      '«w»  _segs="$(«y»qq_text_segments «g»"pong!"«w»)"',
+      '«w»  «y»qq_message_send_private «w»"$_uid" "$_segs"',
+      '«w»}', '',
+      '«d»→ «g»{"status":"ok"}'] },
+  ];
+  let cur = null; P.forEach(p => { if (t >= p.at) cur = p; });
+  if (!cur) return;
+  panel(210, 380, 1500, 480, cur.title);
+  const fs = 30, lh = 46, n = Math.floor((t - cur.at) * 16) + 1;
+  cur.L.slice(0, n).forEach((l, i) => text(260, 452 + i * lh, l, fs));
+};
+
+const REQ_BODY = '{"chat_id":"222","text":"pong!"}';
+const REQ = ['POST /bot$TG_TOKEN/sendMessage HTTP/1.0', 'Host: api.telegram.org', 'Content-Type: application/json',
+             'Connection: close', `Content-Length: ${REQ_BODY.length}`, ''].join('\r\n') + '\r\n' + REQ_BODY;
+S.wire = t => {
+  panel(70, 140, 1150, 740, 'nc + ssl_client');
+  const e1 = q('e1'), e2 = q('e2'), e3 = q('e3'), e4 = q('e4');
+  const E = [
+    { at: e1, s: '«y»tg_sendMessage «w»"222" «g»"pong!"', cmd: 1, cps: 34 },
+    { at: e2, s: '«c»nc «w»api.telegram.org 443 -e wrapper' },
+    { at: e2 + 0.5, s: '«d»  172.17.0.2.41822 > 149.154.166.110.443  «c»[SYN]' },
+    { at: e2 + 0.9, s: '«d»  149.154.166.110.443 > 172.17.0.2.41822  «c»[SYN,ACK]' },
+    { at: e2 + 1.3, s: '«d»  172.17.0.2.41822 > 149.154.166.110.443  «g»[ACK] «w»open' },
+    { at: e3, s: '«m»ssl_client «w»-s 3 -n api.telegram.org' },
+    { at: e3 + 0.8, s: '«d»  → «m»ClientHello  «w»TLSv1.2  «d»curve x25519' },
+    { at: e3 + 1.5, s: '«d»  ← «m»ServerHello  «w»ECDHE-RSA-AES128-GCM-SHA256' },
+    { at: e3 + 2.2, s: '«d»  ↔ «g»Finished     «w»encrypted channel up' },
+  ];
+  const rows = log(110, 210, 26, 40, t, E);
+  // hand-written request, typed char by char
+  const lines = REQ.split('\r\n'), cps = REQ.length / (Q.e4.d - 0.3);
+  let n = Math.floor((t - e4) * cps), y = 210 + rows * 40 + 10;
+  if (t >= e4) lines.forEach((l, i) => {
+    if (n <= 0) return;
+    const body = i === lines.length - 1;
+    const vis = l.slice(0, n), nl = !body && n > l.length;
+    let s = body ? '«g»' + vis : i === 0 ? '«y»' + vis : '«w»' + vis;
+    if (!body && i > 0 && vis.includes(':')) s = '«c»' + vis.replace(':', ':«w»');
+    text(110, y + i * 38, s + (nl ? '«d»\\r\\n' : ''), 26);
+    n -= l.length + 2;
+  });
+  // xxd pane
+  panel(1260, 140, 590, 740, '/tmp/ayu-req.$$.http', COL.c);
+  const bytes = Math.max(0, Math.min(REQ.length, Math.floor((t - e4) * cps)));
+  for (let r = 0; r * 8 < REQ.length; r++) {
+    const off = r * 8, yy = 196 + r * 29;
+    if (off >= bytes) { text(1290, yy, '«k»' + off.toString(16).padStart(4, '0') + ':', 21); continue; }
+    let hex = '', asc = '';
+    for (let i = 0; i < 8; i++) {
+      const k = off + i;
+      if (k < bytes) { const ch = REQ.charCodeAt(k); hex += ch.toString(16).padStart(2, '0'); asc += ch < 32 ? '.' : REQ[k]; } else hex += '  ';
+      if (i % 2) hex += ' ';
+    }
+    text(1290, yy, `«d»${off.toString(16).padStart(4, '0')}: «c»${hex} «w»${asc}`, 21);
+  }
+  if (t < e4) {       // idle: socket state
+    const st = t >= e3 + 2.2 ? '«g»TLS 1.2 established' : t >= e3 ? '«m»handshaking…' : t >= e2 + 1.3 ? '«c»TCP connected' : t >= e2 ? '«c»connecting…' : '«d»idle';
+    text(1290, 840, '«d»socket: ' + st, 24);
+  } else text(1290, 840, `«d»wrote «w»${bytes}«d»/${REQ.length} bytes`, 24);
+};
+
+S.cover = t => {
+  const D = [
+    { id: 'f1', name: 'adapter/qq/', big: 29, c: 'c', l1: 'endpoints  29/29', l2: 'Milky / LLOneBot · 27 functions', hit: 0.45,
+      files: ['file.sh', 'friend.sh', 'group.sh', 'handler.sh', 'message.sh', 'system.sh', 'webhook.sh'] },
+    { id: 'f2', name: 'adapter/telegram/', big: 169, c: 'b', l1: 'methods  169/169', l2: 'Telegram Bot API · 17 files', hit: 0.2,
+      files: ['admin.sh', 'bot.sh', 'business.sh', 'chat.sh', 'commands.sh', 'core.sh', 'file.sh', 'game.sh', 'gift.sh', 'inline.sh', 'message.sh', 'misc.sh', 'payment.sh', 'profile.sh', 'sticker.sh', 'story.sh', 'webhook.sh'] },
+    { id: 'f3', name: 'adapter/discord/', big: 135, c: 'm', l1: 'functions  135', l2: 'Discord REST API v10 · 18 files', hit: 0.2,
+      files: ['application.sh', 'audit.sh', 'automod.sh', 'channel.sh', 'core.sh', 'emoji.sh', 'event.sh', 'guild.sh', 'invite.sh', 'message.sh', 'monetize.sh', 'poll.sh', 'soundboard.sh', 'stage.sh', 'sticker.sh', 'template.sh', 'user.sh', 'voice.sh', 'webhook.sh'] },
+  ];
+  D.forEach((d, i) => {
+    const x = 90 + i * 590, w = 560, c = Q[d.id], on = t >= c.t, t0 = c.t + c.d * d.hit;
+    panel(x, 150, w, 730, d.name, on ? COL[d.c] : COL.k);
+    if (!on) return;
+    const p = ease((t - t0) / 0.9), val = Math.round(d.big * p), s = String(val);
+    ctx.font = `bold 190px ${FONT}`; ctx.fillStyle = COL[d.c]; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(s, x + (w - ctx.measureText(s).width) / 2, 370);
+    // bar
+    const cells = 26, lit = Math.round(cells * p), bx = x + 46, bwid = (w - 92) / cells;
+    for (let k = 0; k < cells; k++) { ctx.fillStyle = k < lit ? COL[d.c] : COL.k; ctx.fillRect(bx + k * bwid, 410, bwid - 4, 22); }
+    if (p >= 1) { text(x + 46, 480, '«w»' + d.l1, 30); text(x + 46, 516, '«d»' + d.l2, 21); }
+    // files
+    const nf = Math.floor((t - c.t) * 14), cols = 2;
+    d.files.slice(0, nf).forEach((f, k) => text(x + 46 + (k % cols) * 250, 572 + Math.floor(k / cols) * 31, '«d»' + f, 21));
+  });
+};
+
+S.sync = t => {
+  const g1 = q('g1'), g2 = q('g2');
+  panel(90, 150, 900, 730, 'etc/');
+  log(130, 222, 26, 40, t, [
+    { at: g1 - 0.2, s: 'cat etc/rules', cmd: 1, cps: 40 },
+    { at: g1 + 0.2, s: '«d»# <pattern>|<handler_script>|<handler_func>' },
+    { at: g1 + 0.5, s: '«y»/ping«d»|«w»qq/handler.sh«d»|«g»handler_ping' },
+    { at: g1 + 0.7, s: '«y»/echo«d»|«w»qq/handler.sh«d»|«g»handler_echo' },
+    { at: g1 + 0.9, s: '«y»/info«d»|«w»qq/handler.sh«d»|«g»handler_info' },
+    { at: g1 + 1.1, s: '«y»*«d»|«w»../plugin/sync/handler.sh«d»|«g»sync_handler' },
+    { at: g2 - 0.2, s: 'cat etc/sync.conf', cmd: 1, cps: 40 },
+    { at: g2 + 0.3, s: '«c»qq/group/123456«d»=«b»telegram/-100111' },
+    { at: g2 + 0.6, s: '«b»telegram/-100111«d»=«c»qq/group/123456' },
+    { at: g2 + 0.9, s: '«c»qq/group/123456«d»=«m»discord/ch123456' },
+    { at: g2 + 1.2, s: '«b»telegram/-100111«d»=«m»discord/ch123456' },
+    { at: g2 + 1.5, s: '«m»discord/ch123456«d»=«c»qq/group/123456  «d»# cron' },
+    { at: g2 + 1.8, s: '«m»discord/ch123456«d»=«b»telegram/-100111 «d»# cron' },
+    { at: g2 + 3.0, s: '', cmd: 1 },
+  ]);
+  panel(1030, 150, 800, 730, 'plugin/sync');
+  const a = ease((t - g2) / 0.5); if (a <= 0) return;
+  const cx = 1430, cy = 540, R = 250;
+  const P = [['QQ', 'c', -90], ['Telegram', 'b', 30], ['Discord', 'm', 150]].map(([n, c, deg]) => ({ n, c, x: cx + R * Math.cos(deg * Math.PI / 180), y: cy + R * Math.sin(deg * Math.PI / 180) }));
+  const EDG = [[0, 1, 0], [1, 0, 0], [0, 2, 0], [1, 2, 0], [2, 0, 1], [2, 1, 1]];
+  EDG.forEach(([i, j, batch], k) => {
+    const A = P[i], B = P[j], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy), nx = -dy / L * 12, ny = dx / L * 12;
+    if (t < g2 + 0.3 + k * 0.3) return;
+    ctx.globalAlpha = a * (batch ? 0.5 : 0.8); ctx.strokeStyle = COL[A.c]; ctx.lineWidth = 2; ctx.setLineDash(batch ? [6, 10] : []);
+    ctx.beginPath(); ctx.moveTo(A.x + nx, A.y + ny); ctx.lineTo(B.x + nx, B.y + ny); ctx.stroke(); ctx.setLineDash([]);
+    for (let m = 0; m < (batch ? 1 : 2); m++) {
+      const u = ((t * (batch ? 0.25 : 0.6) + k * 0.37 + m * 0.5) % 1), f = 0.2 + u * 0.6;
+      ctx.globalAlpha = a; ctx.fillStyle = COL.w; ctx.fillRect(A.x + nx + dx * f - 6, A.y + ny + dy * f - 6, 12, 12);
+    }
+  });
+  ctx.globalAlpha = a;
+  P.forEach(p => {
+    const fs = 30, w = p.n.length * fs * CW + 56;
+    ctx.fillStyle = '#020806'; ctx.fillRect(p.x - w / 2, p.y - 38, w, 76);
+    ctx.strokeStyle = COL[p.c]; ctx.lineWidth = 3; ctx.strokeRect(p.x - w / 2, p.y - 38, w, 76);
+    text(p.x - w / 2 + 28, p.y + 11, `«${p.c}»${p.n}`, fs, 1e9, a);
+  });
+  text(1070, 846, '«d»── realtime webhook   ┄┄ daily batch (crond)', 21, 1e9, a);
+  ctx.globalAlpha = 1;
+};
+
+S.test = t => {
+  const h1 = q('h1'), h2 = q('h2'), h3 = q('h3');
+  panel(90, 150, 1740, 730, 'test/run.sh');
+  const F = ['test_discord.sh', 'test_dispatch.sh', 'test_http.sh', 'test_log.sh', 'test_qq_message.sh', 'test_qq_system.sh',
+             'test_qq_webhook.sh', 'test_sync.sh', 'test_telegram.sh', 'test_url.sh', 'test_webhook_auth.sh'];
+  const cmd = 'docker run --rm -v $(pwd):/ayu busybox:musl hush /ayu/test/run.sh';
+  log(130, 220, 26, 40, t, [{ at: h1 - 0.3, s: cmd, cmd: 1, cps: 160 }], '«d»$ «w»');
+  const run = (t - h1 - 0.15) / (Q.h1.d - 0.1), nf = Math.floor(clamp(run) * F.length + 1e-6);
+  if (run > 0) F.slice(0, nf + 1).forEach((f, i) => {
+    const done = i < nf;
+    text(130, 275 + i * 36, `«w»${f.padEnd(24, ' ')}«k»${'.'.repeat(30)} ${done ? '«g»ok' : '«y»run'}`, 24);
+  });
+  // counter
+  const n = Math.round(141 * ease(clamp(run)));
+  if (run > 0) {
+    ctx.font = `bold 210px ${FONT}`; ctx.fillStyle = COL.g; const s = String(n);
+    ctx.fillText(s, 1420 - ctx.measureText(s).width / 2, 470);
+    text(1420 - 6 * 34 * CW / 2, 530, '«w»passed', 34);
+  }
+  if (t >= h2) {
+    const fl = clamp(1 - (t - h2) * 2.5);
+    ctx.font = `bold 120px ${FONT}`; ctx.fillStyle = fl > 0.5 ? COL.w : COL.r; ctx.fillText('0', 1420 - ctx.measureText('0').width / 2, 680);
+    text(1420 - 6 * 34 * CW / 2, 730, '«d»failed', 34);
+    text(130, 275 + 11 * 36 + 20, '«g»141 tests, 0 failures', 30);
+  }
+  if (t >= h3) text(130, 275 + 11 * 36 + 76, '«d»MOCK_HTTP=1  «w»# mock transport — no API keys', 26);
+};
+
+S.outro = t => {
+  const i1 = q('i1'), i2 = q('i2');
+  logo(W / 2, 330, 24, t, i1 - 0.2);
+  const s = '«w»if it has a shell, «g»it can run a bot.', fs = 46, n = Math.floor((t - i2) * (plain(s).length / (Q.i2.d - 0.2)));
+  if (n > 0) { const ex = text((W - plain(s).length * fs * CW) / 2, 560, s, fs, n); if (Math.floor(t * 2.5) % 2 === 0) { ctx.fillStyle = COL.g; ctx.fillRect(ex + 4, 560 - fs * 0.82, fs * 0.55, fs); } }
+  if (t > i2 + Q.i2.d + 0.2) {
+    panel(410, 650, 1100, 190, 'quick start');
+    log(450, 715, 26, 42, t, [
+      { at: i2 + Q.i2.d + 0.2, s: 'git clone https://github.com/Bemly/Ayu.Core', cmd: 1, cps: 110 },
+      { at: i2 + Q.i2.d + 0.75, s: 'docker build -t ayu-core . && docker run -d -p 6160:6160 ayu-core', cmd: 1, cps: 160 },
+    ], '«d»$ «w»');
+  }
+};
+
+/* ---------- chrome: tmux bar + subtitles ---------- */
+function chrome(t, k) {
+  const fs = 22, y = 44;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 60, W, 0);
+  let x = 70;
+  ctx.fillStyle = COL.g; ctx.fillRect(x, y - 24, 5 * fs * CW + 16, 32); ctx.font = `bold ${fs}px ${FONT}`; ctx.fillStyle = '#021'; ctx.fillText('[ayu]', x + 8, y); x += 5 * fs * CW + 40;
+  TABS.forEach((n, i) => { const s = `${i}:${n}${i === k ? '*' : ' '}`; x = text(x, y, `«${i === k ? 'w' : 'g'}»${s}`, fs, 1e9, i === k ? 1 : 0.6) + 14; });
+  const mm = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const r = `busybox:musl │ tls1.2 │ ${mm(t)}/${mm(DUR)}`;
+  text(W - 70 - r.length * fs * CW, y, '«g»' + r, fs, 1e9, 0.7);
+  ctx.fillStyle = COL.k; ctx.fillRect(70, 62, W - 140, 2);
+  ctx.fillStyle = COL.g; ctx.fillRect(70, 62, (W - 140) * t / DUR, 2);
+  // subtitles
+  const c = TL.cues.find(c => t >= c.t - 0.05 && t < c.t + c.d + Math.min(c.gap, 0.45));
+  if (c) {
+    ctx.textAlign = 'center';
+    ctx.font = `34px ${FONT}`; const w1 = ctx.measureText(c.en).width; ctx.font = `28px ${CJK}`; const w2 = ctx.measureText(c.zh).width;
+    const w = Math.max(w1, w2) + 70;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(W / 2 - w / 2, 912, w, 112);
+    ctx.font = `34px ${FONT}`; ctx.fillStyle = COL.w; ctx.fillText(c.en, W / 2, 958);
+    ctx.font = `28px ${CJK}`; ctx.fillStyle = COL.g; ctx.fillText(c.zh, W / 2, 1002);
+    ctx.textAlign = 'left';
+  }
+}
+
+function paint(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+  const k = sceneAt(t);
+  S[SCENES[k]](t);
+  chrome(t, k);
+  return k;
+}
+
+/* ---------- WebGL ---------- */
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl', { preserveDrawingBuffer: true, antialias: false, alpha: false });
+const VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
+const FS = `
+precision highp float;
+varying vec2 v;
+uniform sampler2D uTex, uAtlas;
+uniform vec2 uRes;
+uniform float uTime, uGlitch, uPulse, uRain, uNet, uFade;
+uniform vec3 uTint;
+
+float h1(float n){ return fract(sin(n*91.3458)*47453.5453); }
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+
+// st: 0..1, origin top-left
+vec4 term(vec2 st){ if(st.x<0.||st.x>1.||st.y<0.||st.y>1.) return vec4(0.); return texture2D(uTex, vec2(st.x, 1.-st.y)); }
+
+vec3 rain(vec2 st){
+  vec2 grid = vec2(96., 40.);
+  vec2 p = st*grid, id = floor(p), f = fract(p);
+  float sp = 0.25 + h1(id.x*7.13)*0.9;
+  float head = mod(uTime*sp*9. + h1(id.x*3.7)*70., grid.y*1.9);
+  float d = head - id.y;
+  float tail = d > 0. ? exp(-d*0.16) : 0.;
+  float isHead = (d > 0. && d < 1.) ? 1. : 0.;
+  float rnd = h2(id);
+  float gi = floor(h2(id + floor(uTime*(1.5 + 4.*rnd))*0.371)*64.);
+  vec2 g = (vec2(mod(gi,16.), floor(gi/16.)) + vec2(f.x, f.y)) / vec2(16., 4.);
+  float a = texture2D(uAtlas, vec2(g.x, 1.-g.y)).r;
+  return (uTint*tail*0.5 + vec3(0.75,1.,0.85)*isHead*0.8) * a;
+}
+
+vec3 net(vec2 st){
+  vec3 c = vec3(0.);
+  for(int i=0;i<7;i++){
+    float fi = float(i);
+    float y = 0.1 + 0.125*fi + 0.012*sin(uTime*0.4 + fi*1.7);
+    float d = abs(st.y - y);
+    float dir = mod(fi,2.) < 1. ? 1. : -1.;
+    float x = fract(st.x*(1.2+0.3*h1(fi))*dir - uTime*(0.12 + 0.06*fi) + h1(fi+3.));
+    float dash = smoothstep(0.9, 1., x) * smoothstep(0.004, 0., d);
+    float bits = step(0.5, h2(vec2(floor(st.x*160.), fi + floor(uTime*3.)))) * smoothstep(0.0025, 0., d) * 0.10;
+    float m = mod(fi, 3.);
+    vec3 col = m < 1. ? vec3(.37,.9,1.) : (m < 2. ? vec3(1.,.37,.78) : vec3(1.,.82,.4));
+    c += col*(bits + dash);
+  }
+  return c;
+}
+
+void main(){
+  // CRT curvature
+  vec2 c = v*2.-1.;
+  float r2 = dot(c,c);
+  c *= 0.985 + 0.018*r2 + 0.006*r2*r2;
+  vec2 st = vec2(c.x*.5+.5, 1.-(c.y*.5+.5));
+  float inside = step(0.,st.x)*step(st.x,1.)*step(0.,st.y)*step(st.y,1.);
+
+  // glitch: displaced horizontal bands + vertical roll
+  float band = floor(st.y*34.);
+  float tk = floor(uTime*30.);
+  float gs = (h2(vec2(band, tk)) - .5) * 0.12 * uGlitch * step(0.55, h2(vec2(band*1.7, tk+9.)));
+  st.x += gs;
+  st.y = fract(st.y + uGlitch*0.03*step(0.8, h1(tk)));
+
+  // background
+  vec3 bg = mix(vec3(0.004,0.02,0.014), vec3(0.012,0.04,0.035), st.y);
+  bg += rain(st)*uRain;
+  bg += net(st)*uNet;
+  float ring = abs(length((st-.5)*vec2(uRes.x/uRes.y,1.)) - uPulse*1.6);
+  bg += uTint * smoothstep(0.03, 0., ring) * 0.28 * max(0., 1.-uPulse*1.3);
+
+  // text with chromatic aberration + cheap bloom
+  float ca = 0.0007 + 0.0012*r2 + 0.008*uGlitch;
+  vec4 tc = term(st);
+  vec3 txt = vec3(term(st + vec2(ca,0.)).r, tc.g, term(st - vec2(ca,0.)).b);
+  vec3 glow = vec3(0.);
+  for(int i=0;i<12;i++){
+    float a = float(i)*0.5236;
+    float rr = (mod(float(i),2.) < 1.) ? 3.5 : 9.;
+    glow += term(st + vec2(cos(a),sin(a))*rr/uRes).rgb;
+  }
+  glow /= 12.;
+  vec3 col = bg*(1. - tc.a*0.92) + txt + glow*0.75;
+
+  // tube
+  col *= 0.84 + 0.16*sin(st.y*uRes.y*2.0944);
+  col *= 1. - 0.25*r2*r2 - 0.12*r2;
+  col += (h2(st*uRes + fract(uTime)*71.) - .5)*0.035;
+  col *= 0.97 + 0.03*sin(uTime*37.);
+  col += vec3(0.6,1.,0.8)*uGlitch*0.05;
+  gl_FragColor = vec4(max(col,0.)*inside*uFade, 1.);
+}`;
+function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+const U = n => gl.getUniformLocation(prog, n);
+function mkTex(unit, src, filter) {
+  const tx = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tx);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); return tx;
+}
+// glyph atlas for the rain: 16x4 cells
+const atlas = document.createElement('canvas'); atlas.width = 16 * 32; atlas.height = 4 * 48;
+{ const a = atlas.getContext('2d'); a.fillStyle = '#000'; a.fillRect(0, 0, atlas.width, atlas.height); a.fillStyle = '#fff'; a.font = `34px ${FONT}`; a.textAlign = 'center'; a.textBaseline = 'middle';
+  const G = '0123456789abcdef$#|&;><{}[]()/\\*?!=~%@:._-+"\'`^ncsslhttpdTLSGETPOSTawkqQ'; for (let i = 0; i < 64; i++) a.fillText(G[i], (i % 16) * 32 + 16, Math.floor(i / 16) * 48 + 25); }
+mkTex(1, atlas, gl.LINEAR);
+mkTex(0, term, gl.LINEAR);
+gl.uniform1i(U('uTex'), 0); gl.uniform1i(U('uAtlas'), 1); gl.uniform2f(U('uRes'), W, H);
+
+const LOOK = {                // rain, net, tint
+  boot: [0.25, 0.0, [0.3, 1.0, 0.5]], title: [0.9, 0.25, [0.3, 1.0, 0.5]], box: [0.5, 0.15, [0.3, 1.0, 0.5]],
+  flow: [0.3, 0.7, [0.3, 0.85, 1.0]], wire: [0.35, 1.0, [1.0, 0.35, 0.8]], cover: [0.6, 0.35, [0.4, 0.6, 1.0]],
+  sync: [0.35, 0.8, [0.3, 0.9, 1.0]], test: [0.7, 0.2, [0.3, 1.0, 0.5]], outro: [0.55, 0.3, [0.3, 1.0, 0.5]],
+};
+function frame(t) {
+  t = clamp(t, 0, DUR);
+  const k = paint(t), name = SCENES[k], L = LOOK[name];
+  gl.activeTexture(gl.TEXTURE0); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, term);
+  // glitch around scene cuts; pulse on each cue
+  let g = 0; SCENES.forEach(s => { const d = t - START[s]; if (START[s] > 0) g = Math.max(g, d >= 0 ? clamp(1 - d / 0.28) : clamp(1 + d / 0.12)); });
+  let pulse = 9; TL.cues.forEach(c => { if (t >= c.t) pulse = t - c.t; });
+  gl.uniform1f(U('uTime'), t); gl.uniform1f(U('uGlitch'), g); gl.uniform1f(U('uPulse'), pulse);
+  gl.uniform1f(U('uRain'), L[0]); gl.uniform1f(U('uNet'), L[1]); gl.uniform3fv(U('uTint'), L[2]);
+  gl.uniform1f(U('uFade'), Math.min(clamp(t / 0.6), clamp((DUR - t) / 1.2)));
+  gl.viewport(0, 0, W, H); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+window.DURATION = DUR;
+window.renderFrame = t => { frame(t); return cv.toDataURL('image/jpeg', 0.93); };
+
+/* ---------- live playback ---------- */
+const au = document.getElementById('au');
+if (!/[?&]render/.test(location.search)) {
+  frame(0);
+  const playBtn = document.getElementById('play');
+  const bar = document.getElementById('bar');
+  const fill = document.getElementById('fill');
+  const timeEl = document.getElementById('time');
+  const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  timeEl.textContent = `0:00 / ${fmt(DUR)}`;
+  TL.cues.forEach((c, i) => {
+    if (i > 0 && TL.cues[i - 1].scene === c.scene) return;
+    const t = document.createElement('div');
+    t.className = 'tick'; t.style.left = `${(c.t / DUR) * 100}%`; bar.appendChild(t);
+  });
+  const show = () => {
+    fill.style.width = `${(au.currentTime / DUR) * 100}%`;
+    timeEl.textContent = `${fmt(au.currentTime)} / ${fmt(DUR)}`;
+  };
+  const setPlaying = p => {
+    playBtn.textContent = p ? '⏸' : '▶';
+    document.getElementById('ui').classList.toggle('playing', p);
+  };
+  au.addEventListener('play', () => setPlaying(true));
+  au.addEventListener('pause', () => setPlaying(false));
+  const loop = () => { frame(au.currentTime); show(); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  cv.addEventListener('click', () => au.paused ? au.play() : au.pause());
+  playBtn.addEventListener('click', () => au.paused ? au.play() : au.pause());
+  document.getElementById('fs').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  });
+  addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); au.paused ? au.play() : au.pause(); }
+    if (e.code === 'ArrowRight') au.currentTime = Math.min(DUR, au.currentTime + 3);
+    if (e.code === 'ArrowLeft') au.currentTime = Math.max(0, au.currentTime - 3);
+    if (e.key === 'r' || e.key === 'R') { au.currentTime = 0; au.play(); }
+  });
+}
+</script>
+</body>
+</html>

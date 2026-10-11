@@ -1,0 +1,39 @@
+[
+ {"id":"a1","scene":"boot","say":"No Python.","en":"No Python.","zh":"没有 Python。","gap":0.10},
+ {"id":"a2","scene":"boot","say":"No Node.","en":"No Node.","zh":"没有 Node。","gap":0.10},
+ {"id":"a3","scene":"boot","say":"No curl.","en":"No curl.","zh":"没有 curl。","gap":0.10},
+ {"id":"a4","scene":"boot","say":"No J Q.","en":"No jq.","zh":"没有 jq。","gap":0.15},
+ {"id":"a5","scene":"boot","say":"Not even bash.","en":"Not even bash.","zh":"连 bash 都没有。","gap":0.55},
+ {"id":"a6","scene":"boot","say":"Just a shell.","en":"Just a shell.","zh":"只有一个 shell。","gap":0.9},
+
+ {"id":"b1","scene":"title","say":"This is Ahyoo Core.","en":"This is Ayu.Core.","zh":"这就是 Ayu.Core。","gap":0.3},
+ {"id":"b2","scene":"title","say":"A pure shell bot framework, for Q Q, Telegram, and Discord.","en":"A pure shell bot framework for QQ, Telegram, and Discord.","zh":"一个纯 shell 的 SNS Bot 框架，支持 QQ、Telegram 和 Discord。","gap":0.9},
+
+ {"id":"c1","scene":"box","say":"It runs inside a tiny busybox muscle container.","en":"It runs inside a tiny busybox:musl container.","zh":"它运行在一个极小的 busybox:musl 容器里。","gap":0.3},
+ {"id":"c2","scene":"box","say":"The interpreter is hush.","en":"The interpreter is hush.","zh":"解释器是 hush。","gap":0.3},
+ {"id":"c3","scene":"box","say":"The web server is busybox H T T P D, serving plain C G I scripts.","en":"The web server is busybox httpd, serving plain CGI scripts.","zh":"Web 服务器是 busybox httpd，跑的是最朴素的 CGI 脚本。","gap":0.9},
+
+ {"id":"d1","scene":"flow","say":"When a message arrives, the platform fires a webhook.","en":"When a message arrives, the platform fires a webhook.","zh":"消息到达时，平台触发 webhook。","gap":0.3},
+ {"id":"d2","scene":"flow","say":"The router picks an adapter.","en":"The router picks an adapter.","zh":"路由选择对应的适配器。","gap":0.25},
+ {"id":"d3","scene":"flow","say":"The dispatcher matches a rule.","en":"The dispatcher matches a rule.","zh":"分发器匹配一条规则。","gap":0.25},
+ {"id":"d4","scene":"flow","say":"And your handler runs. One shell function.","en":"And your handler runs. One shell function.","zh":"然后你的处理器执行——只是一个 shell 函数。","gap":0.9},
+
+ {"id":"e1","scene":"wire","say":"The reply travels over raw sockets.","en":"The reply travels over raw sockets.","zh":"回复通过原始套接字发出。","gap":0.3},
+ {"id":"e2","scene":"wire","say":"Netcat opens the TCP connection.","en":"nc opens the TCP connection.","zh":"nc 建立 TCP 连接。","gap":0.3},
+ {"id":"e3","scene":"wire","say":"S S L client wraps it in TLS one point two.","en":"ssl_client wraps it in TLS 1.2.","zh":"ssl_client 为它套上 TLS 1.2。","gap":0.3},
+ {"id":"e4","scene":"wire","say":"And the HTTP request is written by hand, byte by byte.","en":"And the HTTP request is written by hand, byte by byte.","zh":"HTTP 请求则是手写的，一个字节一个字节地拼出来。","gap":0.9},
+
+ {"id":"f1","scene":"cover","say":"It covers all twenty nine Q Q endpoints.","en":"It covers all 29 QQ endpoints.","zh":"覆盖全部 29 个 QQ 接口。","gap":0.3},
+ {"id":"f2","scene":"cover","say":"All one hundred sixty nine Telegram bot API methods.","en":"All 169 Telegram Bot API methods.","zh":"全部 169 个 Telegram Bot API 方法。","gap":0.3},
+ {"id":"f3","scene":"cover","say":"And one hundred thirty five Discord functions.","en":"And 135 Discord functions.","zh":"以及 135 个 Discord 函数。","gap":0.9},
+
+ {"id":"g1","scene":"sync","say":"Plugins are just lines in a rules file.","en":"Plugins are just lines in a rules file.","zh":"插件只是规则文件里的几行。","gap":0.35},
+ {"id":"g2","scene":"sync","say":"The built in sync plugin bridges your chats across all three platforms.","en":"The built-in sync plugin bridges your chats across all three platforms.","zh":"内置的同步插件把三个平台的聊天打通。","gap":0.9},
+
+ {"id":"h1","scene":"test","say":"One hundred forty one tests.","en":"141 tests.","zh":"141 个测试。","gap":0.3},
+ {"id":"h2","scene":"test","say":"Zero failures.","en":"Zero failures.","zh":"零失败。","gap":0.3},
+ {"id":"h3","scene":"test","say":"No API keys required.","en":"No API keys required.","zh":"不需要任何 API key。","gap":1.0},
+
+ {"id":"i1","scene":"outro","say":"Ahyoo Core.","en":"Ayu.Core.","zh":"Ayu.Core。","gap":0.4},
+ {"id":"i2","scene":"outro","say":"If it has a shell, it can run a bot.","en":"If it has a shell, it can run a bot.","zh":"只要有 shell，就能跑 Bot。","gap":3.0}
+]
