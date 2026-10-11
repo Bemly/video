@@ -1,37 +1,31 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Prompt Aesthetic: Don't Write Prompts</title>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>提示词美学 · Prompt Aesthetic</title>
 <style>
-  html, body { margin: 0; background: #000; overflow: hidden; }
-  canvas#gl { display: block; width: 1920px; height: 1080px; }
-  body.preview canvas#gl { width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; margin: auto; cursor: pointer; }
+html,body{margin:0;height:100%;background:#14110d;color:#F5EAD5;font:14px "PingFang SC",system-ui,sans-serif;overflow:hidden}
+canvas#gl{display:block;width:1920px;height:1080px}
+body.preview{height:100vh;display:flex;flex-direction:column}
+body.preview canvas#gl{width:100vw;height:auto;max-height:calc(100vh - 118px);margin:0 auto;cursor:pointer;flex:0 1 auto}
+body.preview #top,body.preview #ui{display:block}
+#top,#ui{display:none}
+#ui{background:linear-gradient(transparent,rgba(0,0,0,.8));padding:10px 16px 14px;transition:opacity .4s}
+#ui.playing{opacity:0}#ui.playing:hover{opacity:1}
+#row{display:flex;align-items:center;gap:12px}
+button{background:none;border:1px solid #5CC7C0;color:#5CC7C0;border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+button:disabled{opacity:.35;cursor:default}
+#bar{flex:1;height:6px;background:#333;border-radius:3px;cursor:pointer;position:relative}#fill{height:100%;width:0;background:#5CC7C0;border-radius:3px}
+.tick{position:absolute;top:-3px;width:2px;height:12px;background:#5a5347}
+#time{font-variant-numeric:tabular-nums;color:#8C877C;min-width:112px;text-align:right}
+#top{padding:12px 16px 4px;display:none;gap:12px;align-items:center;flex-wrap:wrap}
+body.preview #top{display:flex}
+#status{color:#8C877C}#top a{color:#5CC7C0;text-decoration:none}#top b{letter-spacing:.1em}
+#note{color:#8C877C;font-size:12px}
 </style>
-</head>
-<body>
-<canvas id="gl" width="1920" height="1080"></canvas>
 <script src="timings.js"></script>
 <script src="engine.js"></script>
 <script src="scenes.js"></script>
-<script>
-  // ?t=12.3 draws one frame; no query string plays with audio on click (space toggles, arrows seek).
-  boot().then(() => {
-    const q = new URLSearchParams(location.search);
-    if (q.has('t')) { renderFrame(+q.get('t')); return; }
-    if (q.has('headless')) return;
-    document.body.classList.add('preview');
-    const audio = new Audio('out/audio.wav');
-    renderFrame(0);
-    const loop = () => { renderFrame(audio.currentTime); requestAnimationFrame(loop); };
-    document.getElementById('gl').onclick = () => audio.paused ? audio.play() : audio.pause();
-    addEventListener('keydown', e => {
-      if (e.key === ' ') audio.paused ? audio.play() : audio.pause();
-      if (e.key === 'ArrowRight') audio.currentTime += 5;
-      if (e.key === 'ArrowLeft') audio.currentTime -= 5;
-    });
-    loop();
-  });
-</script>
-</body>
-</html>
+</head><body>
+<canvas id="gl" width="1920" height="1080"></canvas>
+<div id="top"><b>提示词美学 · Prompt Aesthetic</b><span id="status">加载中…</span><span id="note">Fish S2 英文配音 · 中英双语字幕 · 空格播放/暂停，←/→ 5 秒</span><a href="../">← 返回</a></div>
+<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fs">⛶</button></div></div>
+<script type="module" src="./player.js"></script>
+</body></html>
