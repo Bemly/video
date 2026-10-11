@@ -20,7 +20,8 @@ const App: React.FC = () => {
   const [voiced, setVoiced] = useState(false);
 
   useEffect(() => {
-    (window as unknown as Record<string, unknown>).remotion_staticBase = '.';
+    const STATIC_BASE = window.location.pathname.startsWith('/winterjs') ? '/winterjs' : '';
+    (window as unknown as Record<string, unknown>).remotion_staticBase = STATIC_BASE;
     let dead = false;
     // Player 4.x 用事件监听当前帧（无 onFrameUpdate prop，见 player-methods/event-emitter）。
     const onFrame = (e: {detail: {frame: number}}) => {
