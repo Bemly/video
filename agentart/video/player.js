@@ -1,7 +1,7 @@
 // Watch-page driver: audio-clocked renderFrame + shared player chrome
 // (top bar, bottom play/seek/time/fullscreen). Keeps ?t= single-frame and
 // ?headless (render.mjs pipeline) behaviors.
-const AUDIO_SRC = 'out/audio.wav';
+const AUDIO_SRC = 'out/audio.mp3';
 
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('gl');
@@ -54,9 +54,17 @@ else if (!q.has('headless')) {
     if (e.code === 'ArrowLeft') audio.currentTime = Math.max(0, audio.currentTime - 5);
   });
   bar.addEventListener('pointerdown', (e) => {
-    const r = bar.getBoundingClientRect();
-    audio.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * DUR;
-    show();
+    bar.setPointerCapture(e.pointerId);
+    const seek = (ev) => {
+      const r = bar.getBoundingClientRect();
+      audio.currentTime = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * DUR;
+      show();
+    };
+    seek(e);
+    const move = (ev) => seek(ev);
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up);
   });
   document.getElementById('fs').addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen();
