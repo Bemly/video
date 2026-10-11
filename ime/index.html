@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AFM 拼音 · 介绍视频</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05070d; overflow: hidden; color: #e8f4ff; font: 14px "PingFang SC", system-ui, sans-serif; }
+  #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  #out { max-width: 100vw; max-height: 100%; aspect-ratio: 16/9; width: auto; height: auto; cursor: pointer; }
+  #top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 16px 4px; }
+  #top b { letter-spacing: .1em; } #status { color: #7fa8ff; } #top a { color: #5CC7C0; text-decoration: none; }
+  #note { color: #7fa8ff; font-size: 12px; }
+  #ui { padding: 10px 16px 14px; background: linear-gradient(transparent,rgba(0,0,0,.8)); transition: opacity .4s; }
+  #ui.playing { opacity: 0; } #ui.playing:hover { opacity: 1; }
+  #row { display: flex; align-items: center; gap: 12px; }
+  button { background: none; border: 1px solid #5CC7C0; color: #5CC7C0; border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .35; cursor: default; }
+  #bar { flex: 1; height: 6px; background: #1a2740; border-radius: 3px; cursor: pointer; position: relative; }
+  #fill { height: 100%; width: 0; background: #5CC7C0; border-radius: 3px; }
+  .tick { position: absolute; top: -3px; width: 2px; height: 12px; background: #2c4a6a; }
+  #time { font-variant-numeric: tabular-nums; color: #7fa8ff; min-width: 112px; text-align: right; }
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="top"><b>AFM 拼音 · 介绍视频</b><span id="status">加载素材中…</span><span id="note">空格播放/暂停，←/→ 3 秒</span><a href="../">← 返回</a></div>
+<div id="stage"><canvas id="out" width="1920" height="1080"></canvas></div>
+<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00</span><button id="fs">⛶</button></div></div>
+</div>
+<script type="x-shader/x-fragment" id="fs">#version 300 es
+precision highp float;
+uniform vec2 uRes; uniform float uT, uHue;
+uniform sampler2D uTex;
+uniform vec4 uRect, uView; uniform float uA;      // media card: cx,cy,w,h (px, y down) / uv window / presence
+uniform vec4 uPanel; uniform float uPA;           // glass panel
+out vec4 o;
+
+float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float a=.5, s=0.; for(int i=0;i<5;i++){ s+=a*noise(p); p=p*2.03+17.1; a*=.5; } return s; }
+vec3 pal(float h){ return .5+.5*cos(6.2832*(h+vec3(0.,.33,.67))); }
+float sdRB(vec2 p, vec2 b, float r){ vec2 q=abs(p)-b+r; return length(max(q,0.))+min(max(q.x,q.y),0.)-r; }
+
+// 流动的极光背景
+vec3 bg(vec2 p){
+  vec2 uv = p/uRes.y; float t = uT*.05;
+  vec2 q = uv*1.3;
+  vec2 w = vec2(fbm(q+vec2(t,-t)), fbm(q+vec2(5.2,1.3)-t));
+  float f = fbm(q*1.2+2.4*w+t);
+  vec3 c1 = pal(uHue+.58), c2 = pal(uHue+.78);
+  vec3 col = mix(vec3(.012,.018,.045), c1*.32, smoothstep(.3,.85,f));
+  col = mix(col, c2*.42, smoothstep(.5,1.,w.x*f*1.9));
+  col += .05*c1*smoothstep(.62,.9,fbm(q*3.+w*4.-t*2.));
+  vec2 v = p/uRes-.5; col *= 1.-.9*dot(v,v);
+  return col;
+}
+
+// 液态玻璃水滴（metaball 折射）
+vec3 drops(vec2 p){
+  float f=0.; vec2 g=vec2(0.);
+  for(int i=0;i<4;i++){
+    float k=float(i);
+    vec2 c = uRes*(.5+vec2(.42*sin(uT*.11+k*1.9), .38*cos(uT*.13+k*2.7+1.)));
+    float r = 110.+50.*sin(k*3.1+uT*.2);
+    vec2 d = p-c; float d2 = dot(d,d)+1.;
+    f += r*r/d2; g += -2.*r*r*d/(d2*d2);
+  }
+  float m = smoothstep(1.,1.12,f);
+  vec2 n = g/(length(g)+1e-5);
+  float edge = m*(1.-smoothstep(1.12,2.2,f));
+  vec3 col = bg(p + n*70.*edge);
+  col = mix(col, col*1.25+.02, m);
+  col += edge*edge*.22*pal(uHue+.6+.1*n.x) + .35*smoothstep(1.,1.04,f)*(1.-smoothstep(1.04,1.1,f))*max(0.,-n.y);
+  return col;
+}
+
+void main(){
+  vec2 p = vec2(gl_FragCoord.x, uRes.y-gl_FragCoord.y);
+  vec3 col = drops(p);
+
+  if(uPA>.001){
+    vec2 h = uPanel.zw*.5; float d = sdRB(p-uPanel.xy, h, 40.);
+    float nz = fbm(p*.004+7.); float m = smoothstep(nz-.15,nz+.15,uPA*1.3-.15);
+    col *= 1.-.5*m*exp(-max(d,0.)/50.);
+    float inside = 1.-smoothstep(-1.,1.,d);
+    vec2 wob = vec2(fbm(p*.006+uT*.1), fbm(p*.006+9.-uT*.1))-.5;
+    vec3 gl = bg(p+wob*90.)*.55 + vec3(.035,.045,.07);
+    gl += .06*smoothstep(h.y, -h.y, p.y-uPanel.y)*vec3(.7,.85,1.);
+    col = mix(col, gl, inside*m);
+    col += m*smoothstep(2.5,0.,abs(d+1.2))*vec3(.3,.4,.55)*(.55+.45*sin((p.x+p.y)*.004+uT*.8));
+  }
+
+  if(uA>.001){
+    vec2 h = uRect.zw*.5; float d = sdRB(p-uRect.xy, h, 22.);
+    float nz = fbm(p*.004+3.); float m = smoothstep(nz-.15,nz+.15,uA*1.3-.15);
+    col *= 1.-.6*m*exp(-max(d,0.)/45.);
+    float inside = 1.-smoothstep(-1.,1.,d);
+    vec2 uv = (p-(uRect.xy-h))/uRect.zw;
+    uv += (1.-uA)*.03*vec2(sin(p.y*.02+uT*5.), cos(p.x*.02+uT*4.));
+    uv = uView.xy + clamp(uv,0.,1.)*uView.zw;
+    vec3 t = texture(uTex, uv).rgb;
+    col = mix(col, t, inside*m);
+    col += m*smoothstep(2.5,0.,abs(d+1.2))*vec3(.32,.42,.58)*(.55+.45*sin((p.x-p.y)*.004+uT*.9));
+  }
+  col += (hash(p+floor(uT*12.))-.5)*.006;
+  o = vec4(col,1.);
+}
+</script>
+<script>
+const W = 1920, H = 1080, CAPTURE = new URLSearchParams(location.search).has('capture');
+const out = document.getElementById('out'), ctx = out.getContext('2d');
+const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
+const gl = glc.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false });
+
+// ---------- GL ----------
+function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, `#version 300 es
+in vec2 a; void main(){ gl_Position = vec4(a,0.,1.); }`));
+gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, document.getElementById('fs').textContent.trim()));
+gl.linkProgram(prog); gl.useProgram(prog);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+const U = n => gl.getUniformLocation(prog, n);
+const u = { res: U('uRes'), t: U('uT'), hue: U('uHue'), rect: U('uRect'), view: U('uView'), a: U('uA'), panel: U('uPanel'), pa: U('uPA') };
+gl.uniform2f(u.res, W, H);
+
+function mkTex(mip){ const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR); return t; }
+const videoTex = mkTex(false);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,255]));
+
+// ---------- 素材 ----------
+const IMG = {}, VID = {};
+const imgNames = ['s01','s02','s03','s04','s05','s06','s07','s08','s09','s10','s11'];
+const vidNames = ['g','n','d','e','f','h1','h2','h3'];
+function loadImg(n){ return new Promise((ok, no) => { const im = new Image(); im.onload = () => {
+  const t = mkTex(true); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im); gl.generateMipmap(gl.TEXTURE_2D);
+  IMG[n] = { tex: t, w: im.naturalWidth, h: im.naturalHeight }; ok(); }; im.onerror = no; im.src = `assets/${n}.png`; }); }
+function loadVid(n){ return new Promise((ok, no) => { const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = `assets/${n}.mp4`;
+  v.addEventListener('loadeddata', () => { VID[n] = { el: v, w: v.videoWidth, h: v.videoHeight }; ok(); }, { once: true });
+  v.onerror = no; }); }
+
+// ---------- 时间线 ----------
+let TL, L, DUR, SCENES;
+const SEC = { intro: ['', .0], origin: ['01 · 缘起', .12], feat: ['02 · 功能', .30], install: ['03 · 安装', .47], ai: ['04 · 开启 Apple 智能', .68], outro: ['', .0] };
+function buildScenes(){
+  const at = (i, f = 0) => L[i].start + f*(L[i].end - L[i].start) - .3;
+  const full = [0,0,1,1];
+  const S = [
+    { t: 0, sec: 'intro', kind: 'intro', clip: 'n', v0: [0,0,.68,.55], ss: 0, rate: 1.2 },
+    { t: at(2), img: 's01', v0: full, v1: [.08,.04,.64,.64], h: 'macOS 27 自带的 fm 命令' },
+    { t: at(3), img: 's02', h: '系统内置 · 通用二进制' },
+    { t: at(4), img: 's03', v0: [0,0,1,.42], v1: [0,.5,1,.42], h: '直接对话：写代码、讲步骤' },
+    { t: at(5), img: 's04', v0: full, v1: [.03,.03,.94,.94], h: '跑在 Apple Neural Engine 上' },
+    { t: at(6), img: 's06', v0: full, v1: [.03,.06,.94,.94], h: '模型自带安全护栏' },
+    { t: at(7), img: 's07', v0: full, v1: [.2,.5,.5,.5], h: '那就让大模型来帮忙打字' },
+    { t: at(8), img: 's05', h: '✦ 候选重排 · 结合上文' },
+    { t: at(8,.6), clip: 'n', v0: [0,0,.68,.55], ss: 17.3, rate: 1, h: '✦ 候选重排 · 结合上文' },
+    { t: at(9), clip: 'n', v0: [0,0,.68,.55], ss: 21, rate: 1.35, h: '数字选词 · 空格上屏 · 简拼与模糊音' },
+    { t: at(10), clip: 'd', ss: 5, rate: 1, h: '698.6 万条词库 · 单次查询约 0.2 毫秒' },
+    { t: at(11), clip: 'n', v0: [0,0,.68,.55], ss: 52.5, rate: 1, h: '液态玻璃水滴 · 按住拖动，松手上屏' },
+    { t: at(12), clip: 'g', ss: 6, rate: 1.2, h: '可选：固定透镜模式' },
+    { t: at(13), clip: 'n', ss: 32, rate: 2.6, h: '↓ 展开候选网格' },
+    { t: at(14), img: 's11', v0: [0,0,.5,1], v1: [.42,0,.5,1], h: '整句预测 · 林檎的 LLM 偶尔也会犯傻' },
+    { t: at(16), img: 's08', h: '⌃V 剪贴板历史 · ⌃F 内联翻译' },
+    { t: at(17), clip: 'e', ss: 2, rate: 2.5, h: '用户词库 · 越打越顺' },
+    { t: at(18), img: 's10', h: '可选云端模型' },
+    { t: at(19), img: 's09', v0: full, v1: [.38,.08,.6,.6], h: 'OpenAI 兼容 / Anthropic · 失败自动回落' },
+    { t: at(20), clip: 'f', ss: 1, rate: 2.2, h: '设置中心' },
+    { t: at(21), kind: 'panel', h: '方式一 · Homebrew 预编译版（推荐）', big: ['Homebrew', 'Apple 芯片'], lines: ['github.com/Bemly/homebrew-tahoe', '预编译 cask · 仅 arm64 · 无需 Xcode'] },
+    { t: at(22), kind: 'panel', h: '方式一 · Homebrew 预编译版（推荐）', term: ['$ brew tap bemly/tahoe', '$ brew trust bemly/tahoe', '$ brew install --cask bemly/tahoe/afm', '→ 装入 ~/Library/Input Methods，并自动启用输入源'] },
+    { t: at(23), kind: 'panel', h: '方式二 · 自行编译', big: ['macOS 27+', 'Xcode 27+'], lines: ['纯 Swift · 无第三方依赖', 'Metal 工具链：Xcode 独立组件，首次需下载（约 839 MB）'] },
+    { t: at(24), kind: 'panel', h: '方式二 · 自行编译', term: ['$ git clone https://github.com/Bemly/afm-ime', '$ cd afm-ime', '$ xcodebuild -downloadComponent metalToolchain', '$ scripts/build_dict.sh   # 编译词库 dict.bin', '$ scripts/package.sh      # 打包 AFM拼音.app', '$ open build/AFM拼音.app'] },
+    { t: at(25), clip: 'h1', ss: .3, rate: 1.2, h: '① 打开应用 → 安装并启用' },
+    { t: at(26), clip: 'h2', ss: 0, rate: 1.5, v0: [0,.02,1,.66], v1: [.05,.12,.9,.6], h: '② 注销重登 → 系统设置 › 键盘 › 输入法 › 添加' },
+    { t: at(27), clip: 'h3', ss: 1.1, rate: .12, h: '③ Control + 空格 切换到 AFM 拼音' },
+    { t: at(28), kind: 'panel', h: '国行 Mac 开启 Apple 智能', big: ['enableMacosAI'], lines: ['github.com/SkyBlue997/enableMacosAI', 'macOS 27 · Apple 芯片'] },
+    { t: at(29), kind: 'panel', h: '原理：改区域码', flow: ['CH/A 国行', 'RegionSpoof.kext', 'LL/A 美版'], lines: ['在 IORegistry 源头修改 region-info', '只解决“区域”这一项资格'] },
+    { t: at(30), kind: 'panel', h: '第一步 · 恢复模式', term: ['# 关机 → 长按电源键进入恢复模式 → 终端', '$ csrutil enable --without kext'] },
+    { t: at(31), kind: 'panel', h: '第二步 · 运行安装脚本', term: ['$ git clone https://github.com/SkyBlue997/enableMacosAI', '$ cd enableMacosAI', '$ sudo ./install.sh'] },
+    { t: at(32), kind: 'panel', h: '第三步 · 允许并重启', flow: ['系统设置', '隐私与安全性', '允许', '重启'] },
+    { t: at(33), kind: 'panel', h: '还要满足两个条件', lines: ['✓  Apple 账户「媒体与购买项目」地区：美国、日本等支持地区', '✓  系统语言 = Siri 语言 = English (US)'] },
+    { t: at(34), kind: 'panel', h: '验证', term: ['$ sudo ./install.sh status', '→ region-info = LL/A', '→ GREYMATTER = 4   ✓ eligible'] },
+    { t: at(35), kind: 'panel', h: '⚠ 风险提示', lines: ['需要关闭 kext 签名检查，会降低一部分系统保护', '卸载：sudo ./install.sh uninstall，重启后恢复原区域', '请自行评估风险'] },
+    { t: at(36), kind: 'outro' },
+  ];
+  let sec = 'intro';
+  S.forEach((s, i) => {
+    const li = L.findIndex(l => l.start - .31 >= s.t - 1e-6 || l.end > s.t + .3);
+    if(i) sec = L[Math.max(0, li)].sec; s.sec = sec;
+    s.end = i+1 < S.length ? S[i+1].t : DUR;
+  });
+  return S;
+}
+
+// ---------- 工具 ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = x => { x = clamp(x); return x*x*(3-2*x); };
+const easeOut = x => 1 - Math.pow(1-clamp(x), 3);
+const lerp = (a, b, k) => a + (b-a)*k;
+const SANS = '"PingFang SC","Hiragino Sans GB",sans-serif', MONO = '"SF Mono",Menlo,monospace';
+function fitFont(text, weight, size, maxW, fam = SANS){
+  ctx.font = `${weight} ${size}px ${fam}`; const w = ctx.measureText(text).width;
+  if(w > maxW){ size = Math.floor(size*maxW/w); ctx.font = `${weight} ${size}px ${fam}`; } return size; }
+function rr(x, y, w, h, r){ ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function hueAt(t){ // 分段色相平滑过渡
+  let h = 0; for(const s of SCENES){ const k = ease((t - s.t + .8)/1.6); h = lerp(h, SEC[s.sec][1], k); } return h; }
+function sceneAt(t){ let s = SCENES[0]; for(const x of SCENES) if(t >= x.t) s = x; return s; }
+function presence(s, t){ return Math.min(ease((t - s.t)/.55), ease((s.end - t)/.3)) * (s.end >= DUR ? 1 : 1); }
+
+function mediaLayout(s, t, box){
+  const m = s.img ? IMG[s.img] : VID[s.clip], k = ease((t - s.t)/(s.end - s.t));
+  const v0 = s.v0 || [0,0,1,1], v1 = s.v1 || v0, v = v0.map((x, i) => lerp(x, v1[i], k));
+  const ar = (v[2]*m.w)/(v[3]*m.h); let w = box.w, h = w/ar; if(h > box.h){ h = box.h; w = h*ar; }
+  const pop = .94 + .06*easeOut((t - s.t)/.6);
+  return { rect: [box.x, box.y, w*pop, h*pop], view: v };
+}
+
+// ---------- 2D 文本层 ----------
+function drawHeading(text, a){
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  fitFont(text, 600, 54, 1700); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 18;
+  ctx.fillStyle = '#fff'; ctx.fillText(text, W/2, 118 - (1-a)*14); ctx.restore(); }
+function drawChip(sec, a){
+  const label = SEC[sec][0]; if(!label) return;
+  ctx.save(); ctx.globalAlpha = a*.95; ctx.font = `600 26px ${SANS}`; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(label).width + 44; rr(56, 40, w, 48, 24);
+  ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#dfe9ff'; ctx.fillText(label, 78, 65); ctx.restore(); }
+function wrap(text, maxW){
+  const lines = []; let cur = '';
+  for(const tok of text.match(/[A-Za-z0-9+.\-]+ ?|./g)){ if(ctx.measureText(cur + tok).width > maxW && cur){ lines.push(cur); cur = tok.trimStart(); } else cur += tok; }
+  if(cur) lines.push(cur);
+  if(lines.length === 2){ // 两行时尽量在靠近中点的标点处断开
+    const all = text; let best = -1;
+    for(let i = 1; i < all.length - 1; i++) if('，。：、；'.includes(all[i]) && ctx.measureText(all.slice(0, i+1)).width <= maxW
+      && (best < 0 || Math.abs(i - all.length/2) < Math.abs(best - all.length/2))) best = i;
+    if(best > 0 && Math.abs(best - all.length/2) < all.length*.3) return [all.slice(0, best+1), all.slice(best+1).trim()]; }
+  return lines; }
+function drawSub(t){
+  const l = L.find(l => t >= l.start - .12 && t <= l.end + .18); if(!l) return;
+  const a = Math.min(ease((t - l.start + .12)/.2), ease((l.end + .18 - t)/.2));
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `500 40px ${SANS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const lines = wrap(l.sub, 1500), lh = 56, bw = Math.max(...lines.map(x => ctx.measureText(x).width)) + 72, bh = lines.length*lh + 30;
+  const by = 1010 - bh; rr(W/2 - bw/2, by, bw, bh, 26); ctx.fillStyle = 'rgba(6,9,18,.62)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#fff'; lines.forEach((x, i) => ctx.fillText(x, W/2, by + 15 + lh*(i+.5) + 2)); ctx.restore(); }
+function drawProgress(t){ ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, H-5, W, 5);
+  const g = ctx.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#6ee7ff'); g.addColorStop(1, '#a78bfa');
+  ctx.fillStyle = g; ctx.fillRect(0, H-5, W*t/DUR, 5); }
+function gradText(text, x, y, size, a){
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(text, 700, size, 1400);
+  const g = ctx.createLinearGradient(x-420, y-60, x+420, y+60); g.addColorStop(0, '#9be8ff'); g.addColorStop(.5, '#ffffff'); g.addColorStop(1, '#c4b5fd');
+  ctx.shadowColor = 'rgba(120,200,255,.55)'; ctx.shadowBlur = 40; ctx.fillStyle = g; ctx.fillText(text, x, y); ctx.restore(); }
+
+const PANEL = [960, 520, 1560, 620];
+function drawPanelContent(s, t, a){
+  const loc = t - s.t, dur = s.end - s.t, x0 = PANEL[0] - PANEL[2]/2 + 80, top = PANEL[1] - PANEL[3]/2;
+  ctx.save(); ctx.textBaseline = 'middle';
+  const stag = i => a*ease((loc - .35 - i*.35)/.4);
+  if(s.term){
+    ['#ff5f57','#febc2e','#28c840'].forEach((c, i) => { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x0 - 30 + i*34, top + 50, 10, 0, 7); ctx.fill(); });
+    const n = s.term.length, fs = n > 4 ? 36 : 42, lh = n > 4 ? 74 : 92, total = s.term.join('').length;
+    let shown = Math.floor(clamp((loc - .4)/(dur*.55))*total), y = PANEL[1] + 30 - (n-1)*lh/2;
+    ctx.font = `500 ${fs}px ${MONO}`; ctx.textAlign = 'left'; ctx.globalAlpha = a;
+    for(const line of s.term){
+      const part = line.slice(0, Math.max(0, shown)); shown -= line.length;
+      const ci = line.indexOf('   #'), isOut = line[0] === '→', isCmt = line[0] === '#';
+      let x = x0 - 30;
+      const seg = (txt, col) => { if(!txt) return; ctx.fillStyle = col; ctx.fillText(txt, x, y); x += ctx.measureText(txt).width; };
+      if(isOut) seg(part, '#7ef0a8'); else if(isCmt) seg(part, 'rgba(255,255,255,.5)');
+      else { seg(part.slice(0, 2), '#6ee7ff'); const body = part.slice(2);
+        if(ci >= 0 && part.length > ci){ seg(body.slice(0, ci-2), '#f4f7ff'); seg(body.slice(ci-2), 'rgba(255,255,255,.45)'); } else seg(body, '#f4f7ff'); }
+      if(part.length && shown < 0 && shown > -line.length - 1 && Math.floor(t*2.5)%2 === 0){ ctx.fillStyle = '#e8f1ff'; ctx.fillRect(x + 4, y - fs*.55, fs*.5, fs*1.1); }
+      y += lh;
+    }
+  } else {
+    let y = PANEL[1] - PANEL[3]/2 + 150; const hasTop = s.big || s.flow;
+    if(s.big){
+      ctx.textAlign = 'center';
+      if(s.big.length === 1){ gradText(s.big[0], 960, y + 40, 120, stag(0)); }
+      else s.big.forEach((b, i) => { const bw = 560, bx = 960 + (i - (s.big.length-1)/2)*(bw + 60);
+        ctx.globalAlpha = stag(i); rr(bx - bw/2, y - 70, bw, 190, 32); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; ctx.stroke(); gradText(b, bx, y + 25, 76, stag(i)); });
+      y += 230;
+    }
+    if(s.flow){
+      const n = s.flow.length, bw = n > 3 ? 290 : 400, gap = n > 3 ? 70 : 110, tw = n*bw + (n-1)*gap; ctx.textAlign = 'center';
+      const fy = s.lines ? y + 20 : PANEL[1];
+      s.flow.forEach((f, i) => { const bx = 960 - tw/2 + i*(bw+gap) + bw/2, al = stag(i);
+        ctx.globalAlpha = al; rr(bx - bw/2, fy - 70, bw, 140, 28);
+        ctx.fillStyle = i === n-1 ? 'rgba(110,231,255,.16)' : 'rgba(255,255,255,.08)'; ctx.fill();
+        ctx.strokeStyle = i === n-1 ? 'rgba(110,231,255,.7)' : 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; ctx.stroke();
+        fitFont(f, 600, 44, bw - 40); ctx.fillStyle = '#fff'; ctx.fillText(f, bx, fy + 2);
+        if(i < n-1){ ctx.font = `600 52px ${SANS}`; ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText('→', bx + bw/2 + gap/2, fy); } });
+      y += 210;
+    }
+    if(s.lines){
+      const n = s.lines.length, lh = hasTop ? 72 : 110; if(!hasTop) y = PANEL[1] + 10 - (n-1)*lh/2;
+      ctx.textAlign = 'center';
+      s.lines.forEach((ln, i) => { ctx.globalAlpha = stag(i + (hasTop ? 1.5 : 0)); fitFont(ln, 500, hasTop ? 40 : 48, PANEL[2] - 160);
+        ctx.fillStyle = hasTop ? 'rgba(235,242,255,.85)' : '#fff'; ctx.fillText(ln, 960, y + i*lh); });
+    }
+  }
+  ctx.restore();
+}
+
+// ---------- 渲染 ----------
+let curVid = null;
+function draw(t){
+  const s = sceneAt(t), a = presence(s, t);
+  let rect = [0,0,1,1], view = [0,0,1,1], ma = 0, pa = 0, panel = PANEL;
+  const hasMedia = s.img || s.clip;
+  if(hasMedia){
+    const box = s.kind === 'intro' ? { x: 960, y: 660, w: 1560, h: 380 } : { x: 960, y: 500, w: 1740, h: 660 };
+    ({ rect, view } = mediaLayout(s, t, box)); ma = a;
+    gl.activeTexture(gl.TEXTURE0);
+    if(s.img) gl.bindTexture(gl.TEXTURE_2D, IMG[s.img].tex);
+    else { gl.bindTexture(gl.TEXTURE_2D, videoTex); const v = VID[s.clip].el;
+      if(v.readyState >= 2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, v); }
+  }
+  if(s.kind === 'panel') pa = a;
+  if(s.kind === 'outro'){ pa = a; panel = [960, 470, 1300, 520]; }
+  gl.uniform1f(u.t, t); gl.uniform1f(u.hue, hueAt(t));
+  gl.uniform4fv(u.rect, rect); gl.uniform4fv(u.view, view); gl.uniform1f(u.a, ma);
+  gl.uniform4fv(u.panel, panel); gl.uniform1f(u.pa, pa);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  ctx.globalAlpha = 1; ctx.drawImage(glc, 0, 0);
+
+  const loc = t - s.t;
+  if(s.kind === 'intro'){
+    gradText('AFM 拼音', 960, 250, 170, a*ease((loc - .3)/.8));
+    ctx.save(); ctx.globalAlpha = a*ease((loc - .9)/.8); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `500 46px ${SANS}`; ctx.fillStyle = 'rgba(230,240,255,.9)'; ctx.fillText('Apple Foundation Models 中文输入法', 960, 380); ctx.restore();
+  } else if(s.kind === 'outro'){
+    gradText('AFM 拼音', 960, 330, 140, a*ease((loc - .3)/.6));
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = a*ease((loc - .8)/.6); ctx.font = `600 54px ${MONO}`; ctx.fillStyle = '#fff'; ctx.fillText('github.com/Bemly/afm-ime', 960, 480);
+    ctx.globalAlpha = a*ease((loc - 1.3)/.6); ctx.font = `500 38px ${SANS}`; ctx.fillStyle = 'rgba(230,240,255,.85)';
+    ctx.fillText('纯 Swift · 无第三方依赖 · 端侧优先 · Liquid Glass', 960, 590);
+    ctx.fillText('★ 欢迎 Star', 960, 655); ctx.restore();
+  } else {
+    drawHeading(s.h, a); if(s.kind === 'panel') drawPanelContent(s, t, a);
+  }
+  drawChip(s.sec, ease((t - SCENES.find(x => x.sec === s.sec).t)/.6) * (s.kind === 'outro' ? 0 : 1));
+  drawSub(t); drawProgress(t);
+}
+const vidTime = (s, t) => clamp(s.ss + (t - s.t)*s.rate, 0, VID[s.clip].el.duration - .05);
+
+async function renderAt(t){ // 离线逐帧
+  const s = sceneAt(t);
+  if(s.clip){ const v = VID[s.clip].el, want = Math.round(vidTime(s, t)*30)/30 + .001;
+    if(Math.abs(v.currentTime - want) > 1e-3){ await new Promise(r => { v.addEventListener('seeked', r, { once: true }); v.currentTime = want; }); } }
+  draw(t); return out.toDataURL('image/jpeg', .93);
+}
+
+function live(){
+  const audio = new Audio('audio/voice.mp3');
+  const playBtn = document.getElementById('play');
+  const bar = document.getElementById('bar');
+  const fill = document.getElementById('fill');
+  const timeEl = document.getElementById('time');
+  const statusEl = document.getElementById('status');
+  const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  timeEl.textContent = `0:00 / ${fmt(DUR)}`;
+  statusEl.textContent = '';
+  playBtn.disabled = false;
+  for (const [name, frac] of Object.entries(SEC)) {
+    if (!frac[0]) continue;
+    const t = document.createElement('div');
+    t.className = 'tick'; t.style.left = `${frac[1] * 100}%`; t.title = frac[0]; bar.appendChild(t);
+  }
+  const show = () => {
+    fill.style.width = `${(audio.currentTime / DUR) * 100}%`;
+    timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(DUR)}`;
+  };
+  const setPlaying = p => {
+    playBtn.textContent = p ? '⏸' : '▶';
+    document.getElementById('ui').classList.toggle('playing', p);
+  };
+  audio.addEventListener('play', () => setPlaying(true));
+  audio.addEventListener('pause', () => setPlaying(false));
+  const tick = () => { const t = Math.min(audio.currentTime, DUR - .01), s = sceneAt(t);
+    if(s.clip){ const v = VID[s.clip].el, want = vidTime(s, t);
+      if(curVid && curVid !== v) curVid.pause(); curVid = v; v.playbackRate = s.rate;
+      if(Math.abs(v.currentTime - want) > .35) v.currentTime = want;
+      if(v.paused && !audio.paused && want < v.duration - .1) v.play().catch(() => {}); if(audio.paused) v.pause();
+    } else if(curVid){ curVid.pause(); curVid = null; }
+    draw(t); show(); requestAnimationFrame(tick); };
+  playBtn.onclick = () => audio.paused ? audio.play() : audio.pause();
+  out.onclick = () => audio.paused ? audio.play() : audio.pause();
+  audio.onended = () => setPlaying(false);
+  const seekTo = (clientX) => {
+    const r = bar.getBoundingClientRect();
+    audio.currentTime = Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * DUR;
+    show();
+  };
+  bar.addEventListener('pointerdown', (e) => {
+    bar.setPointerCapture(e.pointerId);
+    seekTo(e.clientX);
+    const move = (ev) => seekTo(ev.clientX);
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up);
+  });
+  document.getElementById('fs').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  });
+  addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); }
+    if (e.code === 'ArrowRight') audio.currentTime = Math.min(DUR, audio.currentTime + 3);
+    if (e.code === 'ArrowLeft') audio.currentTime = Math.max(0, audio.currentTime - 3);
+  });
+  tick();
+}
+
+(async () => {
+  TL = await (await fetch('timeline.json')).json(); L = TL.lines; DUR = TL.duration;
+  await Promise.all([...imgNames.map(loadImg), ...vidNames.map(loadVid), document.fonts.ready]);
+  SCENES = buildScenes();
+  window.DUR = DUR; window.renderAt = renderAt; window.ready = true;
+  if(!CAPTURE) live(); else draw(0);
+})().catch(e => { window.err = String(e && e.stack || e); console.error(e); });
+</script>
+</body>
+</html>

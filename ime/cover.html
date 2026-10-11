@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+<style>
+*{box-sizing:border-box}html,body{margin:0}
+body{width:1920px;height:1080px;overflow:hidden;position:relative;background:#05070f;font-family:"PingFang SC",sans-serif;color:#fff}
+body.r43{width:1440px}
+.bg{position:absolute;inset:-80px;background:url(assets/s08.png) center/cover;filter:blur(60px) saturate(1.6) brightness(.55)}
+.glow{position:absolute;inset:0;background:radial-gradient(900px 700px at 15% 20%,rgba(60,200,255,.35),transparent 60%),radial-gradient(900px 800px at 95% 95%,rgba(160,110,255,.4),transparent 60%),linear-gradient(180deg,rgba(4,6,14,.2),rgba(4,6,14,.75))}
+.shot{position:absolute;right:70px;top:50%;height:900px;transform:translateY(-50%) perspective(2400px) rotateY(-9deg) rotate(1.5deg);border-radius:36px;
+ box-shadow:0 50px 120px rgba(0,0,0,.7),0 0 0 2px rgba(255,255,255,.28),0 0 90px rgba(110,220,255,.25)}
+.txt{position:absolute;left:80px;top:50%;transform:translateY(-50%);width:820px}
+h1{margin:0;white-space:nowrap;font-size:176px;font-weight:800;line-height:1.05;letter-spacing:-2px;background:linear-gradient(100deg,#8fe9ff,#fff 50%,#c9b8ff);-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 8px 40px rgba(110,210,255,.55))}
+h2{margin:26px 0 0;font-size:68px;font-weight:700;line-height:1.25;text-shadow:0 4px 24px rgba(0,0,0,.7)}
+h2 em{font-style:normal;color:#8fe9ff}
+.chips{margin-top:44px;display:flex;gap:12px}
+.chips span{font-size:32px;font-weight:600;white-space:nowrap;padding:10px 22px;border-radius:40px;background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.35);backdrop-filter:blur(10px)}
+.r43 .shot{right:50%;top:auto;bottom:40px;height:600px;transform:translateX(50%) rotate(-1.5deg)}
+.r43 .txt{left:0;width:100%;top:26px;transform:none;text-align:center}
+.r43 h1{font-size:156px}.r43 h2{font-size:52px;margin-top:4px}
+.r43 .chips{justify-content:center;margin-top:18px}.r43 .chips span{font-size:30px;padding:8px 22px}
+</style>
+<body><div class="bg"></div><div class="glow"></div>
+<img class="shot" src="assets/s08.png">
+<div class="txt"><h1>AFM 拼音</h1><h2>苹果<em>端侧大模型</em><br>中文输入法</h2>
+<div class="chips"><span>液态玻璃</span><span>✦ AI 候选</span><span>剪贴板 · 翻译</span><span>开源</span></div></div>
+<script>if(location.search.includes('43'))document.body.className='r43'</script></body></html>
