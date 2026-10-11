@@ -54,9 +54,17 @@ else if (!q.has('headless')) {
     if (e.code === 'ArrowLeft') audio.currentTime = Math.max(0, audio.currentTime - 5);
   });
   bar.addEventListener('pointerdown', (e) => {
-    const r = bar.getBoundingClientRect();
-    audio.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * DUR;
-    show();
+    bar.setPointerCapture(e.pointerId);
+    const seek = (ev) => {
+      const r = bar.getBoundingClientRect();
+      audio.currentTime = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * DUR;
+      show();
+    };
+    seek(e);
+    const move = (ev) => seek(ev);
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up);
   });
   document.getElementById('fs').addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen();

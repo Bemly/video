@@ -688,6 +688,19 @@ if (!/[?&]render/.test(location.search)) {
   requestAnimationFrame(loop);
   cv.addEventListener('click', () => au.paused ? au.play() : au.pause());
   playBtn.addEventListener('click', () => au.paused ? au.play() : au.pause());
+  const seekTo = (clientX) => {
+    const r = bar.getBoundingClientRect();
+    au.currentTime = Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * DUR;
+    show();
+  };
+  bar.addEventListener('pointerdown', (e) => {
+    bar.setPointerCapture(e.pointerId);
+    seekTo(e.clientX);
+    const move = (ev) => seekTo(ev.clientX);
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up);
+  });
   document.getElementById('fs').addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();

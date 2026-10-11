@@ -52,6 +52,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'ArrowLeft') { F = Math.max(0, F - (e.shiftKey ? FPS * 5 : FPS)); show(); }
 });
 bar.addEventListener('pointerdown', (e) => {
+  bar.setPointerCapture(e.pointerId);
   const seek = (ev) => {
     const r = bar.getBoundingClientRect();
     const k = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
