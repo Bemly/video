@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prompt Aesthetic: Don't Write Prompts</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas#gl { display: block; width: 1920px; height: 1080px; }
+  body.preview canvas#gl { width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; margin: auto; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="gl" width="1920" height="1080"></canvas>
+<script src="timings.js"></script>
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+<script>
+  // ?t=12.3 draws one frame; no query string plays with audio on click (space toggles, arrows seek).
+  boot().then(() => {
+    const q = new URLSearchParams(location.search);
+    if (q.has('t')) { renderFrame(+q.get('t')); return; }
+    if (q.has('headless')) return;
+    document.body.classList.add('preview');
+    const audio = new Audio('out/audio.mp3');
+    renderFrame(0);
+    const loop = () => { renderFrame(audio.currentTime); requestAnimationFrame(loop); };
+    document.getElementById('gl').onclick = () => audio.paused ? audio.play() : audio.pause();
+    addEventListener('keydown', e => {
+      if (e.key === ' ') audio.paused ? audio.play() : audio.pause();
+      if (e.key === 'ArrowRight') audio.currentTime += 5;
+      if (e.key === 'ArrowLeft') audio.currentTime -= 5;
+    });
+    loop();
+  });
+</script>
+</body>
+</html>
