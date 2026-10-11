@@ -9,6 +9,7 @@
 | [`math-execute-me/`](math-execute-me/) | math.execute (me) ; —— 非官方同人 MV | https://bili.bemly.moe/math-execute-me/ |
 | [`odyssey/`](odyssey/) | 叠界 · Code Odyssey —— 可玩体素 demo（双世界 + 弹簧 + 冲突场） | https://bili.bemly.moe/odyssey/ |
 | [`odyssey/`](odyssey/)（`film/`） | 叠界 · Code Odyssey —— 15:21 讲解视频，浏览器实时渲染，中英双语字幕 | https://bili.bemly.moe/coding-adventure/ |
+| [`agentart/`](agentart/) | 提示词美学 · Prompt Aesthetic —— Fish S2 英文配音，浏览器实时渲染，中英双语字幕 | https://bili.bemly.moe/agentart/ |
 
 `openai-math/` 与 `math-execute-me/` 不需要构建：页面直接在浏览器里实时渲染每一帧（Canvas 2D + WebGL）。
 `odyssey/` 也不需要构建：`odyssey/demo`（对应线上 `/odyssey/`）与 `odyssey/film`（对应线上 `/coding-adventure/`）都是纯静态网页（Three.js 走 CDN），直接复制到 gh-pages 同名目录即可。
