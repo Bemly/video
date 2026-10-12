@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>了不起的瓶子 — 封面</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #dcdcdc; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  /* 1vh-based type so 16:9 and 4:3 share one layout */
+  #t { position: fixed; left: 0; right: 0; top: 75vh; text-align: center; color: #111113; }
+  #t h1 { margin: 0; font: 600 8.6vh/1 "PingFang SC", system-ui, sans-serif; letter-spacing: .06em; text-indent: .06em; }
+  #t p { margin: 2.6vh 0 0; font: 500 2.5vh/1 ui-monospace, "SF Mono", Menlo, monospace; color: #6a6a6e; letter-spacing: .02em; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="t"><h1>了不起的瓶子</h1><p>brew tap bemly/tahoe · Intel Mac × macOS 26</p></div>
+<script>
+const cv = document.getElementById('c'), gl = cv.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
+const FS = `#version 300 es
+precision highp float;
+uniform vec2 uRes;out vec4 o;
+#define TAU 6.2831853
+const vec3 K=vec3(.105,.105,.115);
+vec3 col;float px;
+float sat(float x){return clamp(x,0.,1.);}
+float h1(float n){return fract(sin(n*127.1+31.7)*43758.5453);}
+float bx(vec2 q,vec2 b){vec2 d=abs(q)-b;return length(max(d,0.))+min(max(d.x,d.y),0.);}
+float rb(vec2 q,vec2 b,float r){return bx(q,b-r)-r;}
+float smin(float a,float b,float k){float h=sat(.5+.5*(b-a)/k);return mix(b,a,h)-k*h*(1.-h);}
+float bottle(vec2 q){float d=smin(rb(q-vec2(0.,-.14),vec2(.16,.27),.06),rb(q-vec2(0.,.25),vec2(.055,.17),.03),.1);
+  return min(d,rb(q-vec2(0.,.425),vec2(.07,.022),.012));}
+void fillA(vec3 c,float d,float a){col=mix(col,c,sat(.5-d/px)*a);}
+vec3 pal8(float i){return i<.5?vec3(.2,.2,.22):i<1.5?vec3(.89,.27,.25):i<2.5?vec3(.3,.72,.38):i<3.5?vec3(.97,.76,.2):i<4.5?vec3(.25,.52,.96):i<5.5?vec3(.74,.38,.84):i<6.5?vec3(.2,.76,.86):vec3(.97);}
+void main(){
+  float S=uRes.y*.5;vec2 p=(gl_FragCoord.xy-.5*uRes)/S;px=1./S;
+  col=vec3(max(.912-.0215*dot(p,p),.78));
+  vec2 c=vec2(0.,.23),g=p-c;
+  // hairline orbits and the three drops
+  fillA(vec3(.5),abs(length(g)-.52)-px*.75,.5);fillA(vec3(.5),abs(length(g)-.33)-px*.75,.35);
+  fillA(vec3(1.),length(g-.52*vec2(cos(2.5),sin(2.5)))-.036,1.);
+  fillA(vec3(.97,.64,.1),length(g-.52*vec2(cos(-.55),sin(-.55)))-.02,1.);
+  fillA(K,length(g-.33*vec2(cos(.8),sin(.8)))-.016,1.);
+  // every bottle in the tap, as a ring of colour
+  for(int i=0;i<60;i++){float fi=float(i),a=fi/60.*TAU+.05;
+    float r=.74+.5*h1(fi+5.);vec2 d=vec2(cos(a),sin(a));
+    vec3 cc=mix(.5+.45*cos(TAU*(fi/60.+vec3(0.,.33,.67))),pal8(mod(fi,8.)),.45);
+    fillA(cc,length(g-d*r)-(.005+.009*h1(fi+1.)),smoothstep(-.6,-.38,p.y)*.9);}
+  // the bottle
+  float s=.72;vec2 e=(p-c)/s;float d=bottle(e);
+  fillA(vec3(.985),d*s,1.);
+  float lvl=.2+.014*sin(e.x*16.+1.);
+  fillA(vec3(.97,.64,.1),max(d+.024,e.y-lvl)*s,1.);
+  fillA(vec3(1.,.95,.84),max(d+.024,abs(e.y-lvl-.014)-.016)*s,1.);
+  for(int i=0;i<7;i++){float fi=float(i);vec2 b=vec2((h1(fi)-.5)*.2,-.38+h1(fi+7.)*.5);
+    fillA(vec3(1.,.86,.5),max(length(e-b)-(.008+.008*h1(fi+3.)),d+.035)*s,1.);}
+  fillA(vec3(1.),rb(e-vec2(0.,-.14),vec2(.115,.07),.012)*s,1.);
+  fillA(K,(abs(d)-.008)*s,1.);
+  // "x86_64" on the label, as three bars
+  for(int i=0;i<3;i++)fillA(i==0?K:vec3(.6),rb(e-vec2(-.02+.01*float(i),-.105-.035*float(i)),vec2(.06-.012*float(i),.008),.008)*s,1.);
+  col+=(fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5)/255.;
+  o=vec4(col,1.);
+}`;
+const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; };
+const pr = gl.createProgram();
+gl.attachShader(pr, sh(gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'));
+gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+const draw = () => { const d = devicePixelRatio || 1; cv.width = innerWidth * d; cv.height = innerHeight * d;
+  gl.viewport(0, 0, cv.width, cv.height); gl.uniform2f(gl.getUniformLocation(pr, 'uRes'), cv.width, cv.height); gl.drawArrays(gl.TRIANGLES, 0, 3); };
+addEventListener('resize', draw); draw(); window.ready = true;
+</script>
+</body>
+</html>

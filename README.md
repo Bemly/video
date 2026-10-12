@@ -13,9 +13,11 @@
 | [`bot/`](bot/) | Ayu.Core —— 纯 shell SNS 机器人框架宣传短片（1:19），浏览器实时渲染 | https://bili.bemly.moe/bot/ |
 | [`ime/`](ime/) | AFM 拼音 —— macOS 液态玻璃风格输入法介绍视频（4:33），浏览器实时渲染 | https://bili.bemly.moe/ime/ |
 | [`winterjs/`](winterjs/) | WinterJS 宣传片 —— SpiderMonkey 运行时介绍（Remotion，浏览器实时渲染） | https://bili.bemly.moe/winterjs/ |
+| [`brew/`](brew/) | 了不起的瓶子 —— brew tap bemly/tahoe（1:40），浏览器实时渲染 | https://bili.bemly.moe/brew/ |
 
 `openai-math/` 与 `math-execute-me/` 不需要构建：页面直接在浏览器里实时渲染每一帧（Canvas 2D + WebGL）。
 `odyssey/` 也不需要构建：`odyssey/demo`（对应线上 `/odyssey/`）与 `odyssey/film`（对应线上 `/coding-adventure/`）都是纯静态网页（Three.js 走 CDN），直接复制到 gh-pages 同名目录即可。
+`bot/`、`ime/`、`agentart/video/` 与 `brew/` 也不需要构建：直接把网页文件（`index.html` + 脚本 + 音频 + `cover.jpg`）复制到 gh-pages 同名目录即可。
 
 首页导航：https://bili.bemly.moe/
 

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>bemly/tahoe — 了不起的瓶子</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #dcdcdc; }
+  body { font: 500 14px/1.4 system-ui, -apple-system, "PingFang SC", sans-serif; color: #1d1d1f; cursor: none; }
+  body.active, body:has(#start:not([hidden])) { cursor: default; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #start { position: fixed; inset: 0; display: grid; place-items: center; cursor: pointer;
+    background: radial-gradient(circle at 50% 50%, #ececec, #d6d6d6); }
+  #start[hidden] { display: none; }
+  #start div { text-align: center; }
+  #start i { display: block; width: 84px; height: 84px; margin: 0 auto 26px; border-radius: 50%; background: #1b1b1d; position: relative; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+  #start:hover i { transform: scale(1.08); }
+  #start i::after { content: ""; position: absolute; left: 34px; top: 27px; border: 15px solid transparent; border-left: 24px solid #fff; border-right: 0; }
+  #start b { display: block; font: 600 22px/1.3 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -.01em; }
+  #start span { display: block; margin-top: 8px; color: #6e6e73; font-weight: 400; }
+  #track { position: fixed; left: 0; right: 0; bottom: 0; height: 14px; cursor: pointer; opacity: 0; transition: opacity .3s; }
+  body.active #track { opacity: 1; }
+  #track::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, .08); }
+  #bar { position: absolute; left: 0; bottom: 0; height: 3px; background: #1b1b1d; pointer-events: none; }
+  #err { position: fixed; inset: 12px; margin: 0; padding: 14px; overflow: auto; white-space: pre-wrap; z-index: 9;
+    font: 12px/1.5 ui-monospace, Menlo, monospace; color: #fff; background: rgba(160, 20, 20, .92); border-radius: 8px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="track"><div id="bar"></div></div>
+<div id="start"><div><i></i><b>brew tap bemly/tahoe</b><span>点击播放 · 空格暂停 · ← → 跳转 · F 全屏</span></div></div>
+<pre id="err" hidden></pre>
+<audio id="snd" src="soundtrack.m4a" preload="auto"></audio>
+<script src="js/lib.js"></script>
+<script src="js/act-1.js"></script>
+<script src="js/act-2.js"></script>
+<script src="js/act-3.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>
