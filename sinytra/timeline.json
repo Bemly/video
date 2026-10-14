@@ -1,0 +1,603 @@
+{
+ "total": 473.407,
+ "scenes": [
+  {
+   "id": "intro",
+   "no": 0,
+   "title_ja": "Sinytra とは",
+   "title_zh": "Sinytra 是什么",
+   "doc": "",
+   "start": 0.0,
+   "end": 22.088,
+   "lines": [
+    {
+     "start": 1.2,
+     "end": 6.217,
+     "ja": "Firefoxに、AndroidのシステムWebViewを乗っ取らせてみました。",
+     "zh": "我让火狐接管了安卓的系统 WebView。"
+    },
+    {
+     "start": 6.537,
+     "end": 9.01,
+     "ja": "プロジェクトの名前は Sinytra です。",
+     "zh": "项目名叫 Sinytra。"
+    },
+    {
+     "start": 9.33,
+     "end": 15.531,
+     "ja": "アプリのコードは一行も変えずに、WebView の中身を Chromium から Gecko に入れ替えます。",
+     "zh": "App 代码一行不改，把 WebView 的内核从 Chromium 换成 Gecko。"
+    },
+    {
+     "start": 15.851,
+     "end": 21.088,
+     "ja": "今日はまず仕組みを全部説明して、最後にインストール方法を紹介します。",
+     "zh": "今天先把原理全部讲通，最后再讲安装教程。"
+    }
+   ]
+  },
+  {
+   "id": "stack",
+   "no": 1,
+   "title_ja": "技術選定",
+   "title_zh": "技术选型",
+   "doc": "ARCHITECTURE.md §1",
+   "start": 22.088,
+   "end": 56.233,
+   "lines": [
+    {
+     "start": 22.788,
+     "end": 29.788,
+     "ja": "Mozilla 公式のレイヤーは、Gecko、GeckoView、Android Components、そして Fenix です。",
+     "zh": "Mozilla 官方分层是 Gecko → GeckoView → Android Components → Fenix。"
+    },
+    {
+     "start": 30.108,
+     "end": 35.025,
+     "ja": "Sinytra が使うのは下の半分だけ。GeckoView と Gecko です。",
+     "zh": "Sinytra 只取下半截：GeckoView 和 Gecko。"
+    },
+    {
+     "start": 35.345,
+     "end": 41.011,
+     "ja": "単体の SpiderMonkey では DOM もネットワークも無いので、WebView は作れません。",
+     "zh": "单独的 SpiderMonkey 没有 DOM、没有网络，做不成 WebView。"
+    },
+    {
+     "start": 41.331,
+     "end": 47.792,
+     "ja": "Android Components はブラウザ製品向けの抽象なので、WebView の意味論とぶつかります。",
+     "zh": "Android Components 是浏览器产品层抽象，会和 WebView 语义打架。"
+    },
+    {
+     "start": 48.112,
+     "end": 55.233,
+     "ja": "つまり、AOSP の WebView API と GeckoView の間に、薄い接着層を書くだけです。",
+     "zh": "也就是说，只在 AOSP WebView API 和 GeckoView 之间写一层薄薄的胶水。"
+    }
+   ]
+  },
+  {
+   "id": "chain",
+   "no": 2,
+   "title_ja": "呼び出しチェーン",
+   "title_zh": "调用链",
+   "doc": "ARCHITECTURE.md §3",
+   "start": 56.233,
+   "end": 101.71,
+   "lines": [
+    {
+     "start": 56.933,
+     "end": 62.327,
+     "ja": "アプリが new WebView すると、フレームワークの WebViewFactory が動きます。",
+     "zh": "App 调用 new WebView 时，framework 的 WebViewFactory 开始工作。"
+    },
+    {
+     "start": 62.647,
+     "end": 67.639,
+     "ja": "Android 14 では、ここで Chromium のクラス名がハードコードされています。",
+     "zh": "在 Android 14 里，这里把 Chromium 的类名写死了。"
+    },
+    {
+     "start": 67.959,
+     "end": 72.805,
+     "ja": "そこで APK の中に、同じ名前のトランポリンクラスを置きました。",
+     "zh": "所以我们在 APK 里放了一个同名的 trampoline 类。"
+    },
+    {
+     "start": 73.125,
+     "end": 78.735,
+     "ja": "トランポリンは Proxy で本物のインターフェースを実装して、転送するだけです。",
+     "zh": "trampoline 用 Proxy 实现真实接口，只做转发。"
+    },
+    {
+     "start": 79.055,
+     "end": 87.1,
+     "ja": "その先が GeckoWebViewFactoryProvider。ここがグローバルなシングルトン群をまとめます。",
+     "zh": "再往下是 GeckoWebViewFactoryProvider，负责全局单例族。"
+    },
+    {
+     "start": 87.42,
+     "end": 93.755,
+     "ja": "CookieManager や WebStorage など、フレームワークが要求するものは一つも欠かせません。",
+     "zh": "CookieManager、WebStorage 等 framework 要求的单例，一个都不能少。"
+    },
+    {
+     "start": 94.075,
+     "end": 100.71,
+     "ja": "WebView 一つごとに GeckoWebViewProvider が編成し、SessionBridge が翻訳を担当します。",
+     "zh": "每个 WebView 由 GeckoWebViewProvider 编排，SessionBridge 负责翻译。"
+    }
+   ]
+  },
+  {
+   "id": "core",
+   "no": 3,
+   "title_ja": "GeckoView 三大クラス",
+   "title_zh": "GeckoView 三大核心类",
+   "doc": "ARCHITECTURE.md §2",
+   "start": 101.71,
+   "end": 131.03,
+   "lines": [
+    {
+     "start": 102.41,
+     "end": 105.244,
+     "ja": "GeckoView の核は三つのクラスです。",
+     "zh": "GeckoView 的核心是三个类。"
+    },
+    {
+     "start": 105.564,
+     "end": 112.785,
+     "ja": "GeckoRuntime は、ホストアプリのプロセスごとに最大一つ。システム全体で共有はしません。",
+     "zh": "GeckoRuntime 每个宿主 App 进程最多一个，不是全系统共享。"
+    },
+    {
+     "start": 113.105,
+     "end": 118.479,
+     "ja": "GeckoSession は一つのページ、つまり一つの WebView にあたります。",
+     "zh": "GeckoSession 是单个页面，相当于一个 WebView。"
+    },
+    {
+     "start": 118.799,
+     "end": 124.608,
+     "ja": "GeckoView は表示と入力のホストです。Runtime の下の層ではありません。",
+     "zh": "GeckoView 是显示和输入宿主，不是 Runtime 的下一层。"
+    },
+    {
+     "start": 124.928,
+     "end": 130.03,
+     "ja": "セッションは open でランタイムに繋がり、setSession で画面に映ります。",
+     "zh": "session 经 open 挂到 runtime，经 setSession 显示出来。"
+    }
+   ]
+  },
+  {
+   "id": "layers",
+   "no": 4,
+   "title_ja": "レイヤーと依存方向",
+   "title_zh": "分层与依赖方向",
+   "doc": "ARCHITECTURE.md §3",
+   "start": 131.03,
+   "end": 161.083,
+   "lines": [
+    {
+     "start": 131.73,
+     "end": 137.148,
+     "ja": "パッケージの依存は一方向だけ。逆向きは即リジェクトです。",
+     "zh": "包依赖只有一个方向，反向依赖直接打回。"
+    },
+    {
+     "start": 137.468,
+     "end": 141.001,
+     "ja": "一番上が provider、編成レイヤーです。",
+     "zh": "最上面是 provider，编排层。"
+    },
+    {
+     "start": 141.321,
+     "end": 145.142,
+     "ja": "session は翻訳だけで、View には絶対に触りません。",
+     "zh": "session 只做翻译，绝不碰 View。"
+    },
+    {
+     "start": 145.462,
+     "end": 150.216,
+     "ja": "だから、画面の無いバックグラウンドのセッションも手動で管理できます。",
+     "zh": "所以没有画面的后台 session 也能手动管理。"
+    },
+    {
+     "start": 150.536,
+     "end": 155.913,
+     "ja": "view、settings、storage、compat が並び、一番下に runtime があります。",
+     "zh": "view、settings、storage、compat 并列，最底层是 runtime。"
+    },
+    {
+     "start": 156.233,
+     "end": 160.083,
+     "ja": "runtime はどの自作パッケージにも依存しません。",
+     "zh": "runtime 不依赖任何自有包。"
+    }
+   ]
+  },
+  {
+   "id": "history",
+   "no": 5,
+   "title_ja": "履歴とランタイムの事実",
+   "title_zh": "历史语义与运行时事实",
+   "doc": "ARCHITECTURE.md §4–5",
+   "start": 161.083,
+   "end": 189.419,
+   "lines": [
+    {
+     "start": 161.783,
+     "end": 167.365,
+     "ja": "履歴は Gecko が管理します。SessionState そのものが HistoryList です。",
+     "zh": "历史归 Gecko 管，SessionState 本身就是 HistoryList。"
+    },
+    {
+     "start": 167.685,
+     "end": 173.038,
+     "ja": "StateBridge は変換するだけ。自前の履歴スタックは作りません。",
+     "zh": "StateBridge 只做转译，不自建历史栈。"
+    },
+    {
+     "start": 173.358,
+     "end": 177.108,
+     "ja": "そして一番難しいのが、コールバックの順番です。",
+     "zh": "而最难的是回调顺序。"
+    },
+    {
+     "start": 177.428,
+     "end": 182.457,
+     "ja": "Gecko と Chromium では、イベントの流れが完全には一致しません。",
+     "zh": "Gecko 和 Chromium 的事件流并不完全一致。"
+    },
+    {
+     "start": 182.777,
+     "end": 188.419,
+     "ja": "典型的な流れを断言として書かず、実機のテストで順序を固定します。",
+     "zh": "不把典型流程硬编码成断言，而是用真机测试锁定顺序。"
+    }
+   ]
+  },
+  {
+   "id": "lang",
+   "no": 6,
+   "title_ja": "言語戦略",
+   "title_zh": "语言策略",
+   "doc": "ARCHITECTURE.md §6",
+   "start": 189.419,
+   "end": 215.758,
+   "lines": [
+    {
+     "start": 190.119,
+     "end": 195.398,
+     "ja": "接着コードは全部 Java 17 です。Kotlin はコアに入れません。",
+     "zh": "胶水代码全部是 Java 17，Kotlin 不进核心。"
+    },
+    {
+     "start": 195.718,
+     "end": 201.43,
+     "ja": "両側の API がそもそも Java なので、Java から Java へ素直に繋がります。",
+     "zh": "两边的 API 本来就是 Java，Java 到 Java 干净直连。"
+    },
+    {
+     "start": 201.75,
+     "end": 208.434,
+     "ja": "巨大な C++ アダプターを書くと、GeckoView が解決済みの問題を全部作り直すことになります。",
+     "zh": "写一个巨大的 C++ 适配层，等于把 GeckoView 已解决的问题全部重造。"
+    },
+    {
+     "start": 208.754,
+     "end": 214.758,
+     "ja": "公開 API で足りない時だけ、Firefox のパッチに降りていきます。",
+     "zh": "只有公开 API 不够用时，才下沉到 Firefox patch。"
+    }
+   ]
+  },
+  {
+   "id": "patches",
+   "no": 7,
+   "title_ja": "JS チャネルとパッチスタック",
+   "title_zh": "JS 通道与 patch 栈",
+   "doc": "ARCHITECTURE.md / firefox-patches",
+   "start": 215.758,
+   "end": 249.459,
+   "lines": [
+    {
+     "start": 216.458,
+     "end": 222.135,
+     "ja": "evaluateJavascript や addJavascriptInterface にパッチは要りませんでした。",
+     "zh": "evaluateJavascript 和 addJavascriptInterface 其实不需要 patch。"
+    },
+    {
+     "start": 222.455,
+     "end": 227.865,
+     "ja": "内蔵の WebExtension、sinytra-js がページと Java を繋ぎます。",
+     "zh": "内置 WebExtension sinytra-js 打通页面和 Java。"
+    },
+    {
+     "start": 228.185,
+     "end": 233.706,
+     "ja": "一方で、shouldInterceptRequest はネットワーク層のパッチで実現しています。",
+     "zh": "而 shouldInterceptRequest 是靠网络层 patch 实现的。"
+    },
+    {
+     "start": 234.026,
+     "end": 241.817,
+     "ja": "パッチは現在 24 本。一本につき一つのことだけを、独立したテスト付きでやります。",
+     "zh": "patch 现在有 24 个，每个只做一件事，各自独立测试。"
+    },
+    {
+     "start": 242.137,
+     "end": 248.459,
+     "ja": "Cookie、証明書の例外、UA の上書き、画像ポリシーまで、全部ここです。",
+     "zh": "Cookie、证书例外、UA 覆盖、图片策略，都在这里。"
+    }
+   ]
+  },
+  {
+   "id": "mapping",
+   "no": 8,
+   "title_ja": "API マッピング",
+   "title_zh": "API 对照表",
+   "doc": "API_MAPPING.md",
+   "start": 249.459,
+   "end": 296.616,
+   "lines": [
+    {
+     "start": 250.159,
+     "end": 257.482,
+     "ja": "API_MAPPING のルールは一つ。新しいクラスを書く前に、まず既存の API を探すこと。",
+     "zh": "API_MAPPING 只有一条规矩：写新类之前，先查现成 API。"
+    },
+    {
+     "start": 257.802,
+     "end": 264.486,
+     "ja": "loadUrl は GeckoSession の load に、reload や stop もそのまま対応します。",
+     "zh": "loadUrl 对应 GeckoSession.load，reload、stop 也一一对应。"
+    },
+    {
+     "start": 264.806,
+     "end": 272.637,
+     "ja": "onPageStarted と onPageFinished は、ProgressDelegate の onPageStart と onPageStop です。",
+     "zh": "onPageStarted/onPageFinished 对应 ProgressDelegate 的 onPageStart/onPageStop。"
+    },
+    {
+     "start": 272.957,
+     "end": 280.613,
+     "ja": "shouldOverrideUrlLoading は、NavigationDelegate の onLoadRequest です。",
+     "zh": "shouldOverrideUrlLoading 对应 NavigationDelegate.onLoadRequest。"
+    },
+    {
+     "start": 280.933,
+     "end": 289.295,
+     "ja": "ストレージの消去も、権限も、印刷も、ページ内検索も、GeckoView の既存の仕組みをそのまま使います。",
+     "zh": "存储清理、权限、打印、页内查找，全部直接复用 GeckoView 现成能力。"
+    },
+    {
+     "start": 289.615,
+     "end": 295.616,
+     "ja": "自作していいのは、Gecko がデータを持たない部分と、Chromium 独自の意味論だけです。",
+     "zh": "允许自研的，只有 Gecko 不存数据的部分和 Chromium 独有语义。"
+    }
+   ]
+  },
+  {
+   "id": "bootstrap",
+   "no": 9,
+   "title_ja": "ブートストラップ検証",
+   "title_zh": "P-1 Bootstrap 验证",
+   "doc": "BOOTSTRAP.md §1",
+   "start": 296.616,
+   "end": 333.44,
+   "lines": [
+    {
+     "start": 297.316,
+     "end": 302.587,
+     "ja": "最初の関門は、そもそも Gecko がホストアプリのプロセスで起動できるかどうか。",
+     "zh": "第一道关卡：Gecko 到底能不能在宿主 App 进程里启动。"
+    },
+    {
+     "start": 302.907,
+     "end": 308.397,
+     "ja": "WebView のコードは、それを使う全てのアプリのプロセスに読み込まれるからです。",
+     "zh": "因为 WebView 代码会被加载进每个使用它的 App 进程。"
+    },
+    {
+     "start": 308.717,
+     "end": 317.25,
+     "ja": "実機で確かめました。クラスも libxul.so も、provider の APK から正常に読み込めます。",
+     "zh": "真机实测：类和 libxul.so 都能从 provider APK 正常加载。"
+    },
+    {
+     "start": 317.57,
+     "end": 324.869,
+     "ja": "ランタイムの作成は約 190 ミリ秒。example.com の描画にも成功しました。",
+     "zh": "Runtime 创建约 190 毫秒，example.com 也成功渲染。"
+    },
+    {
+     "start": 325.189,
+     "end": 332.44,
+     "ja": "ただし、MediaTek の DuraSpeed が子プロセスの起動を邪魔するので、オフにする必要があります。",
+     "zh": "但联发科的 DuraSpeed 会拦截子进程启动，需要关掉。"
+    }
+   ]
+  },
+  {
+   "id": "switch",
+   "no": 10,
+   "title_ja": "切り替えルート",
+   "title_zh": "切换路线",
+   "doc": "BOOTSTRAP.md §2",
+   "start": 333.44,
+   "end": 366.807,
+   "lines": [
+    {
+     "start": 334.14,
+     "end": 341.261,
+     "ja": "システム WebView に切り替える方法は一つだけ。root と LSPosed と AnyWebView です。",
+     "zh": "切换成系统 WebView 的路线只有一条：root + LSPosed + AnyWebView。"
+    },
+    {
+     "start": 341.581,
+     "end": 346.824,
+     "ja": "ROM の書き換えも、フレームワークの改造も、システム署名もいりません。",
+     "zh": "不刷机、不改 framework、不需要系统签名。"
+    },
+    {
+     "start": 347.144,
+     "end": 352.39,
+     "ja": "AnyWebView は候補リストにパッケージを追加して、署名チェックを通すだけ。",
+     "zh": "AnyWebView 只负责把包加进候选名单、放过签名检查。"
+    },
+    {
+     "start": 352.71,
+     "end": 360.315,
+     "ja": "残りの条件は APK 自身が満たします。WebViewLibrary に libxul.so を宣言し、",
+     "zh": "其余条件由 APK 自己满足：WebViewLibrary 声明 libxul.so，"
+    },
+    {
+     "start": 360.635,
+     "end": 365.807,
+     "ja": "versionCode は標準の下限以上、targetSdk は 33 以上です。",
+     "zh": "versionCode 不低于标准下限，targetSdk ≥ 33。"
+    }
+   ]
+  },
+  {
+   "id": "roadmap",
+   "no": 11,
+   "title_ja": "ロードマップ",
+   "title_zh": "路线图",
+   "doc": "ROADMAP.md",
+   "start": 366.807,
+   "end": 402.41,
+   "lines": [
+    {
+     "start": 367.507,
+     "end": 371.154,
+     "ja": "開発は四段階。順番は飛ばせません。",
+     "zh": "开发分四个阶段，顺序不许跳。"
+    },
+    {
+     "start": 371.474,
+     "end": 378.052,
+     "ja": "P マイナス 1 でブートストラップを検証し、P0 で基本の約二割の API を動かします。",
+     "zh": "P-1 验证 bootstrap，P0 跑通约 20% 的基础 API。"
+    },
+    {
+     "start": 378.372,
+     "end": 385.362,
+     "ja": "P1 で Cookie、権限、ダウンロード、SSL などのシステム機能を揃えます。",
+     "zh": "P1 补齐 Cookie、权限、下载、SSL 等系统能力。"
+    },
+    {
+     "start": 385.682,
+     "end": 393.775,
+     "ja": "P2 は硬い骨。JS 実行、メッセージポート、リクエストの横取り、AndroidX の互換層です。",
+     "zh": "P2 啃硬骨头：JS 执行、WebMessagePort、请求拦截、AndroidX 兼容层。"
+    },
+    {
+     "start": 394.095,
+     "end": 401.41,
+     "ja": "最終的な合格ラインは CTS。同じ実機の Chromium の 98.6% が基準です。",
+     "zh": "最终验收看 CTS，以同机 Chromium 的 98.6% 为基线。"
+    }
+   ]
+  },
+  {
+   "id": "install",
+   "no": 12,
+   "title_ja": "インストール方法",
+   "title_zh": "安装教程",
+   "doc": "README / BOOTSTRAP.md §2.2",
+   "start": 402.41,
+   "end": 454.582,
+   "lines": [
+    {
+     "start": 403.11,
+     "end": 405.619,
+     "ja": "それでは、インストール方法です。",
+     "zh": "接下来是安装教程。"
+    },
+    {
+     "start": 405.939,
+     "end": 409.684,
+     "ja": "まず、root 化したスマホに LSPosed を入れておきます。",
+     "zh": "首先，在已 root 的手机上装好 LSPosed。"
+    },
+    {
+     "start": 410.004,
+     "end": 416.783,
+     "ja": "LSPosed のモジュールは AnyWebView。必ずバージョン 1.3 を使ってください。",
+     "zh": "LSPosed 模块装 AnyWebView，必须用 v1.3。"
+    },
+    {
+     "start": 417.103,
+     "end": 425.153,
+     "ja": "1.4 は新しい API が必要で、LSPosed 1.11 ではフックが黙って失敗します。",
+     "zh": "1.4 需要新版 API，在 LSPosed 1.11 上 hook 会静默失败。"
+    },
+    {
+     "start": 425.473,
+     "end": 430.02,
+     "ja": "スコープは「システムフレームワーク」にチェックを入れて、再起動します。",
+     "zh": "作用域勾选「系统框架」，然后重启。"
+    },
+    {
+     "start": 430.34,
+     "end": 436.079,
+     "ja": "次に Sinytra の APK を adb でインストールして、もう一度再起動します。",
+     "zh": "然后用 adb 安装 Sinytra APK，再重启一次。"
+    },
+    {
+     "start": 436.399,
+     "end": 440.752,
+     "ja": "候補リストは system_server の起動時に作り直されるからです。",
+     "zh": "因为候选名单是在 system_server 启动时重建的。"
+    },
+    {
+     "start": 441.072,
+     "end": 446.19,
+     "ja": "開発者オプションの「WebView の実装」で Sinytra を選べば完了です。",
+     "zh": "在开发者选项「WebView 实现」里选 Sinytra 就完成了。"
+    },
+    {
+     "start": 446.51,
+     "end": 453.582,
+     "ja": "戻したい時は、同じ画面で Google の WebView を選ぶだけ。いつでもロールバックできます。",
+     "zh": "想回滚时，在同一个页面选回 Google WebView 即可，随时可逆。"
+    }
+   ]
+  },
+  {
+   "id": "outro",
+   "no": 13,
+   "title_ja": "まとめ",
+   "title_zh": "总结",
+   "doc": "",
+   "start": 454.582,
+   "end": 473.407,
+   "lines": [
+    {
+     "start": 455.282,
+     "end": 461.631,
+     "ja": "切り替えはシステム全体に効くので、全てのアプリの WebView が Gecko になります。",
+     "zh": "切换是全局的，所有 App 的 WebView 都会变成 Gecko。"
+    },
+    {
+     "start": 461.951,
+     "end": 468.365,
+     "ja": "個人の実験プロジェクトですが、興味があれば GitHub の Bemly/Sinytra を見てください。",
+     "zh": "这是个人实验项目，感兴趣可以看 GitHub 上的 Bemly/Sinytra。"
+    },
+    {
+     "start": 468.685,
+     "end": 470.907,
+     "ja": "ご視聴ありがとうございました。",
+     "zh": "感谢观看。"
+    }
+   ]
+  }
+ ]
+}

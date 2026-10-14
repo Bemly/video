@@ -1,0 +1,469 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Sinytra Film</title>
+<style>
+/* Layout: fixed 1920×1080 stage; shader field behind, one diagram per scene, bilingual subtitle band at the bottom. Single dark look by choice. */
+:root{
+  --ink:#0c0a1f; --ink2:#15112e; --panel:rgba(16,12,38,.78); --line:rgba(190,170,255,.22);
+  --fg:#f3eefc; --dim:#a79fc4; --fox:#ff7139; --gold:#ffbd4f; --mag:#e8317e; --vio:#9a6bff; --ok:#5fe0a8; --bad:#ff5468;
+  --jp:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+  --zh:"PingFang SC","Hiragino Sans GB",sans-serif;
+  --mono:"SF Mono",Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+#wrap{position:absolute;inset:0;display:grid;place-items:center}
+#stage{position:relative;width:1920px;height:1080px;background:var(--ink);overflow:hidden;color:var(--fg);font-family:var(--jp);transform-origin:center}
+#gl{position:absolute;inset:0;width:1920px;height:1080px}
+.scene{position:absolute;inset:0;opacity:0}
+.hd{position:absolute;left:96px;top:72px;display:flex;align-items:baseline;gap:28px}
+.hd .no{font:600 22px var(--mono);color:var(--fox);letter-spacing:.12em}
+.hd h2{margin:0;font-weight:800;font-size:58px;letter-spacing:.02em}
+.hd .zh{font:500 30px var(--zh);color:var(--dim)}
+.doc{position:absolute;right:96px;top:84px;font:500 22px var(--mono);color:var(--gold);border:1px solid rgba(255,189,79,.45);padding:8px 16px;border-radius:6px;background:rgba(12,10,31,.6)}
+.k{opacity:0}
+.box{position:absolute;background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:18px 24px;box-sizing:border-box;backdrop-filter:blur(6px)}
+.box .t{font:700 30px var(--mono);letter-spacing:-.01em}
+.box .s{font:500 21px var(--zh);color:var(--dim);margin-top:6px}
+.box.hot{border-color:var(--fox);box-shadow:0 0 0 1px var(--fox),0 0 40px rgba(255,113,57,.35)}
+.mono{font-family:var(--mono)}
+.tag{display:inline-block;font:600 18px var(--mono);padding:4px 10px;border-radius:5px;background:rgba(255,113,57,.16);color:var(--fox);margin-right:8px}
+.x{position:relative}
+.x::after{content:"";position:absolute;left:-6px;right:-6px;top:50%;height:4px;background:var(--bad);transform:rotate(-8deg);opacity:var(--strike,0)}
+svg.ov{position:absolute;inset:0;width:1920px;height:1080px;overflow:visible}
+svg.ov path,svg.ov line{fill:none;stroke:rgba(200,185,255,.55);stroke-width:3}
+svg.ov .hotp{stroke:var(--fox)}
+svg.ov text{fill:var(--dim);font:500 20px var(--mono)}
+#sub{position:absolute;left:0;right:0;bottom:46px;display:grid;justify-items:center;gap:10px;pointer-events:none}
+#sub .ja,#sub .zhs{padding:6px 26px;border-radius:8px;background:rgba(8,6,22,.72);text-align:center;max-width:1640px}
+#sub .ja{font:700 44px/1.35 var(--jp);letter-spacing:.02em}
+#sub .zhs{font:500 32px/1.35 var(--zh);color:#ffd9c4}
+#prog{position:absolute;left:0;bottom:0;height:5px;background:linear-gradient(90deg,var(--fox),var(--mag));width:0}
+/* scene specifics */
+.title1{position:absolute;left:120px;top:250px;width:1100px}
+.title1 .eyebrow{font:600 24px var(--mono);color:var(--fox);letter-spacing:.24em}
+.title1 h1{margin:22px 0 0;font-weight:900;font-size:84px;line-height:1.15;letter-spacing:.01em;text-wrap:balance}
+.title1 .zh{margin-top:24px;font:600 44px var(--zh);color:#ffd9c4}
+.swap{position:absolute;left:120px;top:690px;display:flex;align-items:center;gap:30px;font:700 40px var(--mono)}
+.swap .c{color:#7fb4ff}.swap .g{color:var(--fox)}
+.pill{padding:12px 24px;border:2px solid currentColor;border-radius:999px}
+.row{position:absolute;display:flex;gap:28px;align-items:stretch}
+.row .box{position:relative}
+.arrow{align-self:center;font:700 34px var(--mono);color:var(--dim)}
+.bar{position:absolute;left:180px;width:1560px;height:70px;display:flex;border-radius:8px;overflow:hidden;border:1.5px solid var(--line)}
+.bar div{display:flex;align-items:center;justify-content:center;font:700 22px var(--mono);white-space:nowrap;overflow:hidden}
+.tbl{position:absolute;left:180px;top:220px;width:1560px;border-collapse:collapse;font-size:27px}
+.tbl td{padding:10px 22px;border-bottom:1px solid var(--line);background:rgba(16,12,38,.7)}
+.tbl td:first-child{font-family:var(--mono);color:#a9ccff;width:46%}
+.tbl td:last-child{font-family:var(--mono);color:#ffcfb5}
+.tbl tr.h td{color:var(--dim);font:600 20px var(--mono);letter-spacing:.14em;background:rgba(8,6,22,.85)}
+.chk{position:absolute;left:180px;top:220px;display:grid;gap:14px;width:980px}
+.chk div{font:600 30px var(--jp);display:flex;gap:18px;align-items:center;background:var(--panel);padding:16px 24px;border-radius:10px;border:1.5px solid var(--line)}
+.chk b{font:800 30px var(--mono);width:36px;color:var(--ok)}
+.chk .warn b{color:var(--gold)}
+.metric{position:absolute;right:180px;width:520px;text-align:right}
+.metric .v{font:800 120px var(--mono);color:var(--fox);line-height:1}
+.metric .l{font:500 24px var(--zh);color:var(--dim);margin-top:8px}
+.grid24{position:absolute;left:180px;top:600px;display:grid;grid-template-columns:repeat(12,1fr);gap:10px;width:1560px}
+.grid24 div{height:62px;border-radius:6px;border:1.5px solid var(--line);display:grid;place-items:center;font:700 20px var(--mono);color:var(--dim);background:rgba(16,12,38,.7)}
+.term{position:absolute;right:120px;top:190px;width:820px;background:rgba(6,5,16,.9);border:1.5px solid var(--line);border-radius:12px;padding:26px 30px;font:500 22px/1.7 var(--mono);color:#d8d2ee;white-space:pre}
+.term .p{color:var(--ok)}.term .c{color:#8c84ad}
+.steps{position:absolute;left:120px;top:190px;width:860px;display:grid;gap:10px}
+.steps div{display:grid;grid-template-columns:62px 1fr;gap:14px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:9px 20px}
+.steps i{font:800 32px var(--mono);font-style:normal;color:var(--fox)}
+.steps p{margin:0;font:700 26px var(--jp)}
+.steps small{display:block;font:500 20px var(--zh);color:var(--dim);margin-top:4px}
+.phase{position:absolute;top:330px;width:330px;height:300px}
+.phase .t{font:800 64px var(--mono);color:var(--fox)}
+.phase .s{font:700 26px var(--jp);margin-top:12px}
+.phase .z{font:500 21px var(--zh);color:var(--dim);margin-top:10px;line-height:1.5}
+.chips{position:absolute;left:150px;top:520px;width:1620px;display:flex;flex-wrap:wrap;gap:14px}
+.chips span{font:600 23px var(--mono);padding:12px 18px;border-radius:8px;background:var(--panel);border:1.5px solid var(--line)}
+#start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(6,5,16,.72);cursor:pointer;z-index:5}
+#start[hidden]{display:none}
+#start div{text-align:center}
+#start i{display:block;width:84px;height:84px;margin:0 auto 26px;border-radius:50%;background:var(--fox);position:relative;transition:transform .25s}
+#start:hover i{transform:scale(1.08)}
+#start i::after{content:"";position:absolute;left:34px;top:27px;border:15px solid transparent;border-left:24px solid #fff;border-right:0}
+#start b{display:block;font:700 30px var(--mono);letter-spacing:.02em}
+#start span{display:block;margin-top:10px;font:500 20px var(--zh);color:var(--dim)}
+#prog{cursor:pointer}
+</style>
+
+<div id="wrap"><div id="stage">
+<canvas id="gl" width="1920" height="1080"></canvas>
+
+<!-- intro -->
+<section class="scene" data-s="intro">
+  <div class="title1">
+    <div class="eyebrow k" data-l="0">SINYTRA · GECKO SYSTEM WEBVIEW</div>
+    <h1 class="k" data-l="0">FirefoxにAndroidの<br>システムWebViewを<br>乗っ取らせてみた</h1>
+    <div class="zh k" data-l="0">我让火狐接管了安卓系统 WebView 内核</div>
+  </div>
+  <div class="swap k" data-l="2"><span class="pill c x" id="chromPill">Chromium</span><span class="arrow">→</span><span class="pill g">Gecko</span><span style="font:500 26px var(--zh);color:var(--dim)">App 代码 0 改动</span></div>
+</section>
+
+<!-- stack -->
+<section class="scene" data-s="stack">
+  <div class="row" style="left:150px;top:260px" >
+    <div class="box k" data-l="0" data-h="1,4"><div class="t">Gecko</div><div class="s">DOM · Necko · WebRender</div></div><div class="arrow k" data-l="0">→</div>
+    <div class="box k" data-l="0" data-h="1,4"><div class="t">GeckoView</div><div class="s">官方 Android 嵌入 API</div></div><div class="arrow k" data-l="0">→</div>
+    <div class="box k x" data-l="0" data-st="3"><div class="t">Android Components</div><div class="s">浏览器产品层抽象</div></div><div class="arrow k" data-l="0">→</div>
+    <div class="box k x" data-l="0" data-st="3"><div class="t">Fenix</div><div class="s">Firefox 安卓前端</div></div>
+  </div>
+  <div class="box k x" data-l="2" data-st="2" style="left:150px;top:480px;width:560px"><div class="t">mozjs / SpiderMonkey</div><div class="s">只有 JS 引擎：没有 DOM、没有网络</div></div>
+  <div class="row k" data-l="4" style="left:150px;top:700px">
+    <div class="box"><div class="t" style="color:#a9ccff">AOSP WebView API</div><div class="s">WebViewFactoryProvider…</div></div><div class="arrow">→</div>
+    <div class="box hot"><div class="t" style="color:var(--fox)">Sinytra glue</div><div class="s">Java 17 · 薄胶水层</div></div><div class="arrow">→</div>
+    <div class="box"><div class="t">GeckoView</div></div><div class="arrow">→</div>
+    <div class="box"><div class="t">Gecko</div></div>
+  </div>
+</section>
+
+<!-- chain -->
+<section class="scene" data-s="chain">
+  <svg class="ov k" data-l="0"><path class="flow" d="M 330 260 V 680"/></svg>
+  <div class="box k" data-l="0" data-h="0" style="left:150px;top:180px;width:520px"><div class="t">new WebView(ctx)</div><div class="s">App · 零改动</div></div>
+  <div class="box k" data-l="0" data-h="0,1" style="left:150px;top:290px;width:520px"><div class="t">WebViewFactory</div><div class="s">framework · Android 14</div></div>
+  <div class="box k" data-l="1" data-h="1" style="left:720px;top:290px;width:1050px;border-style:dashed"><div class="t" style="font-size:24px;color:var(--gold)">Class.forName("com.android.webview.chromium.<br>WebViewChromiumFactoryProviderForT")</div><div class="s">类名硬编码，不读 provider 声明</div></div>
+  <div class="box k" data-l="2" data-h="2,3" style="left:150px;top:400px;width:520px"><div class="t" style="color:var(--fox)">trampoline</div><div class="s">同名类 · Proxy 实现真实接口 · 只转发</div></div>
+  <div class="box k" data-l="4" data-h="4,5" style="left:150px;top:510px;width:720px"><div class="t">GeckoWebViewFactoryProvider</div><div class="s">全局单例族</div></div>
+  <div class="chips k" data-l="5" style="left:920px;top:500px;width:880px;gap:10px;font-size:0"><span>CookieManager</span><span>WebStorage</span><span>GeolocationPermissions</span><span>ServiceWorkerController</span><span>WebViewDatabase</span><span>TracingController</span><span>Statics</span></div>
+  <div class="row k" data-l="6" style="left:150px;top:690px">
+    <div class="box" data-h="6"><div class="t">GeckoWebViewProvider</div><div class="s">单 WebView 编排</div></div><div class="arrow">→</div>
+    <div class="box" data-h="6"><div class="t">GeckoSessionBridge</div><div class="s">只做翻译</div></div><div class="arrow">→</div>
+    <div class="box"><div class="t">GeckoSession</div></div>
+  </div>
+</section>
+
+<!-- core -->
+<section class="scene" data-s="core">
+  <svg class="ov k" data-l="4"><path d="M 660 560 C 820 560, 840 400, 1000 400"/><path d="M 660 600 C 820 600, 840 760, 1000 760"/>
+    <text x="690" y="470">session.open(runtime)</text><text x="690" y="720">view.setSession(session)</text></svg>
+  <div class="box k" data-l="2" data-h="2,4" style="left:140px;top:470px;width:520px;height:220px"><div class="t" style="font-size:40px">GeckoSession</div><div class="s" style="font-size:24px">单个页面 = 一个 WebView<br>导航 / 权限 / 进度 / 内容</div></div>
+  <div class="box k" data-l="1" data-h="1,4" style="left:1000px;top:280px;width:740px;height:200px"><div class="t" style="font-size:40px;color:var(--fox)">GeckoRuntime</div><div class="s" style="font-size:24px">每个宿主 App 进程最多 1 个<br>不跨进程、不全系统共享</div></div>
+  <div class="box k" data-l="3" data-h="3,4" style="left:1000px;top:640px;width:740px;height:200px"><div class="t" style="font-size:40px">GeckoView</div><div class="s" style="font-size:24px">显示 / 输入宿主（FrameLayout）<br>不是 Runtime 的下一层</div></div>
+  <div class="k" data-l="0" style="position:absolute;left:180px;top:250px;font:800 150px var(--mono);color:rgba(255,113,57,.9);line-height:1">×3</div>
+</section>
+
+<!-- layers -->
+<section class="scene" data-s="layers">
+  <svg class="ov k" data-l="1"><path d="M 960 330 L 380 460"/><path d="M 960 330 L 760 460"/><path d="M 960 330 L 1160 460"/><path d="M 960 330 L 1540 460"/>
+    <path d="M 380 580 L 960 740"/><path d="M 760 580 L 960 740"/><path d="M 1160 580 L 960 740"/><path d="M 1540 580 L 960 740"/></svg>
+  <div class="box k hot" data-l="1" data-h="1" style="left:700px;top:220px;width:520px;text-align:center"><div class="t" style="color:var(--fox)">provider/</div><div class="s">编排层</div></div>
+  <div class="box k" data-l="2" data-h="2,3" style="left:200px;top:460px;width:360px;text-align:center"><div class="t">session/</div><div class="s">只翻译 · 绝不碰 View</div></div>
+  <div class="box k" data-l="4" data-h="4" style="left:600px;top:460px;width:320px;text-align:center"><div class="t">view/</div><div class="s">GeckoView 宿主</div></div>
+  <div class="box k" data-l="4" data-h="4" style="left:960px;top:460px;width:400px;text-align:center"><div class="t">settings/ storage/</div><div class="s">无状态 / 有状态</div></div>
+  <div class="box k" data-l="4" data-h="4" style="left:1400px;top:460px;width:300px;text-align:center"><div class="t">compat/</div><div class="s">androidx 胶水</div></div>
+  <div class="box k" data-l="4" data-h="4,5" style="left:640px;top:740px;width:640px;text-align:center"><div class="t">runtime/</div><div class="s">GeckoRuntimeHolder · 不依赖任何自有包</div></div>
+  <div class="k" data-l="0" style="position:absolute;left:1420px;top:250px;font:700 30px var(--mono);color:var(--bad)">↑ 反向依赖 = 打回</div>
+  <div class="k" data-l="3" style="position:absolute;left:200px;top:630px;font:600 22px var(--zh);color:var(--ok)">→ 无 View 后台 session：setActive / setPriorityHint</div>
+</section>
+
+<!-- history -->
+<section class="scene" data-s="history">
+  <div class="box k" data-l="0" data-h="0,1" style="left:150px;top:230px;width:760px"><div class="t">SessionState ≡ HistoryList</div><div class="s">历史归 Gecko 管（Parcelable · history + index）</div></div>
+  <div class="box k" data-l="1" data-h="1" style="left:960px;top:230px;width:810px"><div class="t" style="color:var(--fox)">StateBridge</div><div class="s">只转译 ↔ WebBackForwardList / Bundle · 不自建历史栈</div></div>
+  <div class="k" data-l="2" style="position:absolute;left:150px;top:440px;font:700 26px var(--mono);color:var(--gold)">典型顶层导航事件流（不是全局不变量）</div>
+  <div class="chips k" data-l="2" id="evchips"><span>onLoadRequest</span><span>onPageStart</span><span>onLocationChange</span><span>onProgressChange</span><span>onSecurityChange</span><span>onSessionStateChange</span><span>onCanGoBack</span><span>onCanGoForward</span><span>onPageStop</span></div>
+  <div class="box k" data-l="4" data-h="4" style="left:150px;top:760px;width:1620px"><div class="t" style="font-size:26px">✓ 以 pin 版本的真机集成测试锁定顺序 · ✕ 不把典型流硬编码为断言</div></div>
+</section>
+
+<!-- lang -->
+<section class="scene" data-s="lang">
+  <div class="k" data-l="0" style="position:absolute;left:180px;top:230px;font:800 140px var(--mono);color:var(--fox);line-height:1">Java 17</div>
+  <div class="k" data-l="0" style="position:absolute;left:180px;top:390px;font:600 30px var(--zh);color:var(--dim)">胶水主体 · Kotlin 不进核心 · Rust 基本不碰</div>
+  <div class="row k" data-l="1" style="left:180px;top:470px">
+    <div class="box"><div class="t" style="color:#a9ccff">android.webkit (Java)</div></div><div class="arrow">→</div>
+    <div class="box hot"><div class="t">GeckoWebViewProvider (Java)</div></div><div class="arrow">→</div>
+    <div class="box"><div class="t">GeckoSession (Java)</div></div>
+  </div>
+  <div class="box k x" data-l="2" data-st="2" style="left:180px;top:610px;width:900px"><div class="t">android.webkit → JNI → 巨大 C++ adapter</div><div class="s">= 重造 View / IME / 无障碍 / Surface / 多进程</div></div>
+  <div class="bar k" data-l="3" style="top:730px">
+    <div style="flex:80;background:rgba(255,113,57,.85)">Java 75–85%</div>
+    <div style="flex:10;background:rgba(154,107,255,.85)">Gecko JS</div>
+    <div style="flex:7.5;background:rgba(232,49,126,.85)">C++</div>
+    <div style="flex:2.5;background:rgba(120,110,160,.6)"></div>
+  </div>
+  <div class="k" data-l="3" style="position:absolute;left:180px;top:816px;font:500 22px var(--zh);color:var(--dim)">预期自研代码占比 · patch 只在公开 API 不够用时下沉</div>
+</section>
+
+<!-- patches -->
+<section class="scene" data-s="patches">
+  <div class="row k" data-l="1" style="left:150px;top:230px">
+    <div class="box"><div class="t">页面 JS</div><div class="s">window[iface] stub · eval</div></div><div class="arrow">⇄</div>
+    <div class="box hot"><div class="t" style="color:var(--fox)">sinytra-js</div><div class="s">内置 WebExtension · content script</div></div><div class="arrow">⇄</div>
+    <div class="box"><div class="t">Java</div><div class="s">session 级 native mailbox</div></div>
+  </div>
+  <div class="k" data-l="0" style="position:absolute;left:150px;top:400px;font:600 26px var(--mono);color:var(--ok)">evaluateJavascript · addJavascriptInterface · WebMessage → 0 个 Gecko patch</div>
+  <div class="k" data-l="2" style="position:absolute;left:150px;top:470px;font:600 26px var(--mono);color:var(--gold)">shouldInterceptRequest → necko nsINetworkInterceptController（0001–0003）</div>
+  <div class="k" data-l="3" style="position:absolute;left:150px;top:545px;font:700 30px var(--mono)">firefox-patches/ · HEAD 0024</div>
+  <div class="grid24 k" data-l="3" id="g24"></div>
+  <div class="k" data-l="4" style="position:absolute;left:150px;top:760px;font:500 24px var(--zh);color:var(--dim)" id="g24cap">Cookie 0007/0011/0014/0016/0019 · 证书例外 0006 · UA 0018 · 图片策略 0024</div>
+</section>
+
+<!-- mapping -->
+<section class="scene" data-s="mapping">
+  <div class="k" data-l="0" style="position:absolute;left:180px;top:200px;font:700 30px var(--jp);color:var(--gold)">写新类之前：先查本表 + GeckoView javadoc</div>
+  <table class="tbl" style="top:270px">
+    <tr class="h k" data-l="1"><td>android.webkit</td><td>GeckoView</td></tr>
+    <tr class="k" data-l="1" data-h="1"><td>loadUrl()</td><td>GeckoSession.load()</td></tr>
+    <tr class="k" data-l="1" data-h="1"><td>reload() / stopLoading()</td><td>reload() / stop()</td></tr>
+    <tr class="k" data-l="2" data-h="2"><td>onPageStarted / onPageFinished</td><td>ProgressDelegate.onPageStart / onPageStop</td></tr>
+    <tr class="k" data-l="3" data-h="3"><td>shouldOverrideUrlLoading</td><td>NavigationDelegate.onLoadRequest</td></tr>
+    <tr class="k" data-l="4" data-h="4"><td>WebStorage / Cookie 清理</td><td>StorageController.clearData*</td></tr>
+    <tr class="k" data-l="4" data-h="4"><td>findAll / findNext</td><td>getFinder() → SessionFinder</td></tr>
+    <tr class="k" data-l="4" data-h="4"><td>打印</td><td>printPageContent() + PrintDelegate</td></tr>
+  </table>
+  <div class="k" data-l="5" style="position:absolute;left:180px;top:810px;font:600 25px var(--zh);color:var(--dim)">允许自研：visited 落盘 · 表单/密码库 · 图标缓存 · JS interface 反射 · WebMessage · Bundle 转译 · trampoline</div>
+</section>
+
+<!-- bootstrap -->
+<section class="scene" data-s="bootstrap">
+  <div class="chk">
+    <div class="k" data-l="0" data-h="0,1"><b>?</b>Gecko 能否在宿主 App 进程里启动</div>
+    <div class="k" data-l="2" data-h="2"><b>✓</b>classloader：Gecko 类从 provider base.apk 加载</div>
+    <div class="k" data-l="2" data-h="2"><b>✓</b>libxul.so：GeckoLoader 加载 ~30ms</div>
+    <div class="k" data-l="3" data-h="3"><b>✓</b>GeckoRuntime.create() ~190ms</div>
+    <div class="k" data-l="3" data-h="3"><b>✓</b>P0Render：example.com · progress 15→55→100</div>
+    <div class="k warn" data-l="4" data-h="4"><b>!</b>MTK DuraSpeed 拦截 child service 拉起 → 关闭</div>
+  </div>
+  <div class="metric k" data-l="3" style="top:300px"><div class="v" id="ms">190</div><div class="l">ms · GeckoRuntime.create</div></div>
+  <div class="metric k" data-l="2" style="top:560px"><div class="v" style="color:var(--gold)">30</div><div class="l">ms · libxul 加载</div></div>
+  <div class="k" data-l="0" style="position:absolute;right:96px;top:140px;font:500 22px var(--mono);color:var(--dim)">P-1 · MOONDROP MD-PH-001 · Android 14 / API 34</div>
+</section>
+
+<!-- switch -->
+<section class="scene" data-s="switch">
+  <div class="row k" data-l="0" style="left:120px;top:210px">
+    <div class="box"><div class="t">root</div></div><div class="arrow">+</div>
+    <div class="box"><div class="t">LSPosed</div></div><div class="arrow">+</div>
+    <div class="box hot"><div class="t" style="color:var(--fox)">AnyWebView v1.3</div><div class="s">scope = 系统框架</div></div>
+  </div>
+  <div class="k" data-l="1" style="position:absolute;left:120px;top:350px;font:600 28px var(--zh);color:var(--ok)">✓ 不刷机　✓ 不改 framework　✓ 不做 overlay　✓ 不需要系统签名</div>
+  <div class="box k" data-l="2" data-h="2" style="left:120px;top:420px;width:820px"><div class="t" style="font-size:26px">AnyWebView 做的</div><div class="s" style="font-size:22px">把包追加进候选名单 · 放过签名检查<br>不改 factory 类名 · 不放宽 targetSdk / versionCode</div></div>
+  <div class="box k" data-l="3" data-h="3,4" style="left:990px;top:420px;width:810px">
+    <div class="t" style="font-size:26px">APK 自己满足</div>
+    <div class="s mono" style="font-size:21px;line-height:1.7;color:#ffcfb5">WebViewLibrary = libxul.so<br>versionCode ≥ Minimum WebView version code<br>targetSdk ≥ 33（现 34）<br>包名 moe.bemly.geckowebview</div></div>
+  <div class="row k" data-l="4" style="left:120px;top:700px">
+    <div class="box"><div class="t" style="font-size:22px">dumpsys webviewupdate · Valid</div></div><div class="arrow">→</div>
+    <div class="box"><div class="t" style="font-size:22px">开发者选项 · WebView 实现</div></div><div class="arrow">→</div>
+    <div class="box hot"><div class="t" style="font-size:22px">所有 App 的 new WebView()</div></div>
+  </div>
+</section>
+
+<!-- roadmap -->
+<section class="scene" data-s="roadmap">
+  <svg class="ov k" data-l="0"><line x1="150" y1="300" x2="1770" y2="300"/></svg>
+  <div class="phase k" data-l="1" data-h="1" style="left:150px"><div class="t">P-1</div><div class="s">ブートストラップ</div><div class="z">bootstrap spike<br>Gecko 能否在宿主进程起来</div></div>
+  <div class="phase k" data-l="1" data-h="1" style="left:560px"><div class="t">P0</div><div class="s">約二割の API</div><div class="z">loadUrl / 前进后退<br>标题 / 进度 / 基础设置</div></div>
+  <div class="phase k" data-l="2" data-h="2" style="left:970px"><div class="t">P1</div><div class="s">システム機能</div><div class="z">Cookie / 权限 / 下载<br>SSL / HTTP Auth / 打印</div></div>
+  <div class="phase k" data-l="3" data-h="3" style="left:1380px"><div class="t">P2</div><div class="s">硬い骨</div><div class="z">JS 执行 / WebMessagePort<br>请求拦截 / androidx glue</div></div>
+  <div class="k" data-l="4" style="position:absolute;left:150px;top:620px;width:1620px">
+    <div style="font:700 28px var(--mono);margin-bottom:14px">CTS · CtsWebkitTestCases · Chromium 同机基线</div>
+    <div style="height:46px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden;border:1.5px solid var(--line)"><div id="cts" style="height:100%;width:0;background:linear-gradient(90deg,var(--fox),var(--gold))"></div></div>
+    <div style="font:800 64px var(--mono);color:var(--gold);margin-top:12px" id="ctsv">0.0%</div>
+  </div>
+</section>
+
+<!-- install -->
+<section class="scene" data-s="install">
+  <div class="steps">
+    <div class="k" data-l="1" data-h="1"><i>1</i><p>root + LSPosed<small>已 root 的手机先装好 LSPosed</small></p></div>
+    <div class="k" data-l="2" data-h="2,3"><i>2</i><p>AnyWebView <span style="color:var(--fox)">v1.3</span><small>v1.4.x 要 libxposed API 101 → LSPosed 1.11 静默失败</small></p></div>
+    <div class="k" data-l="4" data-h="4"><i>3</i><p>スコープ：システムフレームワーク<small>作用域勾「系统框架」→ 重启</small></p></div>
+    <div class="k" data-l="5" data-h="5,6"><i>4</i><p>adb install → 再起動<small>候选名单在 system_server 启动时重建</small></p></div>
+    <div class="k" data-l="7" data-h="7"><i>5</i><p>開発者オプション → WebView の実装<small>选 Sinytra 即完成</small></p></div>
+    <div class="k" data-l="8" data-h="8"><i>↺</i><p>ロールバック<small>选回 Google WebView，随时可逆</small></p></div>
+  </div>
+  <div class="term k" data-l="1"><span class="c"># 1–3  LSPosed → モジュール → AnyWebView v1.3
+#      scope: システムフレームワーク (android)</span>
+<span class="k2" data-l2="5"><span class="p">$</span> adb install -r provider-debug.apk
+<span class="p">$</span> adb reboot</span>
+<span class="k2" data-l2="7"><span class="p">$</span> adb shell "su -c 'dumpsys webviewupdate'" \
+    | grep -A12 'WebView packages'
+<span class="p">$</span> adb shell cmd webviewupdate \
+    set-webview-implementation \
+    moe.bemly.geckowebview.debug</span>
+<span class="k2" data-l2="8"><span class="c"># rollback</span>
+<span class="p">$</span> adb shell cmd webviewupdate \
+    set-webview-implementation \
+    com.google.android.webview</span></div>
+</section>
+
+<!-- outro -->
+<section class="scene" data-s="outro">
+  <div class="title1" style="top:300px">
+    <div class="eyebrow k" data-l="0">ALL APPS · new WebView() → GECKO</div>
+    <h1 class="k" data-l="0" style="font-size:96px">Sinytra</h1>
+    <div class="k" data-l="1" style="margin-top:30px;font:700 44px var(--mono);color:var(--fox)">github.com/Bemly/Sinytra</div>
+    <div class="zh k" data-l="2">感谢观看 · ご視聴ありがとうございました</div>
+  </div>
+</section>
+
+<div id="sub"><div class="ja" id="sja"></div><div class="zhs" id="szh"></div></div>
+<div id="prog"></div>
+<div id="start"><div><i></i><b>Sinytra · 火狐接管安卓 WebView</b><span>点击播放 · 空格暂停 · ← → 5秒 · F 全屏 · R 重播</span></div></div>
+</div></div>
+
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 uRes; uniform float uTime; uniform float uA, uB, uMix, uSeedA, uSeedB, uPulse, uBeat;
+float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+  return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;mat2 m=mat2(1.6,1.2,-1.2,1.6);for(int i=0;i<6;i++){v+=a*n2(p);p=m*p;a*=.5;}return v;}
+vec3 fire(float x){ // 0..1 → ink→violet→magenta→fox→gold
+  vec3 c=mix(vec3(.05,.04,.12),vec3(.35,.16,.62),smoothstep(0.,.35,x));
+  c=mix(c,vec3(.91,.19,.49),smoothstep(.3,.6,x));
+  c=mix(c,vec3(1.,.44,.22),smoothstep(.55,.8,x));
+  return mix(c,vec3(1.,.82,.45),smoothstep(.8,1.,x));}
+vec3 stars(vec2 uv){vec2 g=floor(uv*120.);float s=step(.996,h21(g));return vec3(s*.6*(.5+.5*sin(uTime*2.+h21(g+3.)*40.)));}
+// mode 0: fox-fire ring devouring a blue grid sphere
+vec3 mRing(vec2 uv,float sd){
+  vec2 c=vec2(.6,.03)+vec2(.02*sin(uTime*.3),.02*cos(uTime*.25));
+  vec2 p=uv-c; float r=length(p), a=atan(p.y,p.x);
+  float R=.34;
+  vec3 col=vec3(.03,.025,.08)+stars(uv)*.5;
+  // globe grid (Chromium-blue) fading under uPulse
+  if(r<R){ vec2 q=p/R; float z=sqrt(max(0.,1.-dot(q,q))); vec3 n=vec3(q,z);
+    float lon=atan(n.x,n.z)+uTime*.25, lat=asin(n.y);
+    float g=max(smoothstep(.96,1.,abs(cos(lon*6.))), smoothstep(.96,1.,abs(cos(lat*6.))));
+    float burn=smoothstep(uPulse-.15,uPulse+.15, fbm(q*3.+sd)+.25*(1.-z));
+    col+= mix(vec3(.25,.55,1.)*g*.7+vec3(.04,.08,.2)*z, fire(.55+.4*fbm(q*4.-uTime*.6))*z*.9, 1.-burn);
+  }
+  // swirling flame ring (fox tail)
+  float swirl=fbm(vec2(a*2.+uTime*.9+sd, r*6.-uTime*1.4))+.6*fbm(vec2(a*5.-uTime*.6,r*10.));
+  float band=exp(-pow((r-R-.03)*7.5-swirl*.9+.4,2.)*1.6);
+  float tail=smoothstep(-.4,1.6,sin(a+uTime*.5));
+  col+=fire(clamp(band*(.7+.5*tail),0.,1.))*band*1.25;
+  col+=vec3(1.,.45,.2)*.12/(1.+40.*abs(r-R));
+  return col;}
+// mode 1: aurora flow field
+vec3 mFlow(vec2 uv,float sd){
+  vec2 q=uv*1.3+sd;
+  vec2 w=vec2(fbm(q+uTime*.05),fbm(q+5.2-uTime*.04));
+  float f=fbm(q+3.*w+vec2(uTime*.06,0.));
+  float m=smoothstep(.0,1.,f)*smoothstep(-1.2,.6,uv.y*-.6+uv.x*.25+.2);
+  vec3 col=vec3(.035,.03,.09)+stars(uv)*.4;
+  col+=fire(f*.95)*m*.55;
+  // contour lines
+  float cl=abs(fract(f*9.-uTime*.15)-.5);
+  col+=vec3(1.,.5,.3)*smoothstep(.04,.0,cl)*m*.18;
+  return col;}
+// mode 2: terminal grid floor
+vec3 mGrid(vec2 uv,float sd){
+  vec3 col=vec3(.03,.025,.07)+stars(uv)*.3;
+  float hz=-.18;
+  if(uv.y<hz){ float d=(hz-uv.y); vec2 g=vec2(uv.x/d, 1./d+uTime*1.2);
+    vec2 l=abs(fract(g*vec2(1.,.5))-.5); float ln=smoothstep(.06*d*8.,.0,min(l.x,l.y)*d*8.);
+    col+=mix(vec3(.6,.25,1.),vec3(1.,.45,.2),smoothstep(.0,.6,d))*ln*min(1.,d*3.)*.55;}
+  float sun=length(uv-vec2(.9,.05)); float bands=step(.5,fract((uv.y-uTime*.03)*22.)) + step(.05,uv.y);
+  col+=fire(1.-smoothstep(.0,.36,sun)*.9)*smoothstep(.36,.34,sun)*min(1.,bands)*.55;
+  col+=vec3(1.,.4,.25)*.08/(1.+30.*abs(uv.y-hz));
+  return col;}
+vec3 mode(float m,vec2 uv,float sd){ if(m<.5) return mRing(uv,sd); if(m<1.5) return mFlow(uv,sd); return mGrid(uv,sd);}
+void main(){
+  vec2 uv=(gl_FragCoord.xy-.5*uRes)/uRes.y;
+  vec3 a=mode(uA,uv,uSeedA), b=mode(uB,uv,uSeedB);
+  vec3 col=mix(a,b,smoothstep(0.,1.,uMix));
+  col*=1.+.06*uBeat;
+  float v=1.-.45*dot(uv*.8,uv*.8); col*=v;
+  col+= (h21(gl_FragCoord.xy+fract(uTime)*100.)-.5)*.025;
+  gl_FragColor=vec4(pow(col,vec3(.95)),1.);}
+</script>
+<script>
+const MODE={intro:0,stack:1,chain:1,core:0,layers:1,history:1,lang:1,patches:2,mapping:1,bootstrap:2,switch:1,roadmap:1,install:2,outro:0};
+let TL=null;
+const $=s=>document.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+// patch grid
+(()=>{const g=$('#g24');const cat={1:'net',2:'net',3:'net',4:'net',5:'log',6:'ssl',7:'ck',11:'ck',14:'ck',16:'ck',19:'ck',8:'bt',9:'bt',10:'bt',12:'rs',15:'rs',13:'bt',17:'gpu',21:'gpu',22:'gpu',23:'gpu',18:'ua',20:'file',24:'img'};
+ for(let i=1;i<=24;i++){const d=document.createElement('div');d.textContent=String(i).padStart(4,'0');d.dataset.cat=cat[i];g.appendChild(d);}})();
+// WebGL
+const cv=$('#gl'), gl=cv.getContext('webgl',{preserveDrawingBuffer:true,antialias:false});
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(o);return o;}
+const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}'));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,$('#fs').textContent));gl.linkProgram(pr);gl.useProgram(pr);
+const bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+const U={};['uRes','uTime','uA','uB','uMix','uSeedA','uSeedB','uPulse','uBeat'].forEach(n=>U[n]=gl.getUniformLocation(pr,n));
+const ease=x=>x<=0?0:x>=1?1:1-Math.pow(1-x,3), clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const SEED=i=>i*1.37;
+
+function renderAt(t){
+  if(!TL) return;
+  const S=TL.scenes; let si=S.findIndex(s=>t<s.end); if(si<0) si=S.length-1;
+  const sc=S[si];
+  // scene opacity with 0.5s crossfade at boundaries
+  $$('.scene').forEach(el=>{const s=S.find(x=>x.id===el.dataset.s); if(!s){el.style.opacity=0;return;}
+    const o=clamp((t-s.start+.25)/.5,0,1)*clamp((s.end-t+.25)/.5,0,1); el.style.opacity=o; el.style.visibility=o>0?'visible':'hidden';
+    if(o>0) layoutScene(el,s,t);});
+  // shader
+  const nxt=S[si+1], prv=S[si-1];
+  let A=MODE[sc.id], B=A, mx=0, sA=SEED(si), sB=sA;
+  if(nxt && t>sc.end-.8){B=MODE[nxt.id]; sB=SEED(si+1); mx=(t-(sc.end-.8))/1.6;}
+  else if(prv && t<sc.start+.8){A=MODE[prv.id]; sA=SEED(si-1); B=MODE[sc.id]; mx=.5+(t-sc.start)/1.6;}
+  let pulse=1.1; const intro=S[0]; if(sc.id==='intro'||sc.id==='stack'){const l2=intro.lines[2]; pulse=-.4+1.5*ease((t-l2.start)/(l2.end-l2.start));}
+  // speech energy beat
+  let beat=0; const cur=sc.lines.find(l=>t>=l.start&&t<l.end); if(cur) beat=.5+.5*Math.sin(t*9.);
+  gl.viewport(0,0,1920,1080);
+  gl.uniform2f(U.uRes,1920,1080);gl.uniform1f(U.uTime,t);gl.uniform1f(U.uA,A);gl.uniform1f(U.uB,B);gl.uniform1f(U.uMix,clamp(mx,0,1));
+  gl.uniform1f(U.uSeedA,sA);gl.uniform1f(U.uSeedB,sB);gl.uniform1f(U.uPulse,pulse);gl.uniform1f(U.uBeat,beat);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  // subtitles
+  const sub=S.flatMap(s=>s.lines).find(l=>t>=l.start-.05&&t<l.end+.25);
+  $('#sja').textContent=sub?sub.ja:''; $('#szh').textContent=sub?sub.zh:'';
+  $('#sja').style.visibility=$('#szh').style.visibility=sub?'visible':'hidden';
+  $('#prog').style.width=(t/TL.total*100)+'%';
+}
+function lineAt(s,t){let k=-1;s.lines.forEach((l,i)=>{if(t>=l.start-.15)k=i;});return k;}
+function layoutScene(el,s,t){
+  const ls=s.lines, k=lineAt(s,t);
+  const cur=ls.findIndex(l=>t>=l.start-.1&&t<l.end+.2);
+  $$('.k',el).forEach(e=>{const L=+e.dataset.l, st=L<=0?s.start+.15:ls[L].start-.15; const p=ease((t-st)/.6);
+    e.style.opacity=p; e.style.transform=`translateY(${(1-p)*24}px)`;
+    if(e.dataset.st){const q=ease((t-ls[+e.dataset.st].start-.3)/.5);e.style.setProperty('--strike',q);e.style.filter=`saturate(${1-q*.8}) brightness(${1-q*.35})`;}
+    if(e.dataset.h!==undefined){e.classList.toggle('hot',e.dataset.h.split(',').map(Number).includes(cur));}});
+  $$('.k2',el).forEach(e=>{const L=+e.dataset.l2;e.style.opacity=t>=ls[L].start-.15?1:.0;});
+  if(s.id==='intro'){const l=ls[2];$('#chromPill').style.setProperty('--strike',ease((t-l.start-1.)/.6));}
+  if(s.id==='history'){const l=ls[2],chips=$$('#evchips span');const n=Math.floor(clamp((t-l.start)/((l.end-l.start)/chips.length),0,chips.length));
+    chips.forEach((c,i)=>{c.style.borderColor=i<n?'var(--fox)':'';c.style.color=i===n-1?'var(--fox)':'';});}
+  if(s.id==='patches'){const g=$$('#g24 div'),l=ls[3],l4=ls[4];const n=Math.floor(clamp((t-l.start)/(l.end-l.start)*24,0,24));
+    g.forEach((d,i)=>{let on=i<n; d.style.color=on?'var(--fg)':''; d.style.borderColor=on?'rgba(255,113,57,.6)':'';
+      const hl=t>=l4.start&&['ck','ssl','ua','img'].includes(d.dataset.cat); d.style.background=hl?'rgba(255,113,57,.35)':'';});}
+  if(s.id==='bootstrap'){const l=ls[3];$('#ms').textContent=Math.round(190*ease((t-l.start)/1.2));}
+  if(s.id==='roadmap'){const l=ls[4];const p=ease((t-l.start-.3)/2.4);$('#cts').style.width=(98.6*p)+'%';$('#ctsv').textContent=(98.6*p).toFixed(1)+'%';}
+  if(s.id==='chain'){const p=$('#chain-flow');}
+}
+function fit(){const st=$('#stage');const k=Math.min(innerWidth/1920,innerHeight/1080);st.style.transform=`scale(${k})`;
+  st.style.position='absolute';st.style.left=(innerWidth/2-960)+'px';st.style.top=(innerHeight/2-540)+'px';}
+addEventListener('resize',fit);fit();
+window.renderAt=renderAt;
+window.ready=fetch('timeline.json').then(r=>r.json()).then(j=>{TL=j;
+  j.scenes.forEach(s=>{if(s.id==='intro'||s.id==='outro')return;const el=document.querySelector(`.scene[data-s="${s.id}"]`);
+    el.insertAdjacentHTML('afterbegin',`<div class="hd k" data-l="-1"><span class="no">${String(s.no).padStart(2,'0')}</span><h2>${s.title_ja}</h2><span class="zh">${s.title_zh}</span></div>`+(s.doc?`<div class="doc k" data-l="-1">${s.doc}</div>`:''));});renderAt(0);return j.total;});
+// player: click the overlay to play (audio is the clock); ?t=SECONDS freezes a frame for stills
+const q=new URLSearchParams(location.search);
+const startEl=$('#start'), progEl=$('#prog');
+if(q.has('t')){startEl.remove();window.ready.then(()=>renderAt(+q.get('t')));}
+else window.ready.then(TOTAL=>{
+  const a=new Audio('audio/mix.mp3'); a.preload='auto';
+  let base=+(q.get('play')||0), playing=false;
+  const seek=t=>{base=Math.max(0,Math.min(TOTAL-.05,t));a.currentTime=base;if(!playing)renderAt(base);};
+  const play=async()=>{startEl.hidden=true;seek(base);try{await a.play();}catch(e){}playing=true;};
+  const pause=()=>{base=a.currentTime;playing=false;a.pause();};
+  const toggle=()=>{if(playing)pause();else play();};
+  startEl.addEventListener('click',play);
+  $('#stage').addEventListener('click',e=>{if(e.target.closest('#start,#prog'))return;toggle();});
+  addEventListener('keydown',e=>{
+    if(e.code==='Space'){e.preventDefault();toggle();}
+    else if(e.code==='ArrowRight')seek((playing?a.currentTime:base)+5);
+    else if(e.code==='ArrowLeft')seek((playing?a.currentTime:base)-5);
+    else if(e.key==='f'||e.key==='F')document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+    else if(e.key==='r'||e.key==='R'){seek(0);play();}
+  });
+  progEl.addEventListener('click',e=>{const r=$('#stage').getBoundingClientRect();seek((e.clientX-r.left)/r.width*TOTAL);});
+  a.addEventListener('ended',()=>{playing=false;base=0;startEl.hidden=false;});
+  seek(base);
+  (function loop(){renderAt(playing?a.currentTime:base);requestAnimationFrame(loop);})();
+});
+</script>
