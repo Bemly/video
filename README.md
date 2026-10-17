@@ -16,10 +16,11 @@
 | [`brew/`](brew/) | 了不起的瓶子 —— brew tap bemly/tahoe（1:40），浏览器实时渲染 | https://bili.bemly.moe/brew/ |
 | [`sinytra/`](sinytra/) | Sinytra —— 让火狐接管安卓系统 WebView（7:53），浏览器实时渲染，日中双语字幕 | https://bili.bemly.moe/sinytra/ |
 | [`caimeo/`](caimeo/) | kelvora · 必胜之道 —— 自制语言讲组合博弈（1:21），浏览器实时渲染 | https://bili.bemly.moe/caimeo/ |
+| [`writer/`](writer/) | 文笔坐标 —— 中文创意写作盲评（3:26），浏览器实时渲染 | https://bili.bemly.moe/writer/ |
 
 `openai-math/` 与 `math-execute-me/` 不需要构建：页面直接在浏览器里实时渲染每一帧（Canvas 2D + WebGL）。
 `odyssey/` 也不需要构建：`odyssey/demo`（对应线上 `/odyssey/`）与 `odyssey/film`（对应线上 `/coding-adventure/`）都是纯静态网页（Three.js 走 CDN），直接复制到 gh-pages 同名目录即可。
-`bot/`、`ime/`、`agentart/video/`、`brew/`、`sinytra/` 与 `caimeo/` 也不需要构建：直接把网页文件（`index.html` + 脚本 + 音频 + `cover.jpg`）复制到 gh-pages 同名目录即可。
+`bot/`、`ime/`、`agentart/video/`、`brew/`、`sinytra/`、`caimeo/` 与 `writer/` 也不需要构建：直接把网页文件（`index.html` + 脚本 + 音频 + `cover.jpg`）复制到 gh-pages 同名目录即可。
 
 首页导航：https://bili.bemly.moe/
 
