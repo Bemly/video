@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文笔坐标 · 逐题鉴赏</title>
+<style>
+:root{--bg:#eceef2;--panel:#fff;--ink:#1b2230;--sub:#8a91a0;--line:#e6e9ef;--acc:#4a6fb0;--mark:#ffe3a3}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "PingFang SC","Hiragino Sans GB","Noto Sans SC",system-ui,sans-serif}
+a{color:var(--acc)}header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px}
+header.top .w{max-width:1180px;margin:0 auto;display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+header.top .brand{font-size:20px;letter-spacing:10px;font-weight:600}
+header.top .sub{color:var(--sub);font-size:13px}
+header.top nav{margin-left:auto;display:flex;gap:14px;font-size:13px}
+header.top nav a{text-decoration:none}
+main{max-width:1180px;margin:0 auto;padding:16px;display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+#side{background:var(--panel);border-radius:20px;padding:14px;position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-direction:column}
+@media(max-width:900px){#side{position:static;max-height:none}}
+#side .row{display:flex;gap:8px;margin-bottom:8px}
+#q{flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;min-width:0}
+#mod{border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;background:#fff}
+#menuBtn{display:block;text-align:center;border:1px solid var(--line);border-radius:8px;padding:7px;margin-bottom:8px;text-decoration:none;font-size:14px}
+#menuBtn.on{background:#eef2fb;border-color:var(--acc);font-weight:600}
+#list{overflow:auto;display:flex;flex-direction:column;gap:2px;min-height:120px}
+#list button{text-align:left;border:0;background:none;padding:7px 9px;border-radius:8px;cursor:pointer;font:inherit;display:flex;gap:8px;align-items:baseline}
+#list button small{color:var(--sub);font-size:12px;white-space:nowrap}
+#list button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#list button.on{background:#eef2fb;color:var(--acc);font-weight:600}
+#list button:hover{background:#f3f5f9}
+#cnt{color:var(--sub);font-size:12px;padding:6px 4px 0}
+#doc{background:var(--panel);border-radius:20px;padding:26px 28px;min-width:0}
+#doc h1{font-size:26px;margin:0 0 4px;line-height:1.3}#doc h1 small{color:var(--sub);font-size:15px;font-weight:400;margin-right:10px}
+.hero{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.hero .kicker{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
+.hero .kicker .brand{font-size:15px;color:var(--ink);letter-spacing:10px;font-weight:600}
+.hero h1{font-size:34px;font-weight:500;line-height:1.15;margin:0}
+.hero p{margin:0;color:var(--sub);font-size:14px}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0}.chip{background:#eef2fb;color:var(--acc);border-radius:999px;padding:3px 12px;font-size:13px}.chip.warm{background:#fdf1e7;color:#c96a2a}
+.sec{font-size:13px;color:var(--sub);margin:22px 0 10px;display:flex;align-items:baseline;gap:10px}
+.sec b{font-size:17px;color:var(--ink);font-weight:600}.sec span{margin-left:auto}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.qcard{display:block;background:#f7f8fb;border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:inherit;text-decoration:none;transition:transform .15s,border-color .15s,box-shadow .15s}
+.qcard:hover{transform:translateY(-2px);border-color:var(--acc);box-shadow:0 6px 18px rgba(74,111,176,.12)}
+.qcard .no{display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+.qcard b{display:block;font-size:15.5px;margin:4px 0 6px;line-height:1.4}
+.qcard .ft{font-size:12.5px;color:var(--sub);display:flex;flex-wrap:wrap;gap:4px 10px}
+.qcard .ft .t{color:var(--acc);font-weight:600}
+.card{background:#f7f8fb;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:14px}
+.card h2{font-size:15px;color:var(--sub);font-weight:400;margin:0 0 8px}
+.prompt{white-space:pre-wrap;font-size:14.5px;line-height:1.7;max-height:380px;overflow:auto}
+.prompt .rnd{color:var(--acc);font-weight:600;margin:10px 0 4px}.prompt .rnd:first-child{margin-top:0}
+ul.pts{margin:8px 0 0 20px;padding:0;font-size:14.5px;color:#2a3140}ul.pts li{margin:4px 0}
+table{border-collapse:separate;border-spacing:3px;width:100%}th{font-size:12px;color:var(--sub);font-weight:400;padding:4px 2px}
+td{text-align:center;font-size:13px;border-radius:6px;padding:6px 2px;font-variant-numeric:tabular-nums}
+td.j{text-align:left;font-size:13px;white-space:nowrap;padding-left:2px;background:none!important;color:var(--ink)!important}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.rk td{font-size:15px;text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);border-radius:0;background:none!important;color:var(--ink)!important}
+.rk td.n{color:var(--sub)!important;width:44px}.rk td.s{text-align:right;font-weight:600;white-space:nowrap}
+.bar{height:10px;border-radius:5px;background:var(--acc);min-width:3px}
+.mcard{border:1px solid var(--line);border-radius:14px;margin-top:14px;overflow:hidden}
+.mcard>header{background:#f7f8fb;border-bottom:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mcard>header b{font-size:18px}.mcard>header .rk{color:var(--acc);font-weight:600;font-size:14px}.mcard>header .avg{font-size:22px;font-weight:700}.mcard>header small{color:var(--sub);font-size:12px}
+.ex{padding:12px 16px 0}.ex p{margin:0 0 10px;padding-left:12px;border-left:4px solid var(--line);font-size:14.5px;color:#2a3140}
+mark{background:linear-gradient(transparent 55%,var(--mark) 55%);color:inherit;padding:0 2px}
+.tblwrap{overflow-x:auto;padding:0 16px}
+.cmt{padding:4px 16px 12px;display:grid;gap:8px}
+.cmt div{background:#f7f8fb;border-radius:8px;padding:8px 12px;font-size:14px}
+.cmt b{font-size:13px}.cmt .self{color:#c96a2a;font-size:12px;font-weight:400}
+details{margin:0 16px 14px;border:1px solid var(--line);border-radius:8px}summary{cursor:pointer;padding:9px 12px;font-size:14px;color:var(--acc)}
+details pre{margin:0;padding:12px 14px;border-top:1px solid var(--line);white-space:pre-wrap;font:13.5px/1.7 "PingFang SC","Hiragino Sans GB",monospace,sans-serif;color:#2a3140;max-height:520px;overflow:auto}
+.crumb{display:flex;gap:12px;align-items:center;font-size:13px;color:var(--sub);margin-bottom:10px;flex-wrap:wrap}
+.crumb a{text-decoration:none}.crumb .pg{margin-left:auto;display:flex;gap:8px}
+.crumb .pg a{border:1px solid var(--line);border-radius:8px;padding:3px 10px}
+footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;color:var(--sub);font-size:13px}
+#status{padding:40px;text-align:center;color:var(--sub)}
+</style>
+</head>
+<body>
+<header class="top"><div class="w"><span class="brand">文笔坐标</span><span class="sub" id="sub">逐题鉴赏 · 加载中…</span><nav><a href="#/">菜单</a><a href="../">← 返回首页</a></nav></div></header>
+<main>
+<aside id="side"><div class="row"><input id="q" placeholder="搜索题号 / 标题"><select id="mod"><option value="">全部模块</option></select></div><a id="menuBtn" href="#/">▦ 全部题目（菜单）</a><div id="list"></div><div id="cnt"></div></aside>
+<article id="doc"><div id="status">加载中…</div></article>
+</main>
+<footer>107 题 · 10 个模型 · 6 位裁判盲评（剔除自评后取均值，与总榜算法一致）。单击菜单进单题，看题面、排名、作答摘录、裁判打分与评语，全文可展开。←/→ 在单题间切换。源码与数据构建见 <a href="https://github.com/Bemly/video/tree/main/answer">answer/</a>（<code>build.py</code> 只读源目录）。</footer>
+<script>
+'use strict';
+const SHORT=['遵循','文笔','活人','结构','人物','逻辑','吸引','文体','密度','准确'];
+const DIMS=['指令遵循','文笔与文气','活人感去AI味','结构与节奏','人物与对白','逻辑与一致性','吸引力可读性','文体类型契合','信息密度','准确与诚实'];
+const JCOLOR={'opus5.5':'#d9773f','gemini4':'#7b5cf0','dsv4p':'#3a5fc8','muse1.2':'#b7791f','muse1.3':'#5b8c5a','gemini3.7':'#0e9f8a'};
+const MOD_ORDER=['A','B','C','D','E','F','G','H','I','J'];
+const $=s=>document.querySelector(s);
+let IDX=null, CUR=null, CACHE=new Map();
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function heat(v){const t=Math.max(0,Math.min(1,(v-2)/7));const r=Math.round(240+(74-240)*t),g=Math.round(214+(111-214)*t),b=Math.round(196+(176-196)*t);return `background:rgb(${r},${g},${b});color:${t>.55?'#fff':'#1b2230'}`;}
+function markify(text,quotes){let h=esc(text);for(const q of [...quotes].sort((a,b)=>b.length-a.length)){if(!q)continue;const e=esc(q);if(e&&h.includes(e))h=h.replace(e,`<mark>${e}</mark>`);}return h;}
+async function get(qid){if(!CACHE.has(qid)){const r=await fetch('data/'+encodeURIComponent(qid)+'.json');CACHE.set(qid,await r.json());}return CACHE.get(qid);}
+function filtered(){const kw=$('#q').value.trim(),mf=$('#mod').value;return IDX.questions.filter(x=>(!mf||x.module===mf)&&(!kw||x.qid.includes(kw)||x.title.includes(kw)));}
+function renderList(){
+  const box=$('#list');box.innerHTML='';
+  const qs=filtered();
+  for(const x of qs){const b=document.createElement('button');b.innerHTML=`<small>${x.qid}</small><span>${esc(x.title)}</span>`;b.title=`${x.qid}｜${x.title}`;if(x.qid===CUR)b.classList.add('on');b.onclick=()=>location.hash='#/'+x.qid;box.appendChild(b);}
+  $('#cnt').textContent=`${qs.length} / ${IDX.questions.length} 题`;
+  $('#menuBtn').classList.toggle('on',CUR===null);
+}
+function renderMenu(){
+  CUR=null;renderList();
+  const qs=filtered();
+  const byMod={};for(const m of MOD_ORDER)byMod[m]=qs.filter(x=>x.module===m);
+  const groups=MOD_ORDER.filter(m=>byMod[m].length).map(m=>{
+    const cards=byMod[m].map(x=>`<a class="qcard" href="#/${x.qid}"><div class="no"><span>${x.qid}</span><span>${x.rounds>1?x.rounds+' 轮':'单轮'} · ${x.n_models} 份</span></div><b>${esc(x.title)}</b><div class="ft"><span class="t">▲ ${esc(IDX.names[x.top_model]||x.top_model)} ${x.top_avg.toFixed(2)}</span><span>难度 ${esc(x.level||'—')}</span></div></a>`).join('');
+    return `<div class="sec"><b>${m} · ${esc(IDX.mods[m]||'')}</b><span>${byMod[m].length} 题</span></div><div class="mgrid">${cards}</div>`;
+  }).join('');
+  $('#doc').innerHTML=`<div class="hero"><div class="kicker"><span class="brand">文笔坐标</span><span>逐题鉴赏 · 三人点评扩展版 · 6 裁判全量</span></div>`
+    +`<h1>107 题菜单</h1><p>单击任意一题，看题目、${'作答摘录'}、裁判打分与评语，全文可展开。以下按模块分组，与总榜口径一致（剔除自评）。</p>`
+    +`<div class="meta"><span class="chip">107 题</span><span class="chip">10 个模型</span><span class="chip">6 位裁判</span></div></div>`
+    +(qs.length?groups:`<div id="status">没有匹配的题目，换个关键词试试。</div>`);
+  $('#sub').textContent=`逐题鉴赏 · ${qs.length}/${IDX.questions.length} 题`;
+  document.title='107 题菜单 · 文笔坐标逐题鉴赏';
+}
+async function renderDetail(qid){
+  if(!IDX.questions.some(x=>x.qid===qid)){renderMenu();return;}
+  CUR=qid;renderList();
+  const d=await get(qid);
+  const idx=IDX.questions.findIndex(x=>x.qid===qid);
+  const prev=IDX.questions[idx-1], next=IDX.questions[idx+1];
+  const chips=[`<span class="chip">${d.module} · ${esc(d.module_name)}</span>`,d.rounds>1?`<span class="chip">${d.rounds} 轮</span>`:'',`<span class="chip">${d.n_models} 份作答</span>`,d.focus?`<span class="chip">${esc(d.focus)}</span>`:'',d.level?`<span class="chip warm">难度 ${esc(d.level)}</span>`:''].join('');
+  const pr=d.prompt_blocks.map((b,i)=>`<div class="rnd">${d.rounds>1?'第 '+(i+1)+' 轮':''}</div>${esc(b)}`).join('');
+  const pts=(d.points||[]).map(p=>`<li>${esc(p)}</li>`).join('');
+  const rk=d.ranking.map(r=>`<tr><td class="n">${r.rank}</td><td>${esc(IDX.names[r.model]||r.model)}</td><td style="width:38%"><div class="bar" style="width:${(r.avg/10*100).toFixed(0)}%"></div></td><td class="s">${r.avg.toFixed(2)}</td></tr>`).join('');
+  const cards=d.order_low_high.map(mid=>{
+    const m=d.models[mid];const nm=IDX.names[mid]||mid;
+    const rows=IDX.judges.filter(j=>m.scores[j]).map(j=>{
+      const s=m.scores[j];const cells=DIMS.map(k=>{const v=s.dims[k];return v==null?'<td style="background:#f4f5f8;color:#c0c5cf">—</td>':`<td style="${heat(v)}">${v%1?v.toFixed(1):v}</td>`;}).join('')
+        +(s.special==null?'<td style="background:#f4f5f8;color:#c0c5cf">—</td>':`<td style="${heat(s.special)}">${s.special%1?s.special.toFixed(1):s.special}</td>`)
+        +`<td style="${heat(s.total)}"><b>${s.total%1?s.total.toFixed(1):s.total}</b></td>`;
+      return `<tr><td class="j"><span class="dot" style="background:${JCOLOR[j]||'#8a91a0'}"></span>${esc(IDX.jnames[j]||j)}${s.self?'<span style="color:#c96a2a"> *</span>':''}</td>${cells}</tr>`;
+    }).join('');
+    const cmts=IDX.judges.filter(j=>m.scores[j]).map(j=>{const s=m.scores[j];return `<div><b><span class="dot" style="background:${JCOLOR[j]||'#8a91a0'}"></span>${esc(IDX.jnames[j]||j)}</b>${s.self?' <span class="self">自评不计分</span>':''} · ${esc(s.comment)}</div>`;}).join('');
+    return `<section class="mcard"><header><span class="rk">第 ${m.rank} 名</span><b>${esc(nm)}</b><span class="avg">${m.avg.toFixed(2)}</span><small>剔除自评均值 · ${m.hanzi} 字</small></header>`
+      +`<div class="ex">${m.excerpt_html}</div>`
+      +`<div class="tblwrap"><table><tr><th></th>${SHORT.map(s=>`<th>${s}</th>`).join('')}<th>专项</th><th>总分</th></tr>${rows}</table></div>`
+      +`<div class="cmt">${cmts}</div>`
+      +`<details data-mid="${esc(mid)}"><summary>展开${esc(nm)}全文（${m.hanzi} 字，引文高亮）</summary><pre>加载中…</pre></details></section>`;
+  }).join('');
+  $('#doc').innerHTML=`<div class="crumb"><a href="#/">▦ 菜单</a><span>${d.module} · ${esc(d.module_name)}</span><span>${idx+1} / ${IDX.questions.length}</span><span class="pg">${prev?`<a href="#/${prev.qid}">← ${prev.qid}</a>`:''}${next?`<a href="#/${next.qid}">${next.qid} →</a>`:''}</span></div>`
+    +`<h1><small>${d.qid}</small>${esc(d.title)}</h1><div class="meta">${chips}</div>`
+    +`<div class="card"><h2>题目${d.rounds>1?'（共 '+d.rounds+' 轮）':''}</h2><div class="prompt">${pr}</div></div>`
+    +(pts?`<div class="card"><h2>评分要点</h2><ul class="pts">${pts}</ul></div>`:'')
+    +`<div class="card"><h2>本题排名（剔除自评）</h2><table class="rk">${rk}</table></div>`
+    +`<p style="color:var(--sub);font-size:13px;margin:14px 2px 0">以下作答按得分从低到高排列 · 单击卡片外的「展开全文」看完整作答 · * 为自评（不计入均值） · 缺失维度记 —</p>${cards}`;
+  $('#sub').textContent=`${d.qid}｜${d.title} · ${idx+1}/${IDX.questions.length}`;
+  document.title=`${d.qid}｜${d.title} · 文笔坐标逐题鉴赏`;
+  $('#doc').querySelectorAll('details[data-mid]').forEach(dt=>{
+    dt.addEventListener('toggle',()=>{
+      if(!dt.open||dt.dataset.done)return;dt.dataset.done='1';
+      const m=d.models[dt.dataset.mid];
+      dt.querySelector('pre').innerHTML=markify(m.full||'(缺失)',m.quotes||[]);
+    },{once:false});
+  });
+}
+(async function(){
+  const qs=new URLSearchParams(location.search);
+  IDX=await(await fetch('data/index.json')).json();
+  const ms=$('#mod');[...new Set(IDX.questions.map(x=>x.module))].sort().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=`${m} · ${IDX.mods[m]||''}`;ms.appendChild(o);});
+  $('#q').oninput=()=>{CUR===null?renderMenu():renderList();};$('#mod').onchange=()=>{CUR===null?renderMenu():renderList();};
+  addEventListener('keydown',e=>{
+    if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)||CUR===null)return;
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+      const i=IDX.questions.findIndex(x=>x.qid===CUR);if(i<0)return;
+      const n=e.key==='ArrowRight'?Math.min(IDX.questions.length-1,i+1):Math.max(0,i-1);
+      location.hash='#/'+IDX.questions[n].qid;
+    }
+  });
+  async function route(){
+    const h=(location.hash||'').replace(/^#\/?/,'')||qs.get('q')||'';
+    try{if(!h)renderMenu();else await renderDetail(h);}catch(e){$('#doc').innerHTML=`<div id="status">加载失败：${esc(String(e))}<br>请用 http 方式访问（如 <code>python3 -m http.server</code>），不要直接双击打开文件。</div>`;}
+  }
+  addEventListener('hashchange',route);await route();
+})();
+</script>
+</body>
+</html>
