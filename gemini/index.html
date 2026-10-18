@@ -12,18 +12,139 @@ header b{font-size:20px;letter-spacing:.1em}
 header span{color:var(--grey);font-size:13px}
 header a{color:var(--teal);text-decoration:none;margin-left:auto;font-size:13px}
 main{max-width:1080px;margin:0 auto;padding:16px}
-video{width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;display:block}
+video.hero{width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;display:block}
 p.meta{color:var(--grey);font-size:13px}
 p.meta a{color:var(--teal)}
+h2{font-size:18px;margin:36px 0 4px}
+p.sub{color:var(--grey);font-size:13px;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.grid figure{margin:0;background:var(--card);border:1px solid #2a2824;border-radius:10px;overflow:hidden}
+.grid img{width:100%;aspect-ratio:9/12;object-fit:cover;display:block;background:#000}
+.grid video{width:100%;aspect-ratio:9/16;display:block;background:#000}
+.grid figcaption{padding:6px 10px;font-size:12px;color:var(--grey);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
 <header><b>杂鱼手书 · AI 娘版</b><span>3:27 · 1920×1080 · AV1</span><a href="../">← 返回</a></header>
 <main>
-<video controls preload="metadata" poster="cover.jpg" playsinline>
+<video class="hero" controls preload="metadata" poster="cover.jpg" playsinline>
 <source src="video.mp4" type="video/mp4">
 </video>
-<p class="meta">原版手书翻拍 · Grok Imagine 图生视频 + Python 离线渲染（<code>制作/render2.py</code>）。成片 80MB H.264 → AV1 高压缩约 70% 档。源码见 <a href="https://github.com/Bemly/video/tree/main/gemini">github.com/Bemly/video/gemini</a> · <a href="video.mp4" download>下载 mp4</a></p>
+<p class="meta">原版手书翻拍 · Grok Imagine 图生视频 + Python 离线渲染（<code>制作/render2.py</code>）。成片 80MB H.264 → AV1 高压缩约 70% 档（31MB）。源码见 <a href="https://github.com/Bemly/video/tree/main/gemini">github.com/Bemly/video/gemini</a> · <a href="video.mp4" download>下载 mp4</a></p>
+<h2>素材 · 生成图（93）</h2>
+<p class="sub">原 JPG 107MB → AVIF preset 0 + CRF 32（60% 档），懒加载。</p>
+<div class="grid">
+<figure><img loading="lazy" decoding="async" src="img/G00_%E5%85%AD%E4%BA%BA%E5%85%A8%E5%91%98%E5%90%88%E7%85%A7.avif" alt="G00_六人全员合照.avif"><figcaption>G00_六人全员合照</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G01_%E5%B0%8F%E8%82%A5%E9%B2%B8%E8%A1%A8%E6%83%85%E5%8C%85.avif" alt="G01_小肥鲸表情包.avif"><figcaption>G01_小肥鲸表情包</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G02_Claude%E8%AF%BE%E6%A1%8C%E6%89%98%E8%85%AE.avif" alt="G02_Claude课桌托腮.avif"><figcaption>G02_Claude课桌托腮</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G03_DeepSeek%E6%8A%B1%E8%86%9D%E4%BC%B8%E6%89%8B.avif" alt="G03_DeepSeek抱膝伸手.avif"><figcaption>G03_DeepSeek抱膝伸手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G04_Muse%E8%B6%B4%E6%A1%8C%E7%9D%A1%E7%9D%80.avif" alt="G04_Muse趴桌睡着.avif"><figcaption>G04_Muse趴桌睡着</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G05_MiMo%E4%BE%A7%E8%BA%AB%E7%AB%99.avif" alt="G05_MiMo侧身站.avif"><figcaption>G05_MiMo侧身站</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G06_Grok%E4%BC%B8%E6%89%8B%E6%8C%87%E6%96%A7.avif" alt="G06_Grok伸手指斧.avif"><figcaption>G06_Grok伸手指斧</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G07_%E5%93%88%E5%9F%BA%E7%B1%B3%E5%BA%95%E9%83%A8%E4%B8%BE%E6%89%8B.avif" alt="G07_哈基米底部举手.avif"><figcaption>G07_哈基米底部举手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G08_%E6%8B%8E%E5%B0%8F%E8%82%A5%E9%B2%B8.avif" alt="G08_拎小肥鲸.avif"><figcaption>G08_拎小肥鲸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G09_%E4%BC%B8%E6%89%8B%E6%8C%87.avif" alt="G09_伸手指.avif"><figcaption>G09_伸手指</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G10_DeepSeek%E6%8E%A2%E5%A4%B4.avif" alt="G10_DeepSeek探头.avif"><figcaption>G10_DeepSeek探头</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G11_%E6%89%98%E8%85%AE%E7%89%B9%E5%86%99.avif" alt="G11_托腮特写.avif"><figcaption>G11_托腮特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G12_%E8%AF%BE%E6%A1%8C%E5%87%91%E8%BF%91%E8%AF%B4%E8%AF%9D.avif" alt="G12_课桌凑近说话.avif"><figcaption>G12_课桌凑近说话</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G13_%E8%AF%BE%E6%A1%8C%E6%8D%82%E5%98%B4.avif" alt="G13_课桌捂嘴.avif"><figcaption>G13_课桌捂嘴</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G14_%E5%85%B3%E7%81%AF%E9%97%AD%E7%9C%BC.avif" alt="G14_关灯闭眼.avif"><figcaption>G14_关灯闭眼</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G15_%E6%8D%82%E5%98%B4%E5%98%B2%E7%AC%91%E7%89%B9%E5%86%99.avif" alt="G15_捂嘴嘲笑特写.avif"><figcaption>G15_捂嘴嘲笑特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G16_Grok%E6%8D%82%E5%98%B4%E5%98%B2%E7%AC%91.avif" alt="G16_Grok捂嘴嘲笑.avif"><figcaption>G16_Grok捂嘴嘲笑</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G17_%E5%8F%8C%E6%89%8B%E5%A4%A7%E7%89%B9%E5%86%99.avif" alt="G17_双手大特写.avif"><figcaption>G17_双手大特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G18_%E9%92%93%E9%B1%BC%E7%AB%BF%E7%AB%99%E5%A7%BF.avif" alt="G18_钓鱼竿站姿.avif"><figcaption>G18_钓鱼竿站姿</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G19_%E6%8F%A1%E9%92%93%E7%AB%BF%E5%8D%8A%E8%BA%AB.avif" alt="G19_握钓竿半身.avif"><figcaption>G19_握钓竿半身</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G20_%E8%B7%B3%E8%88%9E%E4%B8%BE%E6%89%8B.avif" alt="G20_跳舞举手.avif"><figcaption>G20_跳舞举手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G21_%E5%93%88%E5%9F%BA%E7%B1%B3%E6%8C%A5%E6%89%8B.avif" alt="G21_哈基米挥手.avif"><figcaption>G21_哈基米挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G22_DeepSeek%E6%8C%A5%E6%89%8B.avif" alt="G22_DeepSeek挥手.avif"><figcaption>G22_DeepSeek挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G23_MiMo%E6%8C%A5%E6%89%8B.avif" alt="G23_MiMo挥手.avif"><figcaption>G23_MiMo挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G24_Claude%E6%8C%A5%E6%89%8B.avif" alt="G24_Claude挥手.avif"><figcaption>G24_Claude挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G25_Grok%E6%8C%A5%E6%89%8B.avif" alt="G25_Grok挥手.avif"><figcaption>G25_Grok挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G26_Muse%E6%8C%A5%E6%89%8B.avif" alt="G26_Muse挥手.avif"><figcaption>G26_Muse挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G27_%E6%8D%82%E5%98%B4%E5%81%B7%E7%AC%91.avif" alt="G27_捂嘴偷笑.avif"><figcaption>G27_捂嘴偷笑</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G28_%E8%B6%B4%E6%A1%8C%E6%AD%AA%E5%A4%B4.avif" alt="G28_趴桌歪头.avif"><figcaption>G28_趴桌歪头</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G29_%E5%8F%8C%E6%89%8B%E6%89%98%E8%85%AE.avif" alt="G29_双手托腮.avif"><figcaption>G29_双手托腮</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G30_MiMo%E6%8A%B1%E8%86%9D%E5%90%90%E6%A7%BD.avif" alt="G30_MiMo抱膝吐槽.avif"><figcaption>G30_MiMo抱膝吐槽</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G31_%E6%8A%B1%E8%86%9D%E7%89%B9%E5%86%99.avif" alt="G31_抱膝特写.avif"><figcaption>G31_抱膝特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G32_Grok%E5%8F%8C%E6%89%8B%E6%8D%A7%E8%84%B8.avif" alt="G32_Grok双手捧脸.avif"><figcaption>G32_Grok双手捧脸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G33_%E9%97%AD%E7%9C%BC%E6%91%8A%E6%89%8B.avif" alt="G33_闭眼摊手.avif"><figcaption>G33_闭眼摊手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G34_%E5%8F%8C%E6%89%8B%E6%8F%A1%E6%8B%B3%E5%A5%BD%E5%96%9C%E6%AC%A2.avif" alt="G34_双手握拳好喜欢.avif"><figcaption>G34_双手握拳好喜欢</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G35_%E6%89%8B%E6%89%98%E4%B8%8B%E5%B7%B4%E7%89%B9%E5%86%99.avif" alt="G35_手托下巴特写.avif"><figcaption>G35_手托下巴特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G36_%E7%99%BD%E5%9C%BADeepSeek%E5%B0%8F%E4%BA%BA.avif" alt="G36_白场DeepSeek小人.avif"><figcaption>G36_白场DeepSeek小人</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G37_%E5%8F%8C%E6%89%8B%E6%8D%A7%E8%84%B8%E7%89%B9%E5%86%99.avif" alt="G37_双手捧脸特写.avif"><figcaption>G37_双手捧脸特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G38_%E5%BC%82%E8%89%B2%E7%9E%B3%E8%B6%85%E7%89%B9%E5%86%99.avif" alt="G38_异色瞳超特写.avif"><figcaption>G38_异色瞳超特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G39_%E5%9D%90%E5%9C%B0%E6%8A%B1%E9%B2%B8%E6%AF%94%E8%80%B6.avif" alt="G39_坐地抱鲸比耶.avif"><figcaption>G39_坐地抱鲸比耶</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G40_DeepSeek%E8%B6%B4%E7%9D%80%E9%A1%B6%E9%B2%B8.avif" alt="G40_DeepSeek趴着顶鲸.avif"><figcaption>G40_DeepSeek趴着顶鲸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G41_%E5%8F%89%E8%85%B0%E8%AF%B4%E8%AF%9D.avif" alt="G41_叉腰说话.avif"><figcaption>G41_叉腰说话</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G42_%E6%8C%87%E4%BA%BA%E5%9D%8F%E7%AC%91.avif" alt="G42_指人坏笑.avif"><figcaption>G42_指人坏笑</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G43_%E6%92%A9%E5%A4%B4%E5%8F%89%E8%85%B0.avif" alt="G43_撩头叉腰.avif"><figcaption>G43_撩头叉腰</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G44_%E5%98%98%E7%89%B9%E5%86%99.avif" alt="G44_嘘特写.avif"><figcaption>G44_嘘特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G45_Muse%E4%BE%A7%E8%BA%AB%E5%AD%A4%E5%8D%95.avif" alt="G45_Muse侧身孤单.avif"><figcaption>G45_Muse侧身孤单</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G46_AI%E5%9B%BE%E9%89%B4%E5%B0%8F%E8%82%A5%E9%B2%B8.avif" alt="G46_AI图鉴小肥鲸.avif"><figcaption>G46_AI图鉴小肥鲸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G47_%E5%93%88%E5%9F%BA%E7%B1%B3%E4%B8%8E%E5%8D%81%E5%8F%AA%E5%85%94.avif" alt="G47_哈基米与十只兔.avif"><figcaption>G47_哈基米与十只兔</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G48_%E6%8A%A4%E7%9B%AE%E9%95%9C%E5%8F%91%E7%B4%AB%E5%85%89.avif" alt="G48_护目镜发紫光.avif"><figcaption>G48_护目镜发紫光</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G49_%E9%92%93%E5%88%B0%E6%B2%99%E4%B8%81%E9%B2%B8%E6%8D%82%E5%98%B4.avif" alt="G49_钓到沙丁鲸捂嘴.avif"><figcaption>G49_钓到沙丁鲸捂嘴</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G50_%E9%92%93%E5%88%B0DeepSeek%E6%96%B0%E7%BA%AA%E5%BD%95.avif" alt="G50_钓到DeepSeek新纪录.avif"><figcaption>G50_钓到DeepSeek新纪录</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G51_Grok%E6%8A%B1%E5%A4%B4%E6%89%AD%E5%8A%A8.avif" alt="G51_Grok抱头扭动.avif"><figcaption>G51_Grok抱头扭动</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G52_%E5%93%88%E5%9F%BA%E7%B1%B3%E8%88%9E%E5%9B%9B%E9%B2%B8.avif" alt="G52_哈基米舞四鲸.avif"><figcaption>G52_哈基米舞四鲸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G53_%E5%85%AD%E4%BA%BA%E7%BE%A4%E8%88%9E%E5%8F%A0%E5%BD%B1.avif" alt="G53_六人群舞叠影.avif"><figcaption>G53_六人群舞叠影</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G54_Claude%E5%90%B9%E9%95%BF%E7%AC%9B.avif" alt="G54_Claude吹长笛.avif"><figcaption>G54_Claude吹长笛</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G55_DeepSeek%E8%B6%B4%E6%A1%8C%E4%B9%96%E4%B9%96.avif" alt="G55_DeepSeek趴桌乖乖.avif"><figcaption>G55_DeepSeek趴桌乖乖</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G56_DeepSeek%E5%8F%8C%E6%89%8B%E6%8F%A1%E6%8B%B3%E5%96%9C%E6%AC%A2.avif" alt="G56_DeepSeek双手握拳喜欢.avif"><figcaption>G56_DeepSeek双手握拳喜欢</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G57_%E8%84%B8%E7%BA%A2%E6%8C%A5%E6%89%8B.avif" alt="G57_脸红挥手.avif"><figcaption>G57_脸红挥手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G58_%E6%8A%93%E9%A2%86%E5%8F%A3%E6%85%8C%E5%BC%A0.avif" alt="G58_抓领口慌张.avif"><figcaption>G58_抓领口慌张</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G59_%E6%8B%BD%E8%A2%96%E5%AD%90%E7%89%B9%E5%86%99.avif" alt="G59_拽袖子特写.avif"><figcaption>G59_拽袖子特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G60_%E4%BE%A7%E8%84%B8%E5%86%92%E6%B1%97%E4%BD%8E%E5%A4%B4.avif" alt="G60_侧脸冒汗低头.avif"><figcaption>G60_侧脸冒汗低头</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G61_DeepSeek%E4%BE%A7%E8%BA%AB%E5%9B%9E%E5%A4%B4.avif" alt="G61_DeepSeek侧身回头.avif"><figcaption>G61_DeepSeek侧身回头</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G62_XX%E7%9C%BC%E7%89%B9%E5%86%99.avif" alt="G62_XX眼特写.avif"><figcaption>G62_XX眼特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G63_%E8%AF%BE%E6%A1%8C%E9%97%AD%E7%9C%BC%E5%BE%AE%E7%AC%91.avif" alt="G63_课桌闭眼微笑.avif"><figcaption>G63_课桌闭眼微笑</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G64_%E8%84%B8%E7%BA%A2%E9%97%AD%E7%9C%BC%E7%89%B9%E5%86%99.avif" alt="G64_脸红闭眼特写.avif"><figcaption>G64_脸红闭眼特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G65_DeepSeek%E8%84%B8%E7%BA%A2%E9%97%AD%E7%9C%BC.avif" alt="G65_DeepSeek脸红闭眼.avif"><figcaption>G65_DeepSeek脸红闭眼</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G66_%E7%BB%93%E5%B0%BE%E7%B2%BE%E7%BB%98_%E5%8F%98%E6%80%81.avif" alt="G66_结尾精绘_变态.avif"><figcaption>G66_结尾精绘_变态</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G70_%E5%8F%8C%E6%89%8B%E6%8A%B1%E5%A4%B4%E7%9C%A8%E7%9C%BC.avif" alt="G70_双手抱头眨眼.avif"><figcaption>G70_双手抱头眨眼</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G71_%E6%89%AD%E8%BA%AB%E8%A2%96%E8%B4%B4%E8%84%B8.avif" alt="G71_扭身袖贴脸.avif"><figcaption>G71_扭身袖贴脸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G72_%E5%93%88%E5%9F%BA%E7%B1%B3%E7%8C%AB%E7%88%AA.avif" alt="G72_哈基米猫爪.avif"><figcaption>G72_哈基米猫爪</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G73_DeepSeek%E7%8C%AB%E7%88%AA.avif" alt="G73_DeepSeek猫爪.avif"><figcaption>G73_DeepSeek猫爪</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G74_MiMo%E7%8C%AB%E7%88%AA.avif" alt="G74_MiMo猫爪.avif"><figcaption>G74_MiMo猫爪</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G75_Claude%E7%8C%AB%E7%88%AA.avif" alt="G75_Claude猫爪.avif"><figcaption>G75_Claude猫爪</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G76_Grok%E7%8C%AB%E7%88%AA.avif" alt="G76_Grok猫爪.avif"><figcaption>G76_Grok猫爪</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G77_Muse%E7%8C%AB%E7%88%AA.avif" alt="G77_Muse猫爪.avif"><figcaption>G77_Muse猫爪</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G78_%E4%B8%BE%E6%89%8B%E6%8A%AC%E8%86%9D.avif" alt="G78_举手抬膝.avif"><figcaption>G78_举手抬膝</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G79_%E4%BE%A7%E8%BA%AB%E6%8D%82%E5%98%B4%E7%9C%A8%E7%9C%BC.avif" alt="G79_侧身捂嘴眨眼.avif"><figcaption>G79_侧身捂嘴眨眼</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G80_%E8%83%8C%E4%BE%A7%E4%BC%B8%E6%89%8B.avif" alt="G80_背侧伸手.avif"><figcaption>G80_背侧伸手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G81_%E5%8F%B3%E4%BE%A7%E6%8E%A2%E5%A4%B4.avif" alt="G81_右侧探头.avif"><figcaption>G81_右侧探头</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G82_%E5%8F%8C%E6%89%8B%E6%AF%94%E6%9E%AA%E7%9E%84%E5%87%86.avif" alt="G82_双手比枪瞄准.avif"><figcaption>G82_双手比枪瞄准</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G83_%E4%BA%AE%E5%9C%BA%E6%8A%A4%E7%9B%AE%E9%95%9C%E7%BB%BF%E5%85%89.avif" alt="G83_亮场护目镜绿光.avif"><figcaption>G83_亮场护目镜绿光</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G84_%E8%B9%B2%E7%9D%80%E9%92%93%E9%B1%BC.avif" alt="G84_蹲着钓鱼.avif"><figcaption>G84_蹲着钓鱼</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G85_%E9%92%93%E4%B8%8A%E7%9D%A1%E7%9D%80%E7%9A%84Muse.avif" alt="G85_钓上睡着的Muse.avif"><figcaption>G85_钓上睡着的Muse</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G86B_%E6%8B%8D%E6%89%8B%E9%97%AD%E7%9C%BC.avif" alt="G86B_拍手闭眼.avif"><figcaption>G86B_拍手闭眼</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G86_%E6%A8%AA%E7%89%88%E6%8B%8D%E6%89%8B.avif" alt="G86_横版拍手.avif"><figcaption>G86_横版拍手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G87_%E6%A8%AA%E7%89%88%E7%8C%AB%E6%8B%B3%E8%B9%A6.avif" alt="G87_横版猫拳蹦.avif"><figcaption>G87_横版猫拳蹦</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G88_%E6%A8%AA%E7%89%88%E6%88%B3%E8%84%B8%E9%A2%8A.avif" alt="G88_横版戳脸颊.avif"><figcaption>G88_横版戳脸颊</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G89_%E6%A8%AA%E7%89%88%E9%97%AD%E7%9C%BC%E6%8D%A7%E8%84%B8.avif" alt="G89_横版闭眼捧脸.avif"><figcaption>G89_横版闭眼捧脸</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G90_%E7%8C%AB%E5%98%B4%E6%89%98%E4%B8%8B%E5%B7%B4%E7%89%B9%E5%86%99.avif" alt="G90_猫嘴托下巴特写.avif"><figcaption>G90_猫嘴托下巴特写</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G91_%E4%B8%8D%E8%80%90%E7%83%A6%E8%A2%96%E5%8F%A3%E6%8D%82%E5%98%B4.avif" alt="G91_不耐烦袖口捂嘴.avif"><figcaption>G91_不耐烦袖口捂嘴</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G92_%E8%83%8C%E5%BD%B1%E5%8F%89%E8%85%B0.avif" alt="G92_背影叉腰.avif"><figcaption>G92_背影叉腰</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/G93_%E9%97%AD%E7%9C%BC%E8%84%B8%E7%BA%A2%E6%91%87%E6%89%8B.avif" alt="G93_闭眼脸红摇手.avif"><figcaption>G93_闭眼脸红摇手</figcaption></figure>
+<figure><img loading="lazy" decoding="async" src="img/_%E5%AE%9A%E5%A6%86%E6%8B%BC%E8%B4%B4_%E5%85%AD%E4%BA%BA%E6%A0%87%E6%B3%A8.avif" alt="_定妆拼贴_六人标注.avif"><figcaption>_定妆拼贴_六人标注</figcaption></figure>
+</div>
+<h2>素材 · 图生视频（13）</h2>
+<p class="sub">原 62MB → AV1 preset 2 + CRF 35（70% 档），点播加载。</p>
+<div class="grid">
+<figure><video preload="none" controls playsinline src="clips/V01_%E8%B7%B3%E8%88%9E%E4%B8%BE%E6%89%8B.mp4"></video><figcaption>V01_跳舞举手</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V02_%E6%8D%82%E5%98%B4%E5%88%B0%E6%8A%B1%E5%A4%B4%E6%89%AD%E8%BA%AB.mp4"></video><figcaption>V02_捂嘴到抱头扭身</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V03_%E5%93%88%E5%9F%BA%E7%B1%B3%E6%89%B6%E5%A4%B4%E6%8C%87%E4%BE%A7.mp4"></video><figcaption>V03_哈基米扶头指侧</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V04_DeepSeek%E6%89%B6%E5%A4%B4%E6%8C%87%E4%BE%A7.mp4"></video><figcaption>V04_DeepSeek扶头指侧</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V05_MiMo%E6%89%B6%E5%A4%B4%E6%8C%87%E4%BE%A7.mp4"></video><figcaption>V05_MiMo扶头指侧</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V06_%E5%A5%BD%E5%96%9C%E6%AC%A2.mp4"></video><figcaption>V06_好喜欢</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V07_DeepSeek%E5%A5%BD%E5%96%9C%E6%AC%A2.mp4"></video><figcaption>V07_DeepSeek好喜欢</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V08_%E6%8A%B1%E8%86%9D%E6%99%83%E5%A4%B4%E8%AF%B4%E8%AF%9D.mp4"></video><figcaption>V08_抱膝晃头说话</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V09_%E6%8D%A7%E8%84%B8%E5%98%B2%E8%AE%BD.mp4"></video><figcaption>V09_捧脸嘲讽</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V14_%E5%85%AD%E4%BA%BA%E7%BE%A4%E8%88%9E.mp4"></video><figcaption>V14_六人群舞</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V15_Claude%E5%90%B9%E7%AC%9B%E6%8A%AC%E8%86%9D.mp4"></video><figcaption>V15_Claude吹笛抬膝</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V16_%E6%8B%8D%E6%89%8B%E6%A8%AA%E7%A7%BB.mp4"></video><figcaption>V16_拍手横移</figcaption></figure>
+<figure><video preload="none" controls playsinline src="clips/V28_%E7%99%BD%E5%9C%BADeepSeek%E8%B7%B3%E8%88%9E.mp4"></video><figcaption>V28_白场DeepSeek跳舞</figcaption></figure>
+</div>
 </main>
 </body>
 </html>
