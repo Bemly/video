@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GARGANTUA: Event Horizon Observatory</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+            box-sizing: border-box;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            z-index: 10;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #fff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            border: 1px solid #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+            padding: 5px 15px;
+            border-radius: 2px;
+            font-size: 0.8rem;
+            color: #00ffff;
+        }
+
+        .data-panel {
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            width: 300px;
+            background: rgba(10, 10, 20, 0.6);
+            border-left: 3px solid #ff00ff;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .data-label { color: #aaa; }
+        .data-value { color: #ff00ff; font-weight: bold; }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .loading {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen" class="loading">
+        <h2 style="color:#fff; letter-spacing: 0.5em;">INITIALIZING SINGULARITY RENDERER...</h2>
+    </div>
+
+    <div id="ui-layer">
+        <header>
+            <div>
+                <h1>Singularity_01</h1>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #888;">Class K Supermassive Black Hole</div>
+            </div>
+            <div class="status-badge">LIVE FEED // STABLE</div>
+        </header>
+
+        <div class="data-panel">
+            <div class="data-row">
+                <span class="data-label">Mass</span>
+                <span class="data-value">4.3 x 10^6 M☉</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Event Horizon Radius</span>
+                <span class="data-value">12,480 km</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Spin Parameter (a*)</span>
+                <span class="data-value">0.998 (Max)</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Accretion Rate</span>
+                <span class="data-value" id="pulse-val">↑ STABLE</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Photon Ring Intensity</span>
+                <span class="data-value">HIGH</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-hint">
+        [CLICK & DRAG] ROTATE VIEW &nbsp;&nbsp;&nbsp; [SCROLL] ZOOM
+    </div>
+
+    <!-- Three.js Library -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- 1. PRE-PROCESSING: NOISE TEXTURE GENERATION ---
+        // We cannot load external images for a single file solution, so we generate noise mathematically.
+        function generateAccretionTexture() {
+            const size = 1024;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(size, size);
+            const data = imgData.data;
+
+            // Simple 2D Noise implementation
+            let n0 = 0, n1 = 0, n2 = 0;
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    // Procedural Swirl + Noise
+                    const angle = Math.sin(x / 20.0) * Math.cos(y / 20.0) + Math.sin(x * 0.05 + Date.now() * 0.002) * 0.5;
+                    const rr = angle * (size / 3); 
+                    const cx = Math.cos(rr) * size;
+                    const cy = Math.sin(rr) * size;
+
+                    // Base Noise Value
+                    const val = (cx * cx + cy * cy) / size; 
+
+                    // Color Grading based on radius (simulating heat)
+                    // Inner: Hot Blue/White, Outer: Red/Orange
+                    let r, g, b, a = 1;
+                    if (val > 0.7) {
+                        r = 255; g = 255; b = 255; // Inner core
+                    } else if (val > 0.5) {
+                        r = 255; g = 100; b = 50; // Orange
+                    } else {
+                        r = 100; g = 150; b = 255; // Blueish outer
+                    }
+
+                    // Add grain
+                    const grain = Math.random() * 50 - 25;
+                    const intensity = (Math.pow(val, 2) + grain) * 1.5;
+
+                    const idx = (y * size + x) * 4;
+                    data[idx] = Math.min(255, r + intensity);
+                    data[idx + 1] = Math.min(255, g + (intensity * 0.5));
+                    data[idx + 2] = Math.min(255, b + (intensity * 0.3));
+                    data[idx + 3] = 255; // Alpha
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        const accTex = generateAccretionTexture();
+
+        // --- 2. SHADER DEFINITIONS ---
+
+        // Fragment Shader: The Core Physics Engine (Raymarching + Lensing)
+        const fragmentShader = `
+            uniform float iTime;
+            uniform vec2 iResolution;
+            uniform vec3 iCamPos;
+            uniform vec3 iCamDir;
+            uniform float iZoom;
+            
+            varying vec2 vUv;
+
+            // Simple 3D Noise
+            float hash(float n) { return fract(sin(n) * 43758.5453123); }
+            
+            float noise(vec3 x) {
+                vec3 p = floor(x);
+                vec3 f = fract(x);
+                f = f * f * (3.0 - 2.0 * f);
+                float n = p.x + p.y * 57.0 + 113.0 * p.z;
+                return mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+                               mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
+                           mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+                               mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
+            }
+
+            // Fractal Brownian Motion for clouds
+            float fbm(vec3 p) {
+                float f = 0.0;
+                f += 0.5000 * noise(p); p *= 2.02;
+                f += 0.2500 * noise(p); p *= 2.03;
+                f += 0.1250 * noise(p); p *= 2.01;
+                f += 0.0625 * noise(p);
+                return f;
+            }
+
+            // Render Starfield
+            vec3 renderStars(vec3 dir) {
+                // Create a star field based on ray direction
+                vec3 pos = dir * 100.0;
+                float starSize = noise(pos * 10.0);
+                float brightness = starSize * 1.5; // Bright stars
+                float dust = fbm(pos * 0.5); // Nebula dust
+                return vec3(dust, dust * 0.8, dust * 0.2) + vec3(starSize * brightness, starSize * brightness * 0.5, 0.0);
+            }
+
+            // The Physics of the Black Hole
+            // Returns color if ray hits something, vec3(0,0,0) if nothing
+            vec3 raymarch(vec3 ro, vec3 rd) {
+                vec3 col = vec3(0.0);
+                
+                // Step size for marching
+                float h = 0.15; 
+                float accRadius = 2.5;
+                
+                // Loop for Marching
+                for(float t = 0.0; t < 25.0; t += h) {
+                    vec3 p = ro + rd * t;
+                    
+                    float distToCenter = length(p);
+                    vec3 toCenter = normalize(-p);
+                    vec3 toCam = normalize(iCamPos - p);
+
+                    // --- EVENT HORIZON (Singular Sphere) ---
+                    // If we hit the center, we are dead
+                    if(distToCenter < 0.9) return vec3(0.0);
+
+                    // --- ACCRETION DISK PHYSICS ---
+                    // We want to render the disk as if viewed from side/top
+                    // A disk is usually defined by:
+                    // float d = (p.y) + (abs(p.x) * 0.1); // Distance from plane
+                    // if(d < thickness) ...
+                    
+                    // To make it look like a torus that wraps around the singularity (lensing):
+                    // We define the surface of the disk as a curved surface
+                    
+                    // Normal calculation for disk surface
+                    vec3 normal = normalize(vec3(-p.x, 1.5, 0.0)); 
+                    
+                    float distToDisk = dot(p, normal);
+                    float diskThickness = 0.1;
+                    
+                    // Hit Disk?
+                    if(abs(distToDisk) < diskThickness) {
+                        // Calculate texture coord for the disk
+                        // Project 3D point onto 2D disk texture
+                        float angle = atan(p.z, p.x); // Polar angle
+                        float radius = length(p);
+                        
+                        // Wrap coordinates to texture (0.0 to 1.0)
+                        vec2 uv = vec2((angle + 3.14159265) / (6.2831853), 0.5);
+                        
+                        // Animate the disk (spinning)
+                        uv.x += iTime * 0.5;
+                        
+                        // Sample texture
+                        vec4 tex = texture2D(accTex, uv);
+                        
+                        // --- DOPPLER BEAMING ---
+                        // Light moves with the disk
+                        // Vector of light emission point
+                        vec3 emitPos = p + normal * diskThickness;
+                        vec3 vel = normalize(cross(vec3(0.0, 1.0, 0.0), emitPos)); // Angular velocity vector
+                        float doppler = dot(normalize(vel), normalize(toCam));
+                        
+                        // Rotate colors based on speed towards/away from camera
+                        float glow = tex.r * 2.0; // White hot center
+                        vec3 diskCol = vec3(1.0, 0.8, 0.4) * tex.r + vec3(0.0, 0.8, 1.0) * tex.g;
+                        diskCol = diskCol * (1.0 + doppler * 0.5); // Intense on one side
+
+                        // Add Photon Ring (secondary ring of light)
+                        // Simplified: Just a bright glow around the black hole
+                        float photonRing = smoothstep(0.95, 1.0, distToCenter);
+                        
+                        return diskCol + photonRing; 
+                    }
+
+                    // --- GRADIENTS FOR SPACE ---
+                    if(distToCenter > 50.0) break;
+                }
+                
+                // --- BACKGROUND / GRAVITATIONAL LENSING (The Warp) ---
+                // If we didn't hit the black hole directly, we see the background, warped!
+                // We distort the ray direction to simulate light bending (Einstein Ring)
+                
+                // Simplified gravitational lensing effect
+                // Bend ray towards center (0,0,0)
+                vec3 lensDir = normalize(p); 
+                float lensStrength = 1.0 / length(p);
+                vec3 newDir = rd + lensDir * 0.3; 
+                newDir = normalize(newDir);
+                
+                // Sample background stars with the NEW bent direction
+                return renderStars(newDir);
+            }
+
+            void main() {
+                // Correct UVs
+                vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+                vUv = uv;
+
+                // Camera Setup
+                vec3 ro = iCamPos; // Ray Origin (Camera Pos)
+                vec3 f = iCamDir;  // Forward
+                
+                // Normalize and construct camera basis
+                f = normalize(f);
+                vec3 r = normalize(cross(vec3(0.0, 1.0, 0.0), f));
+                vec3 u = cross(f, r);
+                
+                vec3 rd = normalize(r * uv.x + u * uv.y + f * 2.5);
+
+                // Color Accumulation
+                vec3 color = raymarch(ro, rd);
+
+                // Tone Mapping (ACES)
+                color = color / (color + vec3(2.0));
+                color = pow(color, vec3(0.4545)); // Gamma correction
+
+                // Vignette
+                float vignette = length(uv) * 0.5 + 0.5;
+                color *= vignette;
+
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        // Vertex Shader: Standard full-screen quad
+        const vertexShader = `
+            void main() {
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
+
+        // --- 3. SCENE SETUP ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = 4; // Start distance
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Performance cap
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 1.5;
+        controls.maxDistance = 15;
+
+        // --- 4. THE BLACK HOLE SHADER MATERIAL ---
+        // We use a quad that covers the whole screen
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        
+        // Pass the noise texture to shader? Actually, the prompt asks for single file, 
+        // and using a texture requires loading. 
+        // For this example, to ensure the "shocking" effect is stable, 
+        // I will use the generated texture as a secondary influence or map it to the quad?
+        // Actually, in the shader code above, I used a procedural texture logic but 
+        // for higher quality visuals, mapping a generated texture is better.
+        
+        // Let's modify the shader slightly to take a texture sampler
+        // To do this in a single module without external loaders, we have to rely on the fact that 
+        // ThreeJS allows us to pass uniforms.
+        
+        // However, to keep it robust and performant, I will just use the procedural raymarching 
+        // combined with the generated texture in a secondary pass or UV offset, 
+        // OR simply use the texture for the disk and raymarch the stars/physics.
+        
+        // Let's simplify: 
+        // Raymarch handles Physics/Lensing. 
+        // For the disk, we need the texture. 
+        // I'll add the texture as a uniform.
+
+        const material = new THREE.ShaderMaterial({
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            uniforms: {
+                iTime: { value: 0 },
+                iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                iCamPos: { value: camera.position },
+                iCamDir: { value: camera.up }, // Up vector for basis
+                accTex: { value: accTex }
+            },
+            transparent: true
+        });
+
+        const quad = new THREE.Mesh(geometry, material);
+        scene.add(quad);
+
+        // --- 5. ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+
+            // Slow rotation of camera
+            camera.position.x = Math.sin(time * 0.1) * 4;
+            camera.position.z = 4 + Math.cos(time * 0.1) * 2;
+            
+            // Slowly rotate the black hole texture
+            material.uniforms.accTex.value.offset.x = time * 0.2; 
+            material.uniforms.accTex.value.offset.y = time * 0.1;
+
+            // Update Shader Camera Params
+            material.uniforms.iTime.value = time;
+            material.uniforms.iResolution.value.x = renderer.domElement.width;
+            material.uniforms.iResolution.value.y = renderer.domElement.height;
+            material.uniforms.iCamPos.value = camera.position;
+            
+            // Recalculate Camera Up/Right vectors for the shader basis
+            const upVector = new THREE.Vector3(0,1,0);
+            const forwardVector = new THREE.Vector3();
+            camera.getWorldDirection(forwardVector);
+            
+            material.uniforms.iCamDir.value = upVector.clone().add(forwardVector).normalize();
+            
+            controls.update();
+
+            renderer.render(scene, camera);
+        }
+
+        // --- 6. UI & INTERACTION ---
+        
+        // Remove loading screen
+        setTimeout(() => {
+            const loader = document.getElementById('loading-screen');
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 1000);
+        }, 1500);
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            material.uniforms.iResolution.value.x = window.innerWidth;
+            material.uniforms.iResolution.value.y = window.innerHeight;
+        });
+
+        // Randomize accretion data values
+        setInterval(() => {
+            const el = document.getElementById('pulse-val');
+            const val = Math.random() > 0.5 ? "↑ STABLE" : "↓ FLUCTUATING";
+            el.innerText = val;
+            el.style.opacity = 0.5;
+            setTimeout(() => el.style.opacity = 1, 200);
+        }, 2000);
+
+        animate();
+
+    </script>
+</body>
+</html>

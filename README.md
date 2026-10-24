@@ -20,6 +20,7 @@
 | [`answer/`](answer/) | 文笔坐标 · 逐题鉴赏 —— 107 题菜单，单击看题目/作答/裁判打分与评语，浏览器在线渲染 | https://bili.bemly.moe/answer/ |
 | [`gemini/`](gemini/) | 杂鱼手书 · AI 娘版（3:27），离线渲染成片 AV1 | https://bili.bemly.moe/gemini/ |
 | [`codec/`](codec/) | 压缩三十年 —— 视频编码科普（15:57），浏览器实时渲染（无声版） | https://bili.bemly.moe/codec/ |
+| [`mac/`](mac/) | 16G Mac Mini测试 —— 30 本地模型 × 4 道前端题，88 份答卷实测，浏览器实时渲染 | https://bili.bemly.moe/mac/ |
 
 `openai-math/` 与 `math-execute-me/` 不需要构建：页面直接在浏览器里实时渲染每一帧（Canvas 2D + WebGL）。
 `odyssey/` 也不需要构建：`odyssey/demo`（对应线上 `/odyssey/`）与 `odyssey/film`（对应线上 `/coding-adventure/`）都是纯静态网页（Three.js 走 CDN），直接复制到 gh-pages 同名目录即可。
@@ -27,6 +28,7 @@
 `answer/` 也不需要构建且无音频：直接把 `index.html` + `data/*.json` + `cover.jpg` 复制到 gh-pages 的 `answer/` 目录即可。
 `gemini/` 也不需要构建：直接把 `index.html` + `video.mp4`（AV1） + `cover.jpg` 复制到 gh-pages 的 `gemini/` 目录即可。
 `codec/` 也不需要构建且无音频：直接把 `index.html` + `render.html` + `*.js` + `*.json` + `cover.jpg` 复制到 gh-pages 的 `codec/` 目录即可（`voice/` 配音未入库）。
+`mac/` 也不需要构建且无音频：直接把 `index.html` + `build/` + `cover.jpg` 复制到 gh-pages 的 `mac/` 目录即可（`stage.html` 为播放器源码、`shots/`/`raw/`/成片 mp4 未入库）。
 
 首页导航：https://bili.bemly.moe/
 

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《云隙之渊》Voxel 自然景观</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #0a0a0c; }
+    canvas { display: block; }
+    #info {
+      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-family: 'Segoe UI', sans-serif; pointer-events: none;
+      text-align: center; opacity: 0.95; z-index: 10;
+    }
+    #info h2 { margin: 0; font-size: 1.6rem; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+    #info p { margin: 5px 0; font-size: 0.9rem; color: #e0e0e8; }
+    #fps { position: absolute; top: 20px; right: 20px; color: #0f0; font-family: monospace; opacity: 0.8; }
+    #controls-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h2>《云隙之渊》Voxel 自然景观</h2>
+    <p>鼠标左键拖拽旋转 · 右键缩放 · 滚轮放大</p>
+  </div>
+  <div id="fps">FPS: --</div>
+  <div id="controls-hint">自动进入全景视角，无需操作即可体验</div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+    // ================= 场景基础设置 =================
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(35, 28, 45);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 性能优化
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 15;
+    controls.maxDistance = 80;
+
+    // ================= 光照与大气层 =================
+    const fogColor = new THREE.Color(0x8B9DC3); // 晨昏过渡色
+    scene.fog = new THREE.FogExp2(fogColor, 0.018); // 指数衰减雾气，强化穿透感
+
+    const dirLight = new THREE.DirectionalLight(0xFFB6C1, 1.2); // 晨间暖光
+    dirLight.position.set(60, 80, 50);
+
+    const hemiLight = new THREE.HemisphereLight(0x4A5D6B, 0xFFC897, 0.9); // 天光/地光
+
+    scene.add(dirLight);
+    scene.add(hemiLight);
+
+    // ================= 材质定义 =================
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x2C4A35, roughness: 0.85 });
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0x3A7BD5, transparent: true, alpha: 0.68, roughness: 0.3 });
+    const cloudMat = new THREE.MeshStandardMaterial({ color: 0xF5F8FC, transparent: true, alpha: 0.72, roughness: 1 });
+    const vegMat = new THREE.MeshStandardMaterial({ color: 0x3B6A45, roughness: 0.9 });
+
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const sphereGeo = new THREE.SphereGeometry(0.35, 6, 6);
+
+    // ================= 地形生成 (Voxel 山脉) =================
+    const GRID = 48;
+    const STEP = 2.5;
+    const heightMap = [];
+
+    function getHeight(x, y) {
+      // 多重正弦叠加模拟自然地形
+      const a = Math.sin(x * 0.12 + y * 0.18) * Math.cos(y * 0.25 - x * 0.1);
+      const b = Math.sin(x * 0.25 + y * 0.3) * Math.cos(y * 0.18 - x * 0.25);
+      const c = Math.sin((x + y) * 0.08) * 3;
+      return (a * b + c) * 4.5 + 1.2;
+    }
+
+    const instancedMatrix = new THREE.Matrix4();
+    const groundCount = Math.floor((GRID * STEP) / STEP); // 简化计算，实际遍历
+    const groundGeo = new THREE.BoxGeometry(STEP, STEP, STEP);
+
+    // 预计算地形实例
+    const terrainInstances = [];
+    for (let x = -GRID / 2; x < GRID / 2; x++) {
+      for (let y = -GRID / 2; y < GRID / 2; y++) {
+        const hx = x * STEP, hy = y * STEP;
+        const h = getHeight(hx, hy);
+        if (h > 0) {
+          instancedMatrix.makeTranslation(new THREE.Vector3(hx, h / 2, hy));
+          terrainInstances.push(instancedMatrix.clone());
+        }
+      }
+    }
+
+    const terrainMesh = new THREE.InstancedMesh(groundGeo, groundMat, groundInstances.length);
+    terrainMesh.setInstanceMatrixFromArray(groundInstances);
+    scene.add(terrainMesh);
+
+    // ================= 瀑布 (动态体素流) =================
+    const waterfallX = -12, waterfallZ = 6;
+    const wfCount = 30;
+    const wfGeo = new THREE.BoxGeometry(1.2, 1.2, 0.6);
+    const wfMat = new THREE.MeshStandardMaterial({ color: 0x4FA8E3, transparent: true, alpha: 0.75 });
+    const waterfallMesh = new THREE.InstancedMesh(wfGeo, wfMat, wfCount);
+
+    const wfMatrix = new THREE.Matrix4();
+    for (let i = 0; i < wfCount; i++) {
+      const y = 2 + (i / wfCount) * 8; // Y从底到顶
+      const spread = (Math.random() - 0.5) * 1.5;
+      wfMatrix.makeTranslation(new THREE.Vector3(waterfallX + spread, y, waterfallZ));
+      waterfallMesh.setInstanceMatrixAt(i, wfMatrix);
+    }
+    scene.add(waterfallMesh);
+
+    // ================= 植被 (随机分布) =================
+    const vegCount = 200;
+    const treeGeo = new THREE.ConeGeometry(0.4, 1.2, 6);
+    const bushGeo = new THREE.SphereGeometry(0.3, 4, 4);
+
+    const treeMesh = new THREE.InstancedMesh(treeGeo, vegMat, Math.floor(vegCount * 0.6));
+    const bushMesh = new THREE.InstancedMesh(bushGeo, vegMat, Math.floor(vegCount * 0.4));
+
+    const tMatrix = new THREE.Matrix4();
+    let tIdx = 0, bIdx = 0;
+
+    for (let x = -GRID / 2; x < GRID / 2; x++) {
+      for (let y = -GRID / 2; y < GRID / 2; y++) {
+        const hx = x * STEP, hy = y * STEP;
+        const h = getHeight(hx, hy);
+        if (h > 1.8 && Math.random() < 0.35) {
+          if (tIdx < treeMesh.count) {
+            tMatrix.makeTranslation(new THREE.Vector3(hx, h + 0.6, hy));
+            treeMesh.setInstanceMatrixAt(tIdx++, tMatrix);
+          } else if (bIdx < bushMesh.count) {
+            bMatrix = new THREE.Matrix4(); // 复用
+            bMatrix.makeTranslation(new THREE.Vector3(hx, h + 0.2, hy));
+            bushMesh.setInstanceMatrixAt(bIdx++, bMatrix);
+          }
+        }
+      }
+    }
+    scene.add(treeMesh);
+    scene.add(bushMesh);
+
+    // ================= 穿云效果 (动态体素云) =================
+    class VoxelCloud {
+      constructor(x, y, z, speedX, speedZ) {
+        this.count = 120;
+        this.geo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+        this.mesh = new THREE.InstancedMesh(this.geo, cloudMat, this.count);
+        this.basePos = new THREE.Vector3(x, y, z);
+        this.vel = new THREE.Vector3(speedX, 0.1, speedZ);
+        this.matrices = [];
+
+        for (let i = 0; i < this.count; i++) {
+          const m = new THREE.Matrix4();
+          const ox = (Math.random() - 0.5) * 8;
+          const oy = Math.random() * 4;
+          const oz = (Math.random() - 0.5) * 6;
+          m.makeTranslation(new THREE.Vector3(ox, oy, oz));
+          this.matrices.push(m);
+        }
+      }
+
+      update(t) {
+        const p = new THREE.Vector3();
+        this.mesh.position.set(
+          (this.basePos.x + this.vel.x * t) % 100 - 50,
+          this.basePos.y + Math.sin(t * 0.2) * 1.5,
+          (this.basePos.z + this.vel.z * t) % 80 - 40
+        );
+        for (let i = 0; i < this.count; i++) {
+          const m = this.matrices[i];
+          m.makeTranslation(
+            new THREE.Vector3(p.x + m.getX() * 20, p.y + m.getY() * 15, p.z + m.getZ() * 20)
+          );
+          this.mesh.setInstanceMatrixAt(i, m);
+        }
+      }
+    }
+
+    const clouds = [
+      new VoxelCloud(-10, 22, -30, 0.8, -0.5),
+      new VoxelCloud(15, 24, 10, -0.6, 0.7),
+      new VoxelCloud(5, 20, -45, 1.2, -0.3)
+    ];
+    clouds.forEach(c => scene.add(c.mesh));
+
+    // ================= 动态循环 =================
+    let fps = 0, lastTime = performance.now();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      const t = Date.now() * 0.001;
+
+      // 帧率统计
+      if (t - lastTime >= 100) {
+        fps = Math.round(1 / ((t - lastTime) / 100));
+        document.getElementById('fps').textContent = `FPS: ${fps}`;
+        lastTime = t;
+      }
+
+      // 晨昏色调循环 (周期 24s)
+      const cycle = (t % 24);
+      const lightPhase = Math.sin(cycle / 24 * Math.PI) * 0.5 + 0.5;
+      //  dawn: 暖橙 (FFB6C1) -> dusk: 冷紫蓝 (87CEEB)
+      const r = Math.floor(255 * lightPhase + 100 * (1 - lightPhase));
+      const g = Math.floor(200 * lightPhase + 140 * (1 - lightPhase));
+      const b = Math.floor(150 * lightPhase + 237 * (1 - lightPhase));
+      dirLight.color.setHex(0x000000).setRGB(r, g, b);
+      dirLight.intensity = 1.0 + Math.sin(cycle / 24 * Math.PI) * 0.3;
+      
+      fogColor.setRGB(r, g, b);
+      scene.fog.color = fogColor;
+
+      // 云移动
+      clouds.forEach(c => c.update(t));
+
+      // 瀑布体素流动模拟 (Y轴正弦偏移)
+      for (let i = 0; i < waterfallMesh.count; i++) {
+        const m = new THREE.Matrix4();
+        const baseY = 2 + (i / waterfallMesh.count) * 8;
+        const flowOffset = Math.sin(t * 2.5 + i * 0.8) * 0.4;
+        const spread = (Math.random() - 0.5) * 1.5;
+        m.makeTranslation(new THREE.Vector3(waterfallX + spread, baseY + flowOffset, waterfallZ));
+        waterfallMesh.setInstanceMatrixAt(i, m);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 窗口自适应
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

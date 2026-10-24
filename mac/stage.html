@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>16G Mac Mini测试</title>
+<style>
+:root{--paper:#f3f2ec;--ink:#16161a;--mute:#8a8a90;--line:#d9d8d0;--blue:#3d5afe;--blue2:#7a8cff;--warn:#ff7a2f}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper);color:var(--ink);
+  font-family:"PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif}
+canvas.gl{position:absolute;inset:0;width:1920px;height:1080px;display:block}
+#bg{z-index:0}#fx{z-index:50;pointer-events:none}
+#stage{position:absolute;inset:0;z-index:10}
+.num{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:900;font-style:italic;letter-spacing:-.04em}
+.brand{position:absolute;left:40px;top:28px;font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+.brand i{width:8px;height:8px;background:var(--blue);display:inline-block}
+.pager{position:absolute;right:40px;top:26px;font-size:20px;color:var(--mute)}
+.pager b{color:var(--blue);font-size:30px}
+.scene{position:absolute;inset:0}
+/* title card */
+.title-l{position:absolute;left:110px;top:250px}
+.title-l h1{font-size:120px;line-height:1.02;font-weight:900}
+.title-l h1 em{color:var(--blue);font-style:italic}
+.title-l p{margin-top:36px;font-size:30px;color:#444;font-weight:600}
+.title-l .meta{margin-top:70px;display:flex;gap:80px;font-size:22px;color:var(--mute);border-top:2px solid var(--line);padding-top:22px;width:720px}
+.title-l .meta b{color:var(--ink)}
+/* toc */
+.toc{position:absolute;left:110px;top:150px;display:flex;gap:90px}
+.toc h2{font-size:84px;line-height:1.1;font-weight:900;width:200px}
+.toc ul{list-style:none;width:1180px}
+.toc li{display:flex;align-items:baseline;gap:40px;border-top:2px solid var(--line);padding:34px 0;font-size:46px;font-weight:800}
+.toc li .num{color:var(--blue);font-size:56px;width:90px}
+.toc li small{margin-left:auto;font-size:22px;color:var(--mute);font-weight:500}
+.toc li:last-child{border-bottom:2px solid var(--line)}
+/* section card */
+.sec{position:absolute;left:110px;top:300px}
+.sec .num{font-size:200px;color:var(--blue);line-height:1}
+.sec h2{font-size:100px;font-weight:900;margin-top:10px}
+.sec p{font-size:28px;color:#555;margin-top:24px;max-width:780px;line-height:1.6}
+/* prompt card */
+.prompt{position:absolute;left:110px;top:130px;width:1700px}
+.prompt h3{font-size:30px;color:var(--blue);font-weight:800;margin-bottom:26px}
+.prompt pre{font-family:inherit;white-space:pre-wrap;font-size:27px;line-height:1.75;color:#333;background:rgba(255,255,255,.72);
+  border-left:6px solid var(--blue);padding:36px 46px;max-height:760px;overflow:hidden;backdrop-filter:blur(4px)}
+.prompt .rule{margin-top:26px;font-size:22px;color:var(--mute)}
+/* grid */
+.grid{position:absolute;left:40px;top:96px;width:1840px;height:960px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:22px 24px}
+.cell{position:relative;display:flex;flex-direction:column;background:#fff;box-shadow:0 1px 0 var(--line),0 10px 30px rgba(0,0,0,.06)}
+.view{position:relative;flex:1;overflow:hidden;background:#0b0b0f}
+.view iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;background:#fff}
+.cap{height:62px;display:flex;align-items:center;gap:16px;padding:0 18px;border-top:3px solid var(--blue)}
+.cap .rk{font-size:34px;color:var(--blue);width:58px}
+.cap .nm{font-size:23px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:470px}
+.cap .mt{font-size:16px;color:var(--mute);white-space:nowrap}
+.cap .sc{margin-left:auto;font-size:44px;color:var(--ink);display:flex;align-items:baseline;gap:4px}
+.cap .sc small{font-size:16px;color:var(--mute);font-style:normal;font-weight:500}
+.bubble{position:absolute;right:14px;bottom:14px;max-width:62%;background:var(--blue);color:#fff;font-size:20px;line-height:1.45;
+  padding:10px 16px;font-weight:700;box-shadow:0 6px 18px rgba(61,90,254,.35);opacity:0;transform:translateY(12px);transition:all .5s cubic-bezier(.2,.8,.2,1)}
+.bubble.on{opacity:1;transform:none}
+.fixtag{position:absolute;left:12px;top:12px;background:var(--warn);color:#fff;font-size:15px;font-weight:700;padding:4px 10px}
+.nosig{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:10px;
+  background:radial-gradient(circle at 50% 40%,#2a2a33,#0b0b0f)}
+.nosig b{font-size:46px;letter-spacing:.2em}.nosig span{font-size:20px;color:#aaa;max-width:80%;text-align:center;line-height:1.5}
+.ghead{position:absolute;left:40px;top:22px;right:40px;height:60px;display:flex;align-items:center;gap:20px}
+.ghead .num{font-size:40px;color:var(--blue)}
+.ghead h4{font-size:30px;font-weight:900}
+.ghead .sub{font-size:18px;color:var(--mute);margin-left:6px}
+.ghead .pg{margin-left:auto;font-size:20px;color:var(--mute)}
+.bar{position:absolute;left:40px;right:40px;top:84px;height:3px;background:var(--line)}
+.bar i{display:block;height:100%;background:var(--blue);width:0}
+/* hero */
+.hero-l{position:absolute;left:40px;top:120px;width:300px}
+.hero-l .tag{font-size:20px;color:var(--blue);font-weight:800}
+.hero-l h3{font-size:40px;font-weight:900;line-height:1.15;margin:14px 0 26px;word-break:break-all}
+.hero-l .big{font-size:150px;color:var(--blue);line-height:.9}
+.hero-l .big small{font-size:30px;color:var(--mute);font-style:normal}
+.hero-l ul{list-style:none;margin-top:30px;font-size:19px;color:#555;line-height:2}
+.hero-v{position:absolute;left:380px;top:110px;width:1500px;height:844px;overflow:hidden;background:#000;box-shadow:0 18px 50px rgba(0,0,0,.15)}
+.hero-v iframe{width:1920px;height:1080px;border:0;transform:scale(.78125);transform-origin:0 0;background:#fff}
+.hero-v .bubble{font-size:26px;max-width:55%;right:22px;bottom:22px;padding:14px 22px}
+/* ranking */
+.rank{position:absolute;left:110px;top:120px;width:1700px}
+.rank h2{font-size:64px;font-weight:900;margin-bottom:8px}
+.rank .h{font-size:20px;color:var(--mute);margin-bottom:24px}
+.rk-row{display:grid;grid-template-columns:70px 470px repeat(4,150px) 1fr;align-items:center;height:40px;border-top:1px solid var(--line);font-size:20px}
+.rk-row.hd{color:var(--mute);font-size:17px;border:none}
+.rk-row .n{font-size:24px;color:var(--blue)}
+.rk-row .m{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-row .c{text-align:center;color:#444}
+.rk-row .t{display:flex;align-items:center;gap:12px}
+.rk-row .t i{height:16px;background:var(--blue);display:block;width:0;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.rk-row .t b{font-size:22px}
+.rk-row.top .m{color:var(--blue)}
+.fails{position:absolute;left:110px;top:120px;width:1700px}
+.fails h2{font-size:56px;font-weight:900}.fails h2 .num{color:var(--blue);margin-right:10px}
+.fails .h{font-size:22px;color:var(--mute);margin:14px 0 30px}
+.flist{display:grid;grid-template-columns:1fr 1fr;gap:0 60px}
+.fi{display:grid;grid-template-columns:300px 1fr auto;align-items:center;gap:20px;height:58px;border-top:1px solid var(--line);font-size:21px}
+.fi b{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fi span{color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fi em{font-style:normal;color:var(--mute);font-size:16px}
+.rk-row .c s{text-decoration:none;color:var(--warn);font-weight:800}
+.outro{position:absolute;left:110px;top:330px}
+.outro h2{font-size:110px;font-weight:900}.outro h2 i{color:var(--blue)}
+.outro p{font-size:30px;color:#555;margin-top:30px;line-height:1.7}
+.sub16{position:absolute;left:930px;width:920px;top:800px;text-align:center;font-size:76px;font-weight:900;color:var(--blue);letter-spacing:.06em}
+.fade{animation:fin .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fin{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<canvas id="bg" class="gl" width="1920" height="1080"></canvas>
+<div id="stage"></div>
+<canvas id="fx" class="gl" width="1920" height="1080"></canvas>
+<script>
+// ---------- WebGL halftone engine ----------
+const VS = `attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const COMMON = `
+precision highp float;
+uniform vec2 R;uniform float T;uniform float P;uniform int M;uniform sampler2D TX;
+const vec3 PAPER=vec3(.953,.949,.925);const vec3 BLUE=vec3(.239,.353,.996);
+float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 p){float a=.5,s=0.;for(int i=0;i<5;i++){s+=a*n2(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}
+mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+`;
+// field(uv in px-normalized coords) -> 0..1 dot intensity
+const FIELD = `
+float field(vec2 q){ // q: 0..1 screen, y up
+ vec2 a=vec2(q.x*R.x/R.y,q.y);
+ if(M==0){ // subtle paper grid ripple
+   float d=length(a-vec2(1.75,.5));
+   return .06+.05*sin(d*18.-T*1.2)*smoothstep(1.2,0.,d);
+ }
+ if(M==1){ // intro: text texture through flowing noise
+   vec2 w=vec2(fbm(a*2.+T*.25),fbm(a*2.-T*.2+5.))-.5;
+   float t=texture2D(TX,vec2(q.x,1.-q.y)+w*.035).r;
+   float flow=fbm(a*3.+vec2(T*.3,0.));
+   return clamp(t*(.75+.35*flow)+.05*flow*smoothstep(.45,1.,q.x),0.,1.);
+ }
+ vec2 c=a-vec2(1.33,.5);
+ if(M==2){ // pelican: bicycle wheels + sun
+   float s=0.;
+   for(int k=0;k<2;k++){vec2 o=c-vec2(k==0?-.22:.22,-.12);float r=length(o);
+     float ring=smoothstep(.02,0.,abs(r-.17));
+     float ang=atan(o.y,o.x)+T*2.;float sp=smoothstep(.06,0.,abs(sin(ang*6.)))*step(r,.17);
+     s=max(s,max(ring,sp*.7));}
+   float sun=smoothstep(.36,.0,length(c-vec2(.1,.3)))*.55;
+   float road=smoothstep(.01,0.,abs(c.y+.3))*.8;
+   return max(max(s,sun),road);
+ }
+ if(M==3){ // black hole: lensed accretion disk
+   vec2 o=c*1.15;float r=length(o);
+   float ang=atan(o.y,o.x);
+   vec2 dsk=vec2(o.x,o.y*3.2+.06/(r+.05)*sign(o.y));
+   float dr=length(dsk);
+   float disk=smoothstep(.62,.25,dr)*smoothstep(.17,.22,dr)*(.6+.4*fbm(vec2(atan(dsk.y,dsk.x)*3.-T*1.5,dr*8.)));
+   float ringp=smoothstep(.025,0.,abs(r-.19))*1.;
+   float hole=smoothstep(.17,.15,r);
+   float stars=step(.985,h21(floor(a*80.)))*(.5+.5*sin(T*3.+h21(floor(a*80.))*40.));
+   return clamp(max(max(disk,ringp),stars*.6)*(1.-hole),0.,1.);
+ }
+ if(M==4){ // nature: layered mountains + scrolling clouds + waterfall
+   float s=0.;
+   for(int l=0;l<3;l++){float fl=float(l);
+     float hgt=.25+.22*fbm(vec2(a.x*(1.2+fl*.6)+fl*7.,fl))+fl*-.07;
+     float m=step(a.y,hgt+.05*fl);s=max(s,m*(.35+fl*.22));}
+   float wf=smoothstep(.03,0.,abs(a.x-1.42))*step(a.y,.42)*(.6+.4*n2(vec2(a.x*40.,a.y*20.+T*6.)));
+   float cl=smoothstep(.55,.8,fbm(a*vec2(2.,4.)+vec2(T*.12,0.)))*smoothstep(.3,.6,a.y);
+   return clamp(max(max(s,wf),cl),0.,1.);
+ }
+ if(M==5){ // architecture: stepped pagoda silhouette on iso voxel grid
+   vec2 g=c*vec2(1.,1.)+vec2(0.,.15);
+   float s=0.;
+   for(int i=0;i<5;i++){float fi=float(i);
+     float w=.38-fi*.065, y0=-.35+fi*.13;
+     float roof=step(abs(g.x),w+.05*(g.y-y0)/.03*0.)*step(y0,g.y)*step(g.y,y0+.035);
+     float eave=smoothstep(.02,0.,abs(g.y-(y0+.035+.04*pow(abs(g.x)/w,3.))))*step(abs(g.x),w+.03);
+     float body=step(abs(g.x),w*.72)*step(y0+.035,g.y)*step(g.y,y0+.13)*.45;
+     s=max(s,max(max(roof,eave),body));}
+   float spire=step(abs(g.x),.008)*step(.3,g.y)*step(g.y,.42);
+   float sunb=smoothstep(.5,0.,length(c-vec2(.3,.25)))*.35*(0.8+.2*sin(T));
+   return max(max(s,spire),sunb);
+ }
+ // ranking: rising bars
+ float col=floor(a.x*14.);float hh=.25+.6*h21(vec2(col,3.))*(.6+.4*sin(T*.8+col));
+ return step(a.y,hh)*smoothstep(.0,.3,fract(a.x*14.))*.5;
+}`;
+const FS_BG = COMMON + FIELD + `
+uniform float MASK;
+void main(){
+ float cs=11.;vec2 cell=floor(gl_FragCoord.xy/cs)*cs+cs*.5;
+ vec2 q=cell/R;float f=field(q);
+ f*=mix(1.,smoothstep(.36,.62,q.x),MASK); // keep left side clean for text
+ float d=length(gl_FragCoord.xy-cell);
+ float r=cs*.5*sqrt(clamp(f,0.,1.))*1.05;
+ float dot_=smoothstep(r+.8,r-.8,d);
+ vec3 col=mix(PAPER,mix(BLUE*1.1,BLUE*.8,q.y),dot_*smoothstep(.0,.08,f));
+ gl_FragColor=vec4(col,1.);
+}`;
+// transition overlay: blue halftone dots sweeping, P: 0->1 cover, 1->2 reveal
+const FS_FX = COMMON + `
+void main(){
+ vec2 q=gl_FragCoord.xy/R;
+ float cs=22.;vec2 cell=floor(gl_FragCoord.xy/cs)*cs+cs*.5;vec2 cq=cell/R;
+ float n=fbm(cq*vec2(6.,3.)+T*.3)*.35;
+ float k=P<1.?P:2.-P;
+ float edge=(P<1.?cq.x:1.-cq.x)*.65+n;
+ float cov=clamp((k*1.6-edge)*3.,0.,1.);
+ float d=length(gl_FragCoord.xy-cell);
+ float r=cs*.72*cov;
+ float a=smoothstep(r+1.,r-1.,d);
+ if(cov>=.999)a=1.;
+ vec3 col=mix(BLUE,BLUE*.82,q.y)+.04*n;
+ gl_FragColor=vec4(col*a,a);
+}`;
+function mkGL(cv, fs){
+  const gl=cv.getContext('webgl',{premultipliedAlpha:true,alpha:true,antialias:false});
+  const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o};
+  const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const l=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,2,gl.FLOAT,false,0,0);
+  const U=n=>gl.getUniformLocation(pr,n);
+  const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  return {gl,U,tex,draw(u){gl.viewport(0,0,1920,1080);gl.uniform2f(U('R'),1920,1080);gl.uniform1f(U('T'),u.T);gl.uniform1f(U('P'),u.P||0);
+    gl.uniform1i(U('M'),u.M||0);gl.uniform1f(U('MASK'),u.MASK||0);gl.uniform1i(U('TX'),0);
+    gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);},
+    texFromCanvas(c){gl.bindTexture(gl.TEXTURE_2D,tex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);}};
+}
+const BG=mkGL(document.getElementById('bg'),FS_BG), FX=mkGL(document.getElementById('fx'),FS_FX);
+{ // text texture for intro
+  const c=document.createElement('canvas');c.width=1920;c.height=1080;const x=c.getContext('2d');
+  x.fillStyle='#000';x.fillRect(0,0,1920,1080);x.fillStyle='#fff';
+  x.font='italic 900 560px "Helvetica Neue",Arial';x.textAlign='center';x.textBaseline='middle';x.fillText('16G',1390,520);
+  BG.texFromCanvas(c);
+}
+const view={M:0,MASK:0,P:0};
+const t0=performance.now();
+(function loop(){const T=(performance.now()-t0)/1000;BG.draw({T,M:view.M,MASK:view.MASK});FX.draw({T,P:view.P});requestAnimationFrame(loop)})();
+
+// ---------- data ----------
+const CATS=[
+ {key:'鹈鹕自行车',title:'鹈鹕骑自行车',kind:'SVG 2D 动画',M:2,desc:'经典 Simon Willison 鹈鹕测试：一句话 prompt，看模型的 SVG 造型与动画能力。'},
+ {key:'黑洞',title:'黑洞奇观',kind:'单文件 WebGL',M:3,desc:'事件视界、吸积盘、光子环、引力透镜，外加科幻 UI。考验着色器与审美。'},
+ {key:'自然景观',title:'体素自然景观',kind:'Three.js 3D',M:4,desc:'山脉 + 瀑布 + 穿云 + 晨昏光影，体素风格，完整项目并整合为单 HTML。'},
+ {key:'中国古典建筑群场景',title:'体素古典建筑群',kind:'Three.js 3D',M:5,desc:'主殿、配殿、山门、宝塔，中轴对称，飞檐斗拱，晨昏色调。本期最难长提示词。'},
+];
+let MAN=[],SC={};
+// each panel on its own hostname -> separate renderer process, so heavy scenes can't stall the stage
+const ISO=new URLSearchParams(location.search).has('iso');
+const HOST=k=>ISO?`http://p${k}.local:${location.port}/`:'';
+const short=n=>n.replace(/-mlx$/,'').replace(/-gguf$/,'');
+const Q=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const stage=document.getElementById('stage');
+
+async function cover(){for(let t=0;t<=1;t+=1/24){view.P=t;await sleep(16)}view.P=1}
+async function reveal(){for(let t=1;t<=2;t+=1/24){view.P=t;await sleep(16)}view.P=0}
+function waitFrames(root,max){const fs=[...root.querySelectorAll('iframe')];
+  return Promise.race([Promise.all(fs.map(f=>new Promise(r=>f.addEventListener('load',r,{once:true})))),sleep(max)]);}
+async function scene(html,{M=0,MASK=0,dur=5000,loadWait=0,after}={}){
+  await cover();
+  stage.innerHTML=html;view.M=M;view.MASK=MASK;
+  if(loadWait) await waitFrames(stage,loadWait); else await sleep(250);
+  await sleep(loadWait?400:0); // let 3D scenes settle under the cover
+  reveal();
+  if(after) after();
+  await sleep(dur);
+}
+const fmtT=s=>s==null?'—':s>=60?`${Math.floor(s/60)}m${Math.round(s%60)}s`:`${Math.round(s)}s`;
+function scoreOf(r){const s=SC[r.id];return s&&s.s!=null?s.s:0}
+function cellHTML(r,i,cat){
+  const s=SC[r.id]||{};const fx=(r.fixes||[]).filter(f=>!/charset/.test(f));
+  const W=910,H=398,scale=W/1366; // iframe virtual size 1366x597
+  let view;
+  if(r.page){view=`<iframe src="${HOST(i)}${encodeURI(r.page)}" style="width:1366px;height:${Math.round(H/scale)}px;transform:scale(${scale})" scrolling="no"></iframe>`;}
+  else view=`<div class="nosig"><b>NO OUTPUT</b><span>${s.c||'没有产出可运行的代码'}</span></div>`;
+  return `<div class="cell fade" style="animation-delay:${i*90}ms"><div class="view">${view}
+   ${fx.length&&r.page?`<div class="fixtag">轻修 · ${fx.slice(0,2).join(' / ')}</div>`:''}
+   ${r.page&&s.c?`<div class="bubble">${s.c}</div>`:''}</div>
+   <div class="cap"><span class="rk num">${String(r._rank).padStart(2,'0')}</span>
+   <span class="nm">${short(r.name)}</span>
+   <span class="mt">${r.tps?r.tps+' tok/s':''} · ${r.tokens||0} tok · ${fmtT(r.total)}</span>
+   <span class="sc num">${s.s!=null?s.s.toFixed(1):'—'}<small>/10</small></span></div></div>`;
+}
+function headHTML(ci,cat,page,pages){
+  return `<div class="ghead"><span class="num">0${ci+1}</span><h4>${cat.title}</h4><span class="sub">${cat.kind} · 分数从低到高</span>
+  <span class="pg num">${page}/${pages}</span></div><div class="bar"><i id="pbar"></i></div>`;
+}
+function progress(ms){const b=Q('#pbar');if(!b)return;b.style.transition=`width ${ms}ms linear`;requestAnimationFrame(()=>b.style.width='100%')}
+
+async function run(){
+  MAN=await (await fetch('build/manifest.json')).json();
+  try{SC=await (await fetch('build/scores.json')).json()}catch(e){}
+  const params=new URLSearchParams(location.search);
+  const only=params.get('cat'), skipIntro=params.has('skip');
+  const GRID=+(params.get('grid')||11000);
+  await sleep(600);
+  if(!skipIntro){
+    view.M=1;view.MASK=0;
+    stage.innerHTML=`<div class="brand"><i></i>16G Mac Mini测试</div><div class="sub16 fade">Mac Mini 测试</div><div class="title-l fade">
+      <h1>16GB <em>小 Mac</em><br>本地模型</h1>
+      <p>M4 · 16GB 统一内存 · LM Studio 本地推理</p>
+      <div class="meta"><span><b class="num">${new Set(MAN.map(r=>r.name)).size}</b> 个模型配置</span><span><b class="num">${MAN.length}</b> 份答卷</span><span><b class="num">4</b> 道题</span></div></div>`;
+    await sleep(6500);
+    await scene(`<div class="brand"><i></i>16G Mac Mini测试</div><div class="toc"><h2 class="fade">本期<br>内容</h2><ul>
+      ${CATS.map((c,i)=>`<li class="fade" style="animation-delay:${i*120}ms"><span class="num">0${i+1}</span>${c.title}<small>${c.kind} · ${MAN.filter(r=>r.cat===c.key).length} 份答卷</small></li>`).join('')}
+      <li class="fade" style="animation-delay:480ms"><span class="num">05</span>总排行<small>谁是 16GB 之王</small></li></ul></div>`,{M:0,dur:5500});
+  }
+  for(const [ci,cat] of CATS.entries()){
+    if(only && only!==String(ci+1)) continue;
+    const rows=MAN.filter(r=>r.cat===cat.key).sort((a,b)=>scoreOf(a)-scoreOf(b)||(a.page?1:0)-(b.page?1:0));
+    rows.forEach((r,i)=>r._rank=rows.length-i);
+    const prompt=rows[0].prompt;
+    await scene(`<div class="brand"><i></i>16G Mac Mini测试</div><div class="sec"><div class="num fade">0${ci+1}</div>
+      <h2 class="fade" style="animation-delay:.1s">${cat.title}</h2><p class="fade" style="animation-delay:.2s">${cat.desc}</p></div>`,{M:cat.M,MASK:1,dur:4500});
+    await scene(`<div class="brand"><i></i>16G Mac Mini测试</div><div class="prompt fade"><h3>PROMPT · ${cat.title}</h3>
+      <pre>${prompt.replace(/</g,'&lt;').replace(/\n\s*\n/g,'\n').slice(0,620)}${prompt.length>620?' ……':''}</pre>
+      <div class="rule">评分 0–10：完成度 / 视觉 / 动效 / 是否贴题。无法运行的轻微修复后展示，仅小幅扣分；无产出记 0 分。</div></div>`,{M:0,dur:prompt.length>300?7500:4500});
+    const isFail=r=>!r.page||(SC[r.id]&&SC[r.id].fail);
+    const dead=rows.filter(isFail), live=rows.filter(r=>!isFail(r));
+    live.forEach((r,i)=>r._rank=live.length-i);
+    const groups=[];
+    for(let i=live.length%4;i<live.length;i+=4)groups.push(live.slice(i,i+4));
+    if(live.length%4)groups.unshift(live.slice(0,live.length%4));
+    for(const [gi,g] of groups.entries()){
+      const d=GRID;
+      await scene(headHTML(ci,cat,gi+1,groups.length)+`<div class="grid">${g.map((r,i)=>cellHTML(r,i,cat)).join('')}</div>`,
+        {M:0,dur:d,loadWait:1500,after(){progress(d);setTimeout(()=>document.querySelectorAll('.bubble').forEach((b,i)=>setTimeout(()=>b.classList.add('on'),i*350)),1500)}});
+    }
+    const best=live[live.length-1];
+    if(best){const s=SC[best.id]||{};
+      await scene(`<div class="brand"><i></i>16G Mac Mini测试</div><div class="hero-l"><div class="tag">0${ci+1} · ${cat.title} · 本题第一</div>
+        <h3>${short(best.name)}</h3><div class="big num">${(s.s||0).toFixed(1)}<small> /10</small></div>
+        <ul><li>${best.tps} tok/s</li><li>${best.tokens} tokens</li><li>用时 ${fmtT(best.total)}</li><li>${(best.fixes||[]).length?'轻修：'+best.fixes.join('、'):'原样运行'}</li></ul></div>
+        <div class="hero-v"><iframe src="${HOST('hero')}${encodeURI(best.page)}" scrolling="no"></iframe>${s.c?`<div class="bubble">${s.hero||s.c}</div>`:''}</div>`,
+        {M:0,dur:10000,loadWait:1500,after(){setTimeout(()=>Q('.bubble')&&Q('.bubble').classList.add('on'),1500)}});
+    }
+    if(dead.length){
+      await scene(`<div class="brand"><i></i>16G Mac Mini测试</div><div class="fails"><h2 class="fade"><span class="num">0${ci+1}</span> ${cat.title} · 交白卷名单</h2>
+        <div class="h fade">${dead.length} / ${rows.length} 份生成失败（无代码 / 乱码 / 轻修后仍无法运行），记 0 分，不给镜头</div>
+        <div class="flist">${dead.map((r,i)=>`<div class="fi fade" style="animation-delay:${i*60}ms"><b>${short(r.name)}</b><span>${(SC[r.id]&&SC[r.id].fail)||'没有产出代码'}</span><em>${r.tps?r.tps+' tok/s · ':''}${r.tokens||0} tok</em></div>`).join('')}</div></div>`,
+        {M:0,dur:Math.max(5000,dead.length*600)});
+    }
+  }
+  if(!only){
+    const by={};for(const r of MAN){const k=r.name;(by[k]=by[k]||{name:k,s:{},t:0});by[k].s[r.cat]=Math.max(by[k].s[r.cat]||0,scoreOf(r));if(!(SC[r.id]&&SC[r.id].fail)&&r.page)by[k].ok=1;}
+    const list=Object.values(by).map(o=>(o.t=CATS.reduce((a,c)=>a+(o.s[c.key]||0),0),o)).sort((a,b)=>b.t-a.t);
+    const pages=[list.slice(0,20),list.slice(20)].filter(p=>p.length);
+    for(const [pi,pg] of pages.entries()){
+      await scene(`<div class="brand"><i></i>16G Mac Mini测试</div><div class="rank"><h2 class="fade">总排行 ${pi?'(续)':''}</h2><div class="h">四题得分相加，满分 40 · 同一配置多次测试取最高 · ✕ = 生成失败 · — = 未参加</div>
+        <div class="rk-row hd"><span>#</span><span>模型</span>${CATS.map(c=>`<span class="c">${c.title}</span>`).join('')}<span>总分</span></div>
+        ${pg.map((o,i)=>`<div class="rk-row fade ${pi==0&&i<3?'top':''}" style="animation-delay:${i*50}ms"><span class="n num">${pi*20+i+1}</span><span class="m">${short(o.name)}</span>
+          ${CATS.map(c=>`<span class="c">${o.s[c.key]==null?'—':o.s[c.key]>0?o.s[c.key].toFixed(1):'<s>✕</s>'}</span>`).join('')}
+          <span class="t"><i data-w="${o.t/40*100}"></i><b class="num">${o.t.toFixed(1)}</b></span></div>`).join('')}</div>`,
+        {M:0,MASK:0,dur:9000,after(){setTimeout(()=>document.querySelectorAll('.t i').forEach(e=>e.style.width=e.dataset.w*3.2+'px'),400)}});
+    }
+    await scene(`<div class="sub16 fade">Mac Mini 测试</div><div class="outro"><h2 class="fade">感谢观看<i>.</i></h2><p class="fade" style="animation-delay:.2s">16GB 也能跑出好前端——但挑对模型很重要。<br>点赞 · 投币 · 收藏 · 关注</p></div>`,{M:1,MASK:0,dur:6000});
+  }
+  await cover();window.__done=true;
+}
+run();
+</script>
+</body>
+</html>

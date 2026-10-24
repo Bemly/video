@@ -1,0 +1,144 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html>
+<head>
+    <title>鹈鹕骑自行车</title>
+    <style>
+        canvas {
+            border: 1px solid #000;
+            background-color: #87CEEB;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="600" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let frameCount = 0;
+
+        // 鹈鹕参数
+        const pelican = {
+            x: 100,
+            y: 300,
+            width: 80,
+            height: 70,
+            angle: 0,
+            tailAngle: 0,
+            moving: true
+        };
+
+        // 自行车参数
+        const bike = {
+            x: 250,
+            y: 340,
+            width: 60,
+            height: 40,
+            direction: 'right'
+        };
+
+        function drawPelican() {
+            // 绘制鹈鹕身体
+            ctx.fillStyle = 'white';
+            ctx.fillRect(pelican.x, pelican.y - 50, pelican.width, pelican.height);
+
+            // 绘制头部和喙
+            ctx.beginPath();
+            ctx.arc(pelican.x + pelican.width/2, pelican.y - 100, 30, Math.PI, 0);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+
+            // 绘制尾羽
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pelican.x + pelican.width/4, pelican.y - 30);
+            ctx.lineTo(pelican.x + pelican.width/4 + Math.cos(pelican.tailAngle) * 30, 
+                       pelican.y - 30 + Math.sin(pelican.tailAngle) * 25);
+            ctx.lineTo(pelican.x + pelican.width*3/4, pelican.y - 30);
+            ctx.lineTo(pelican.x + pelican.width*3/4 - Math.cos(pelican.tailAngle) * 30,
+                       pelican.y - 30 - Math.sin(pelican.tailAngle) * 25);
+            ctx.closePath();
+            ctx.stroke();
+
+            // 绘制脚
+            ctx.fillStyle = 'black';
+            const legWidth = 10;
+            const legHeight = 40;
+            
+            // 左脚
+            ctx.fillRect(pelican.x + pelican.width/3 - legWidth/2, 
+                       pelican.y - 60, legWidth, legHeight);
+            
+            // 右脚
+            ctx.fillRect(pelican.x + pelican.width*2/3 - legWidth/2,
+                       pelican.y - 60, legWidth, legHeight);
+        }
+
+        function drawBike() {
+            ctx.fillStyle = 'silver';
+            // 绘制车架
+            ctx.fillRect(bike.x, bike.y, bike.width, bike.height);
+
+            // 前轮
+            ctx.beginPath();
+            const radius = 20;
+            ctx.arc(bike.x + radius, bike.y + 15, radius, Math.PI, 0);
+            ctx.fill();
+
+            // 后轮
+            ctx.beginPath();
+            ctx.arc(bike.x - (radius*2), bike.y + 15, radius, Math.PI, 0);
+            ctx.fill();
+
+            // 车把手
+            const handlebarWidth = 40;
+            ctx.fillRect(bike.x - handlebarWidth/2, bike.y - 30, handlebarWidth, 8);
+        }
+
+        function update() {
+            // 更新鹈鹕状态
+            if (pelican.moving) {
+                pelican.angle += 0.1;
+                pelican.tailAngle = Math.sin(frameCount / 60) * 25;
+                bike.x += 0.3;
+                
+                // 当鹈鹕到达车尾时换方向
+                if (pelican.x + pelican.width > bike.x) {
+                    pelican.moving = false;
+                }
+            }
+
+            frameCount++;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制地面和天空
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(0, 350, canvas.width, canvas.height - 350);
+
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, 350);
+
+            drawPelican();
+            drawBike();
+
+            // 更新和绘制下一帧
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+
+        setInterval(() => {
+            update();
+            draw();
+        }, 16); // 约60 FPS
+    </script>
+
+    <p>Frame Count: <span id="frameCount">0</span></p>
+</body>
+</html>

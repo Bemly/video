@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>禅意古刹</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/build/three.min.js"></script>
+    <script>
+        // 初始化场景
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        // 设置渲染器参数
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x87CEEB); // 青天色
+        document.body.appendChild(renderer.domElement);
+
+        // 定义建筑模块
+        const createBuilding = (position, size) => {
+            const buildingGeometry = new THREE.BoxGeometry(size, 2, size);
+            const buildingMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+            
+            // 创建屋顶结构
+            const roofGeometry = new THREE.CylinderGeometry(1.5 * size, 1.2 * size, 0.1, 8);
+            const roofMaterial = new THREE.MeshPhongMaterial({ color: 0x7CFC00 });
+            
+            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            
+            building.position.set(position.x, (2 - 0.1), position.z);
+            roof.position.y = 2;
+            
+            return {building, roof};
+        };
+
+        // 创建建筑群
+        const mainTemple = createBuilding(new THREE.Vector3(-8, 0, 0), 6);
+        scene.add(mainTemple.building);
+        scene.add(mainTemple.roof);
+
+        // 添加配殿
+        [new THREE.Vector3(4, 0, -6), new THREE.Vector3(-4, 0, -6)].forEach(pos => {
+            const building = createBuilding({x: pos.x, z: pos.z}, 4);
+            scene.add(building.building);
+            scene.add(building.roof);
+        });
+
+        // 创建宝塔
+        const towerGeometry = new THREE.CylinderGeometry(1.2, 0.8, 5, 8);
+        const towerMaterial = new THREE.MeshPhongMaterial({ color: 0x7CFC00 });
+        const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+        scene.add(tower);
+
+        // 设置光照
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0x7CFC00, 1);
+        pointLight.position.set(5, 8, 5);
+        scene.add(pointLight);
+
+        // 设置相机位置
+        camera.position.z = 20;
+        camera.lookAt(0, 2, -6);
+
+        // 动态渲染
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            mainTemple.building.rotation.y += 0.001;
+            mainTemple.roof.rotation.y += 0.003;
+            scene.traverse(child => child.material && (child.material.color.setHSL(Math.random(), 0.5, 0.6)));
+            
+            renderer.render(scene, camera);
+        }
+        
+        // 窗口 resize 处理
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>

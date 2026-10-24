@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+    <meta charset="UTF-8">
+    <title>3D Voxel Landscape</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        /* Optional CSS for UI */
+    </style>
+</head>
+<body style="margin: 0;">
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js';
+        import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb); // light sky blue (morning)
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 5, 15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Light
+        const light = new THREE.DirectionalLight(0xffffff, 1.2);
+        light.position.set(10, 20, 15);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // Ground (voxel floor)
+        const groundSize = 50;
+        const grid = 20; // voxel count per side
+        const geometry = new THREE.PlaneGeometry(groundSize, groundSize, grid, grid);
+        const material = new THREE.MeshStandardMaterial({ color: 0x6a5acd });
+        const ground = new THREE.Mesh(geometry, material);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Skybox (optional volumetric cloud layer)
+        const skyGeometry = new THREE.SphereGeometry(20, 64, 64);
+        const skyMaterial = new THREE.MeshBasicMaterial({ color: 0xadd8e6 });
+        const skyBox = new THREE.Mesh(skyGeometry, skyMaterial);
+        scene.add(skyBox);
+
+        // Voxel terrain generation (simple noise + height map)
+        function generateVoxels(size, voxSize) {
+            const step = voxSize;
+            const voxelCountX = Math.ceil(size / step) + 1;
+            const voxelCountZ = Math.ceil(size / step) + 1;
+
+            // Simple Perlin noise (could use simplex.js)
+            function noise(x, y) {
+                return ((function(){function __n2(x,y){const s=(a,b)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v)};const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=s(xi,yi),b=s(xi+1,yi),c=s(xi,yi+1),d=s(xi+1,yi+1);return (a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v)*2-1};return __n2})())(x * 0.05, y * 0.05);
+            }
+            const heightMap = [];
+            for (let x = 0; x < voxelCountX; x++) {
+                for (let z = 0; z < voxelCountZ; z++) {
+                    const nx = x * step - size / 2 + Math.random() * step / 2;
+                    const nz = z * step - size / 2 + Math.random() * step / 2;
+                    const yLevel = (noise(nx, nz) + 1) * voxSize / 2; // normalize 0..1 -> 0..voxSize/2
+                    heightMap.push({ x, z, y: Math.floor(yLevel) });
+                }
+            }
+            return { step, voxelCountX, voxelCountZ, heightMap };
+        }
+
+        const voxelSettings = generateVoxels(50, 1); // size 50 meters, voxel side 1m
+
+        // Visual representation of voxels (simple cubes)
+        for (const v of voxelSettings.heightMap) {
+            const x = v.x * voxelSettings.step - 25;
+            const y = v.y * voxelSettings.step;
+            const z = v.z * voxelSettings.step - 25;
+            // Use a simple cube geometry
+            const cubeGeometry = new THREE.BoxGeometry(voxelSettings.step, voxelSettings.step, voxelSettings.step);
+            const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+            const voxel = new THREE.Mesh(cubeGeometry, cubeMaterial);
+            voxel.position.set(x, y, z);
+            scene.add(voxel);
+        }
+
+        // Water (simple plane with animated wave)
+        const waterWidth = 20;
+        const waterDepth = 1;
+        const waterPlane = new THREE.PlaneGeometry(waterWidth, waterWidth, grid * 2, grid * 2);
+        const waterMaterial = new THREE.MeshStandardMaterial({ color: 0x5f9ea0 });
+        const water = new THREE.Mesh(waterPlane, waterMaterial);
+        water.rotation.x = -Math.PI / 2;
+        scene.add(water);
+
+        // Wave animation (simple sine wave)
+        let time = 0;
+        function animateWater() {
+            requestAnimationFrame(animateWater);
+            time += 0.05;
+            const amplitude = 1.5;
+            waterMaterial.uniforms.uAmplitude.value = Math.sin(time) * amplitude;
+            // Reapply material (if using shader material, just update uniform)
+        }
+        animateWater();
+
+        // Cloud layer (simple moving boxes)
+        function createCloud(x, z, size) {
+            const cloudGeometry = new THREE.BoxGeometry(size, size / 2, size);
+            const cloudMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+            cloud.position.set(x, size/2, z);
+            scene.add(cloud);
+        }
+        // Clouds with slight horizontal drift
+        for (let i = -30; i <= 30; i += 10) {
+            createCloud(i * 1.5, Math.random() * 20 + 0, 6);
+        }
+
+        // Resize handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        // Controls disable: comment out if you don't need manual orbiting.
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>

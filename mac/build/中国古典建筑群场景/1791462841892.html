@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imperial Voxel Palace</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2 style="margin: 0 0 5px 0; color: #ffd700;">Imperial Voxel Palace</h2>
+        <p style="margin: 0; font-size: 14px;">Traditional Chinese Architecture in Voxel Style</p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #ccc;">Left Click to Rotate | Right Click to Pan | Scroll to Zoom</p>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Configuration & Constants ---
+        const COLORS = {
+            RED_WALL: 0xB22222,
+            GREEN_ROOF: 0x2E7D32,
+            WOOD: 0x5D4037,
+            STONE_GRAY: 0x808080,
+            GRASS: 0x567d46,
+            PATH: 0x999999,
+            GOLD: 0xFFD700
+        };
+
+        // --- Core Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 150);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(40, 30, 60);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 * 0.95; // Prevent looking under floor
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xfffaf0, 2);
+        sunLight.position.set(50, 60, 30);
+        sunLight.castShadow = true;
+        sunLight.shadow.camera.left = -60;
+        sunLight.shadow.camera.right = 60;
+        sunLight.shadow.camera.top = 60;
+        sunLight.shadow.camera.bottom = -60;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        scene.add(sunLight);
+
+        // --- Environment Elements ---
+        // Ground Plane
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.GRASS });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Central Road / Path
+        const pathGeo = new THREE.PlaneGeometry(12, 150);
+        const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.PATH });
+        const centralPath = new THREE.Mesh(pathGeo, pathMat);
+        centralPath.rotation.x = -Math.PI / 2;
+        centralPath.position.y = 0.01;
+        centralPath.receiveShadow = true;
+        scene.add(centralPath);
+
+        // --- Voxel Building Logic ---
+        function createBlock(x, y, z, w = 1, h = 1, d = 1, color = COLORS.STONE_GRAY) {
+            const geometry = new THREE.BoxGeometry(w, h, d);
+            const material = new THREE.MeshStandardMaterial({ color });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        function createPlatform(w, d, h = 1) {
+            const group = new THREE.Group();
+            for (let x = -Math.floor(w / 2); x <= Math.floor(w / 2); x++) {
+                for (let z = -Math.floor(d / 2); z <= Math.floor(d / 2); z++) {
+                    group.add(createBlock(x, h/2, z, 1, h, 1, COLORS.STONE_GRAY));
+                }
+            }
+            return group;
+        }
+
+        function createPillar(x, y, z, h = 4) {
+            const group = new THREE.Group();
+            group.add(createBlock(x, y + h/2, z, 0.4, h, 0.4, COLORS.WOOD));
+            return group;
+        }
+
+        function createWall(x, y, z, w, h, d, color = COLORS.RED_WALL) {
+            const group = new THREE.Group();
+            for (let i = -Math.floor(w / 2); i <= Math.floor(w / 2); i++) {
+                for (let j = -Math.floor(h / 2); j <= Math.floor(h / 2); j++) {
+                    group.add(createBlock(i, y + j, z, 1, 1, d, color));
+                }
+            }
+            return group;
+        }
+
+        function createDougong(x, y, z) {
+            const group = new THREE.Group();
+            // Simple representation of bracket sets
+            for (let i = -1; i <= 1; i++) {
+                group.add(createBlock(i * 0.8, y, z, 0.4, 0.6, 0.4, COLORS.WOOD));
+            }
+            return group;
+        }
+
+        function createRoof(x, y, z, w, d, layers = 3) {
+            const group = new THREE.Group();
+            for (let i = 0; i < layers; i++) {
+                const curW = w + (i * 1.5);
+                const curD = d + (i * 1.2);
+                const curH = 0.8;
+                // Roof tiles
+                for (let ix = -Math.floor(curW / 2); ix <= Math.floor(curW / 2); ix++) {
+                    for (let iz = -Math.floor(curD / 2); iz <= Math.floor(curD / 2); iz++) {
+                        group.add(createBlock(ix, y + i + (layers - 1) * curH, iz, 1, curH, 1, COLORS.GREEN_ROOF));
+                    }
+                }
+            }
+            return group;
+        }
+
+        function buildTemple(type, x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0, z);
+
+            if (type === 'mountain_gate') {
+                const platform = createPlatform(16, 10);
+                group.add(platform);
+                // Massive pillars
+                group.add(createPillar(-6, 1, -4, 8));
+                group.add(createPillar(6, 1, -4, 8));
+                group.add(createPillar(-6, 1, 4, 8));
+                group.add(createPillar(6, 1, 4, 8));
+                // Crossbeam
+                for (let i = -5; i <= 5; i++) {
+                    group.add(createBlock(i, 7, -4, 1, 1, 1, COLORS.WOOD));
+                    group.add(createBlock(i, 7, 4, 1, 1, 1, COLORS.WOOD));
+                }
+                group.add(createRoof(0, 8, 0, 16, 10, 2));
+
+            } else if (type === 'main_hall') {
+                const platform = createPlatform(14, 20);
+                group.add(platform);
+                // Pillars (rows)
+                for (let i = -6; i <= 6; i += 3) {
+                    group.add(createPillar(i, 1, -9));
+                    group.add(createPillar(i, 1, 9));
+                }
+                // Walls
+                group.add(createWall(0, 2, -9, 12, 4, 1));
+                group.add(createWall(0, 2, 9, 12, 4, 1));
+                group.add(createWall(-7, 2, 0, 1, 4, 20));
+                group.add(createWall(7, 2, 0, 1, 4, 20));
+                // Dougong detail
+                for (let i = -6; i <= 6; i += 3) {
+                    group.add(createDougong(i, 4, -9));
+                    group.add(createDougong(i, 4, 9));
+                }
+                group.add(createRoof(0, 5, 0, 14, 20, 3));
+
+            } else if (type === 'side_hall') {
+                const platform = createPlatform(10, 14);
+                group.add(platform);
+                for (let i = -4; i <= 4; i += 3) {
+                    group.add(createPillar(i, 1, -6));
+                    group.add(createPillar(i, 1, 6));
+                }
+                group.add(createWall(0, 2, -6, 8, 4, 1));
+                group.add(createWall(0, 2, 6, 8, 4, 1));
+                group.add(createWall(-5, 2, 0, 1, 4, 14));
+                group.add(createWall(5, 2, 0, 1, 4, 14));
+                group.add(createRoof(0, 5, 0, 10, 14, 3));
+
+            } else if (type === 'pagoda') {
+                const platform = createPlatform(8, 8);
+                group.add(platform);
+                // Multi-level tower body
+                for (let h = 0; h < 6; h++) {
+                    const size = 3 + (5 - h);
+                    group.add(createWall(0, h + 1, -size, size * 2, 1, size * 2));
+                    group.add(createWall(0, h + 1, size, size * 2, 1, size * 2));
+                    group.add(createWall(-size, h + 1, 0, size * 2, 1, size * 2));
+                    group.add(createWall(size, h + 1, 0, size * 2, 1, size * 2));
+                    group.add(createPillar(-size, h + 1, -size, 1));
+                    group.add(createPillar(size, h + 1, -size, 1));
+                    group.add(createPillar(-size, h + 1, size, 1));
+                    group.add(createPillar(size, h + 1, size, 1));
+                }
+                // Pagoda tiered roofs
+                for (let r = 0; r < 3; r++) {
+                    const scale = 8 - (r * 1.5);
+                    group.add(createRoof(0, 6 + r * 4, 0, scale, scale, 2));
+                }
+            }
+
+            return group;
+        }
+
+        // --- Scene Composition (Symmetry) ---
+        // 1. Mountain Gate at the front
+        scene.add(buildTemple('mountain_gate', 0, -45));
+
+        // 2. Side Halls (Outer court)
+        scene.add(buildTemple('side_hall', -22, -15));
+        scene.add(buildTemple('side_hall', 22, -15));
+
+        // 3. Main Hall (Center)
+        scene.add(buildTemple('main_hall', 0, -5));
+
+        // 4. Pagodas (East/West corners)
+        scene.add(buildTemple('pagoda', -25, 10));
+        scene.add(buildTemple('pagoda', 25, 10));
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

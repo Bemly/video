@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pelican Riding a Bicycle</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f8ff;
+            margin: 0;
+        }
+
+        .scene {
+            width: 300px;
+            height: 300px;
+            /* 简单的地面线条 */
+            border-bottom: 4px solid #8BC34A; 
+            overflow: hidden;
+            background: linear-gradient(to bottom, #87CEEB 60%, #fff 60%);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* --- 动画定义 --- */
+        
+        /* 车轮旋转动画 */
+        .wheel {
+            transform-origin: 100px 150px; /* 前轮中心 */
+        }
+        .wheel.back {
+            transform-origin: 200px 150px; /* 后轮中心 */
+        }
+        
+        .wheel-spin {
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 鹈鹕腿部动画 (模拟蹬车) */
+        .leg {
+            transform-origin: 145px 155px; /* 大腿连接点 */
+        }
+        .leg.back {
+            transform-origin: 185px 155px; /* 后大腿连接点 */
+        }
+
+        .leg-pedal {
+            animation: pedal 0.8s linear infinite;
+            /* transform: rotate(0deg); 默认在 0 度 */
+        }
+
+        @keyframes pedal {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(-45deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        /* 鹈鹕身体整体摆动模拟前冲感 */
+        .pelican-body {
+            animation: bounce 0.6s ease-in-out infinite alternate;
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-2px); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scene">
+    <svg viewBox="0 0 300 300" width="100%" height="100%">
+        
+        <!-- 自行车 -->
+        <g id="bicycle">
+            <!-- 前轮 -->
+            <circle cx="100" cy="150" r="35" fill="#333" stroke="#555" stroke-width="4"/>
+            <g class="wheel wheel-spin">
+                <circle cx="100" cy="150" r="35" fill="transparent" stroke="#ccc" stroke-width="2"/>
+                <!-- 辐条 -->
+                <line x1="100" y1="115" x2="100" y2="185" stroke="#555" />
+                <line x1="75" y1="150" x2="125" y2="150" stroke="#555" />
+            </g>
+
+            <!-- 后轮 -->
+            <circle cx="200" cy="150" r="35" fill="#333" stroke="#555" stroke-width="4"/>
+            <g class="wheel wheel-spin">
+                <circle cx="200" cy="150" r="35" fill="transparent" stroke="#ccc" stroke-width="2"/>
+                <line x1="200" y1="115" x2="200" y2="185" stroke="#555" />
+                <line x1="175" y1="150" x2="225" y2="150" stroke="#555" />
+            </g>
+
+            <!-- 车架 -->
+            <line x1="145" y1="155" x2="200" y2="150" stroke="#E74C3C" stroke-width="8" stroke-linecap="round" />
+            <!-- 后叉 -->
+            <line x1="200" y1="150" x2="200" y2="185" stroke="#E74C3C" stroke-width="8" stroke-linecap="round" />
+            <!-- 前叉 -->
+            <line x1="145" y1="155" x2="100" y2="150" stroke="#E74C3C" stroke-width="8" stroke-linecap="round" />
+            <!-- 座管 -->
+            <line x1="170" y1="115" x2="185" y2="90" stroke="#E74C3C" stroke-width="8" stroke-linecap="round" />
+            
+            <!-- 把手 -->
+            <circle cx="95" cy="100" r="5" fill="#E74C3C" />
+            <path d="M95 100 L70 90" stroke="#E74C3C" stroke-width="5" stroke-linecap="round" />
+
+            <!-- 车座 -->
+            <path d="M170 110 L190 105 L190 115 L170 120 Z" fill="#95A5A6" stroke="#7F8C8D" stroke-width="2"/>
+        </g>
+
+        <!-- 鹈鹕 -->
+        <g class="pelican-body" transform="translate(0, 10)">
+            <!-- 右腿 (前蹬腿) -->
+            <g class="leg leg-pedal">
+                <line x1="145" y1="155" x2="145" y2="135" stroke="#5D4037" stroke-width="6" stroke-linecap="round" />
+                <circle cx="145" cy="135" r="5" fill="#3E2723" />
+            </g>
+            
+            <!-- 左腿 (后蹬腿) -->
+            <g class="leg leg-back leg-pedal" style="animation-delay: 0.4s;">
+                <line x1="185" y1="155" x2="185" y2="135" stroke="#5D4037" stroke-width="6" stroke-linecap="round" />
+                <circle cx="185" cy="135" r="5" fill="#3E2723" />
+            </g>
+
+            <!-- 身体 (简单的椭圆) -->
+            <ellipse cx="155" cy="100" rx="35" ry="30" fill="#F4D03F" />
+            
+            <!-- 脖子 -->
+            <rect x="125" y="60" width="10" height="35" fill="#F4D03F" />
+            
+            <!-- 头部 -->
+            <circle cx="145" cy="50" r="20" fill="#F4D03F" />
+            
+            <!-- 眼睛 -->
+            <circle cx="150" cy="48" r="2" fill="white" />
+            <circle cx="150" cy="48" r="1" fill="black" />
+            
+            <!-- 喙 (Pelican 的标志性长嘴) -->
+            <path d="M165 45 L210 55 L165 65 Z" fill="#E67E22" stroke="#D35400" stroke-width="1" />
+            <!-- 喉囊 -->
+            <path d="M185 58 L200 70 L185 78 Z" fill="#D35400" opacity="0.5" />
+        </g>
+
+    </svg>
+</div>
+
+</body>
+</html>

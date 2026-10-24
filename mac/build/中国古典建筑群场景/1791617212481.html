@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<title>体素宫阙 · Voxel Palace of the Jade Hall</title>
+<style>
+  html, body { margin:0; height:100%; background:#0b1426; color:#e9d3a3; }
+  #app { position:relative; width:100vw; height:100vh; overflow:hidden; }
+  canvas { display:block; width:100%; height:100%; }
+  .hud {
+    position:absolute; top:14px; left:16px; font-family:system-ui, sans-serif;
+    background:rgba(8,12,20,.55); border:1px solid rgba(232,194,106,.35);
+    padding:10px 14px; border-radius:8px; backdrop-filter:blur(6px);
+    color:#f3e2b0; font-size:13px; line-height:1.5; pointer-events:none;
+  }
+  .hud b { color:#ffd9a0; font-size:14px; }
+  #fps { display:block; margin-top:6px; color:#cfe6ff; font-variant-numeric: tabular-nums; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="hud">
+  <b>体素宫阙 · Voxel Palace of the Jade Hall</b><br />
+  Three.js voxel scene — drag to orbit, scroll to zoom. Dawn/dusk lighting.<br />
+  <span id="fps">… fps · … voxels</span>
+</div>
+
+<script type="module">
+/* ============ module: voxels ============ */
+import * as THREE from 'three';
+import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+const C = {
+  redWall:     0x9c2f1e, deepRed: 0x6d1a12, woodDark: 0x3b2517, woodMid: 0x8a5a33,
+  goldTile:    0xc49a3c, redTile: 0xb33b26, stoneLight: 0xded4bf, stoneDark: 0xa9a18e,
+  grass:       0x5a8a4c, grass2: 0x6b9c58, path: 0xdcc6a1, pathEdge: 0xbfae83,
+  gold:        0xe8c26a, lanternRed: 0xe2472a, lanternGlow: 0xffd9a0, lionStone: 0xcfc6b2,
+  whiteWall:   0xece3cd,
+};
+
+class VoxelBuilder {
+  constructor() { this.buckets = new Map(); this.count = 0; }
+  set(x,y,z,c){ let a=this.buckets.get(c); if(!a){a=[];this.buckets.set(c,a);} a.push(new THREE.Matrix4().set(1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1)); this.count++; }
+  box(cx,cz,y,w,d,h,c){ cx+=(w-1)/2; cz+=(d-1)/2; for(let dx=0;dx<w;dx++)for(let dz=0;dz<d;dz++)this.set(cx+dx,y+(h-1),cz+dz,c); }
+  layer(cx,cz,y,w,d,c){ cx+=(w-1)/2; cz+=(d-1)/2; for(let dx=0;dx<w;dx++)for(let dz=0;dz<d;dz++)this.set(cx+dx,y,cz+dz,c); }
+  ring(cx,cz,w,d,y,c){ const x0=cx-Math.floor((w-1)/2),z0=cz-Math.floor((d-1)/2); for(let dx=0;dx<w;dx++)for(let dz=0;dz<d;dz++){const b=(dx===0||dx===w-1||dz===0||dz===d-1);if(!b)continue;this.set(x0+dx,y,z0+dz,c);} return{x0,z0}; }
+  pyro(cx,cz,base,top,w0,d0,c){ const lv=top-base+1; for(let k=0;k<lv;k++){const f=1-k/(lv-1||1);let w=Math.max(1,Math.round(w0*f)),d=Math.max(1,Math.round(d0*f));const x0=cx-Math.floor((w-1)/2),z0=cz-Math.floor((d-1)/2);for(let dx=0;dx<w;dx++)for(let dz=0;dz<d;dz++){const b=(dx===0||dx===w-1||dz===0||dz===d-1);if(!b)continue;this.set(x0+dx,base+k,z0+dz,c);}} }
+  toGroup(){ const g=new THREE.BoxGeometry(1,1,1),grp=new THREE.Group(); for(const[c,m]of this.buckets){const mesh=new THREE.InstancedMesh(g,new THREE.MeshStandardMaterial({color:c}),m.length);for(let i=0;i<m.length;i++)mesh.setMatrixAt(i,m[i]);mesh.instanceMatrix.needsUpdate=true;grp.add(mesh);} return grp; }
+}
+
+/* ============ module: architecture ============ */
+const W=41, D=51, HALF_W=Math.floor(W/2), HALF_D=Math.floor(D/2);
+
+function lantern(v,x,y,z){ v.set(x,y,z,C.lanternGlow); v.set(x,y+1,z,C.lanternRed); }
+function lion(v,x,z,fX,fZ){ v.box(x-1,z-1,2,3,3,4,C.lionStone); if(fX===1)v.set(x+1,z,5,C.lionStone); else if(fX===-1)v.set(x-1,z,5,C.lionStone); if(fZ===1)v.set(x,z+1,6,C.lionStone); else if(fZ===-1)v.set(x,z-1,6,C.lionStone); }
+function upturn(v,x,y,z){ v.set(x,y+2,z,C.goldTile); }
+
+function mainHall(v){
+  const CW=13,CD=9,FLOOR=2;
+  v.box(-6,-3,0,13,9,FLOOR,C.stoneLight);
+  for(let s=0;s<FLOOR;s++)v.layer(0,-3-s-1+1,FLOOR-1-s,5,1,C.stoneLight);
+  const wallTop=FLOOR+7;
+  for(let y=FLOOR;y<=wallTop;y++)v.ring(0,0,CW,CD,y,C.redWall);
+  const dh=2;
+  for(let y=FLOOR+1;y<=wallTop-1;y++){ v.set(0,y,-CD/2,C.deepRed); v.set(-dh,y,-CD/2,C.woodDark); v.set(dh,y,-CD/2,C.woodDark); }
+  for(const sx of[-1,1]){ const fx=sx*CW/2; for(let y=FLOOR+1;y<=wallTop-2;y++){v.set(fx,y,-1,C.woodDark);v.set(fx,y,0,C.deepRed);} }
+  const rb=wallTop+1;
+  v.ring(0,0,CW+2,CD+2,rb-1,C.goldTile);
+  v.pyro(0,0,rb,rb+Math.floor((CW+CD)/4),CW+2,CD+2,C.redTile);
+  const ex=(CW+2)/2-1, ez=(CD+2)/2-1;
+  for(const[dx,dz]of[[-1,-1],[1,-1],[-1,1],[1,1]])upturn(v,dx*ex,rb-1,dz*ez);
+  for(const sx of[-dh,dh]){ v.set(sx,wallTop+1,-CD/2,C.woodDark); v.set(sx,wallTop+1,-CD/2-1,C.woodMid); }
+  lantern(v,-3,FLOOR+2,-CD/2-1); lantern(v,3,FLOOR+2,-CD/2-1);
+}
+
+function sideHall(v,x,z,fX){
+  const CW=9,CD=7,FLOOR=2;
+  v.box(x-Math.floor(CW/2),z-Math.floor(CD/2),0,CW,CD,FLOOR,C.stoneLight);
+  const ff=fX>0?x+CW/2:x-CW/2;
+  for(let s=0;s<FLOOR;s++)v.layer(fX*ff+fX*(s+1),z,FLOOR-1-s,3,5,C.stoneLight);
+  const wallTop=FLOOR+6;
+  for(let y=FLOOR;y<=wallTop;y++)v.ring(x,z,CW,CD,y,C.redWall);
+  const fx=x+fX*CW/2;
+  for(let y=FLOOR+1;y<=wallTop-1;y++){ v.set(fx,y,z,C.deepRed); v.set(fx,y,z-1,C.woodDark); v.set(fx,y,z+1,C.woodDark); }
+  const rb=wallTop+1;
+  v.ring(x,z,CW+2,CD+2,rb-1,C.goldTile);
+  for(let k=0;k<=Math.floor(CD/4);k++){ const w=CW+2; let d=Math.max(1,Math.round((CD+2)*(1-k/(Math.floor(CD/4)+1)))); const x0=x-Math.floor(w/2),z0=z-Math.floor(d/2); for(let dz=0;dz<d;dz++){v.set(x0,rb+k,z0+dz,C.redTile);v.set(x0+w-1,rb+k,z0+dz,C.redTile);} }
+  const ry=rb+Math.floor(CD/4);
+  for(let dx=0;dx<=CW+1;dx++)v.set(x-Math.floor((CW+2)/2)+dx,ry,z,C.goldTile);
+  const ex=CW/2, ez=CD/2;
+  for(const dz of[-1,1])upturn(v,x+fX*ex,rb-1,z+dz*ez);
+}
+
+function gate(v){
+  const CW=9,CD=7,FLOOR=2;
+  v.box(-Math.floor(CW/2),-Math.floor(CD/2),0,CW,CD,FLOOR,C.stoneLight);
+  for(let y=FLOOR;y<=FLOOR+4;y++){ v.set(0,y,-CD/2,C.deepRed); v.set(-3,y,-CD/2,C.woodDark); v.set(3,y,-CD/2,C.woodDark); }
+  const wallTop=FLOOR+4;
+  for(let y=FLOOR;y<=wallTop;y++)v.ring(0,0,CW,CD,y,C.whiteWall);
+  const ry=wallTop+1;
+  v.layer(0,0,ry-1,CW+2,CD+2,C.goldTile);
+  for(const[dx,dz]of[[-1,-1],[1,-1],[-1,1],[1,1]])upturn(v,dx*CW/2,ry-1,dz*CD/2);
+  lantern(v,-4,FLOOR+1,-CD/2-1); lantern(v,4,FLOOR+1,-CD/2-1);
+}
+
+function pagoda(v,x,z){
+  let y=0;
+  v.box(x-3,z-3,0,7,7,2,C.stoneLight);
+  for(const t of[{w:5,h:4},{w:4,h:4},{w:3,h:3}]){
+    y+=2; const top=y+t.h-1;
+    for(let yy=y;yy<=top;yy++)v.ring(x,z,t.w,t.w,yy,C.whiteWall);
+    v.ring(x,z,t.w+2,t.w+2,top+1,C.goldTile);
+    const e=(t.w+2)/2-1;
+    for(const[dx,dz]of[[-1,-1],[1,-1],[-1,1],[1,1]])v.set(x+dx*e,top+2,z+dz*e,C.goldTile);
+    y=top+1;
+  }
+  for(let k=0;k<3;k++)v.set(x,y+k,z,C.gold);
+}
+
+function bellTower(v,x,z){
+  const CW=5,CD=7;
+  v.box(x-Math.floor(CW/2),z-Math.floor(CD/2),0,CW,CD,3,C.stoneLight);
+  const wallTop=6;
+  for(let y=3;y<=wallTop;y++)v.ring(x,z,CW,CD,y,C.whiteWall);
+  for(let k=0;k<=Math.floor(CD/4);k++){ let d=Math.max(1,Math.round(CD*(1-k/(Math.floor(CD/4)+1)))); const z0=z-Math.floor(d/2); for(let dx=0;dx<=CW+1;dx++){v.set(x-Math.floor((CW+2)/2)+dx,wallTop+1+k,z0,C.redTile);v.set(x-Math.floor((CW+2)/2)+dx,wallTop+1+k,z0+d-1,C.redTile);} }
+  const ry=wallTop+1+Math.floor(CD/4);
+  for(let dx=0;dx<=CW+1;dx++)v.set(x-Math.floor((CW+2)/2)+dx,ry,z,C.goldTile);
+  v.set(x,wallTop,z-CD/2,C.gold);
+}
+
+function ground(v){
+  for(let x=-HALF_W;x<=HALF_W;x++)for(let z=-HALF_D;z<=HALF_D;z++)v.set(x,0,z,(x+z)%2===0?C.grass:C.grass2);
+  const pz0=-16,pz1=8;
+  for(let x=-4;x<=4;x++)for(let z=pz0;z<=pz1;z++)v.set(x,0,z,C.path);
+  for(let z=pz0-1;z<=pz1+1;z++){v.set(-5,0,z,C.pathEdge);v.set(5,0,z,C.pathEdge);}
+  for(let x=-9;x<=9;x++)for(let z=-13;z<=6;z++){ if(Math.abs(x)>4||Math.abs(z+5)>8)v.set(x,0,z,C.path); }
+  for(const sx of[-1,1])for(let x=sx*6;x<=sx*13;x++)for(let z=-2;z<=4;z++)v.set(x,0,z,C.path);
+  for(let x=-2;x<=2;x++)for(let z=9;z<=HALF_D;z++)v.set(x,0,z,C.path);
+}
+
+function trees(v,spots){
+  const plant=(x,z)=>{ v.box(x,z,1,1,1,3,C.woodDark); for(let y=4;y<=6;y++){const r=y===4?2:y===5?2:1; v.ring(x,z,r*2-1||3,r*2-1||3,y,C.grass2);} v.set(x,7,z,C.grass2); };
+  for(const[x,z]of spots)plant(x,z);
+}
+
+function flankingLanterns(v,x,z){ lantern(v,x-1,0,z); lantern(v,x+1,0,z); }
+
+function buildScene(){
+  const v=new VoxelBuilder();
+  ground(v);
+  mainHall(v);
+  sideHall(v,-14,-3,1); sideHall(v,14,-3,-1);
+  gate(v);
+  lion(v,-5,13,1,1); lion(v,5,13,-1,1);
+  pagoda(v,-18,-16); pagoda(v,18,-16); pagoda(v,-18,14); pagoda(v,18,14);
+  bellTower(v,-7,2); bellTower(v,7,2);
+  trees(v,[[-10,6],[10,6],[-10,-8],[10,-8],[-13,12],[13,12],[-16,4],[16,4]]);
+  flankingLanterns(v,-9,-10); flankingLanterns(v,9,-10); flankingLanterns(v,-3,8); flankingLanterns(v,3,8);
+  const group=v.toGroup();
+  return { group, count: v.count };
+}
+
+/* ============ module: main / renderer ============ */
+const app=document.getElementById('app');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+{
+  const geo=new THREE.SphereGeometry(400,32,16);
+  const mat=new THREE.ShaderMaterial({ side:THREE.BackSide,
+    uniforms:{top:{value:new THREE.Color(0x1a2547)},bottom:{value:new THREE.Color(0xffb877)}},
+    vertexShader:`varying vec3 p; void main(){p=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`uniform vec3 top,bottom; varying vec3 p; void main(){float t=clamp(p.y+0.5,0.,1.); gl_FragColor=vec4(mix(bottom,top,t),1.);}`});
+  scene.add(new THREE.Mesh(geo,mat));
+}
+scene.fog=new THREE.Fog(0x3a2f38,60,220);
+
+const {group,count}=buildScene();
+group.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+scene.add(group);
+
+{
+  const g=new THREE.PlaneGeometry(200,200,1,1);
+  const m=new THREE.MeshStandardMaterial({color:C.grass});
+  const mesh=new THREE.Mesh(g,m); mesh.rotation.x=-Math.PI/2; mesh.position.y=-0.55; mesh.receiveShadow=true;
+  scene.add(mesh);
+}
+
+const hemi=new THREE.HemisphereLight(0xffd9b0,0x2a3550,0.7); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffcf9e,1.6);
+sun.position.set(-40,34,-28); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.near=1; sun.shadow.camera.far=160;
+const sc=sun.shadow.camera; sc.left=-60;sc.right=60;sc.top=60;sc.bottom=-60; sc.updateProjectionMatrix();
+scene.add(sun);
+const fill=new THREE.DirectionalLight(0x8aa3ff,0.35); fill.position.set(40,20,30); scene.add(fill);
+for(const[x,z]of[[-9,-10],[9,-10],[-3,8],[3,8]]){ const p=new THREE.PointLight(0xffcf8a,0.7,26,2); p.position.set(x,4,z); scene.add(p); }
+
+const camera=new THREE.PerspectiveCamera(52,window.innerWidth/window.innerHeight,0.1,800);
+camera.position.set(64,30,78);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,9,-2); controls.enableDamping=true; controls.dampingFactor=0.08;
+controls.minDistance=30; controls.maxDistance=180; controls.maxPolarAngle=Math.PI*0.52; controls.update();
+
+window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+
+const clock=new THREE.Clock(); let frames=0,acc=0;
+const fpsEl=document.getElementById('fps');
+function animate(){ const dt=clock.getDelta(); controls.update(); renderer.render(scene,camera); frames++; acc+=dt; if(acc>=0.5){const f=Math.round(frames/acc); if(fpsEl)fpsEl.textContent=`${f} fps · ${count} voxels`; frames=0;acc=0;} requestAnimationFrame(animate); }
+animate();
+
+console.log('Voxel count:', count);
+</script>
+</body>
+</html>

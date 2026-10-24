@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>宇宙之口 - 黑洞视觉奇观</title>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: 'Segoe UI', sans-serif;
+        color: #fff;
+    }
+    header {
+        background: linear-gradient(135deg, #0f0f2e 0%, #1a1a1a 100%);
+        color: #fff;
+        padding: 20px;
+        text-align: center;
+    }
+    .container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+    }
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Black_hole_animation.svg/1200px-Black_hole_animation.svg.png') no-repeat center center;
+        background-size: cover;
+    }
+    .info {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 1.2em;
+        text-align: center;
+        z-index: 1000;
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>宇宙之口 - 黑洞视觉奇观</h1>
+    <p>探索深空的神秘与壮丽</p>
+</header>
+<div class="container">
+    <canvas id="blackHoleCanvas"></canvas>
+    <div class="info">
+        <p>观看高质量的黑洞模拟，带有事件视界、吸积盘与引力透镜效果。</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+    const canvas = document.getElementById('blackHoleCanvas');
+    const context = canvas.getContext('webgl');
+    if (!context) {
+        console.error("WebGL不支持");
+        exit();
+    }
+
+    // 初始化Three.js
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000);
+
+    // 创建事件视界
+    const geometry = new THREE.SphereGeometry(1000, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 });
+    const eventView = new THREE.Mesh(geometry, material);
+    scene.add(eventView);
+
+    // 吸积盘
+    const diskGeometry = new THREE.ConeGeometry(200, 100, 32);
+    const diskMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8 });
+    const disk = new THREE.Mesh(diskGeometry, diskMaterial);
+    disk.position.z = -500;
+    scene.add(disk);
+
+    // 光子环
+    const ringGeometry = new THREE.CircleGeometry(150, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, opacity: 0.3 });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.y = 0;
+    scene.add(ring);
+
+    // 引力透镜
+    const lensMaterial = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Lens_example.jpg/800px-Lens_example.jpg') });
+    const lens = new THREE.Mesh(lensMaterial, new THREE.Vector3(0, 0, -500));
+    scene.add(lens);
+
+    // 宇宙背景
+    const backgroundTexture = new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Nebula_background.jpg/800px-Nebula_background.jpg');
+    const background = new THREE.Mesh(backgroundTexture, new THREE.Color(0x000000));
+    background.position.z = 0;
+    scene.add(background);
+
+    // 动态粒子
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleCount = 10000;
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount * 3; i++) {
+        positions[i] = (Math.random() - 0.5) * 1000;
+    }
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.02 });
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    // 摄像机
+    camera.position.z = 2000;
+    camera.rotation.x = Math.PI / 4;
+    camera.lookAt(0, 0, 0);
+
+    // 事件视界光影
+    const eventLight = new THREE.PointLight(0xffffff, 1, 100);
+    eventLight.position.set(0, 0, 500);
+    scene.add(eventLight);
+
+    // 控制旋转
+    let rotation = 0;
+    function animate() {
+        requestAnimationFrame(animate);
+        camera.rotation.y += 0.01;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // 鼠标控制
+    const controls = new THREE.OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>

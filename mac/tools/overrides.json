@@ -1,0 +1,407 @@
+{
+ "1791462841892": {
+  "html": "wd:1791462841892/voxel-china-temple/Imperial_Voxel_Palace.html"
+ },
+ "1791466126748": {
+  "dir": "wd:1791466126748/voxel-zenith"
+ },
+ "1791470201257": {
+  "dir": "wd:1791470201257",
+  "filereplace": {
+   "src/main.js": [
+    [
+     "controls/OrbitControls'",
+     "controls/OrbitControls.js'"
+    ]
+   ]
+  },
+  "fixes": [
+   "补 .js 扩展名"
+  ]
+ },
+ "1791472057728": {
+  "html": "wd:1791472057728/VoxelNatureWorld_Scene.html"
+ },
+ "1791476010569": {
+  "html": "wd:1791476010569/index.html"
+ },
+ "1791505718612": {
+  "dir": "wd:1791505718612/voxel-chinese-architecture",
+  "rename": [
+   [
+    "src/main.jsx",
+    "src/main.js"
+   ]
+  ],
+  "replace": [
+   [
+    "./src/main.jsx",
+    "./src/main.js"
+   ],
+   [
+    "<head>",
+    "<head>\n<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js\"}}</script>"
+   ]
+  ],
+  "filereplace": {
+   "src/main.jsx": [
+    [
+     "const THREE = window.THREE || {}; // 占位符",
+     ""
+    ]
+   ]
+  },
+  "fixes": [
+   "删除重复的 THREE 声明",
+   "jsx→js"
+  ]
+ },
+ "1791537866435": {
+  "html": "wd:1791537866435/index.html"
+ },
+ "1791537964171": {
+  "html": "wd:1791537964171/blackhole.html"
+ },
+ "1791537971504": {
+  "html": "wd:1791537971504/voxel_terrain_scene/index.html",
+  "fixes": [
+   "修正CDN",
+   "补噪声函数"
+  ],
+  "replace": [
+   [
+    "three@0.164/examples/js/controls/OrbitControls.js",
+    "three@0.160.0/examples/jsm/controls/OrbitControls.js"
+   ],
+   [
+    "return THREE.MathUtils.noise2D(",
+    "return ((function(){function __n2(x,y){const s=(a,b)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v)};const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=s(xi,yi),b=s(xi+1,yi),c=s(xi,yi+1),d=s(xi+1,yi+1);return (a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v)*2-1};return __n2})())("
+   ]
+  ]
+ },
+ "1791617212481": {
+  "html": "wd:1791617212481/single-build/体素宫阙.html"
+ },
+ "1791446474538": {
+  "fixes": [
+   "修复截断语句",
+   "删除重复声明",
+   "修正着色器与API名"
+  ],
+  "replace": [
+   [
+    "y: Math.render = 0.5;",
+    "y: Math.random() * H }); }"
+   ],
+   [
+    "// WebGL — Black Hole Shader\n// ============================================================\n\nconst gl = canvas.getContext('webgl2', { alpha: false, antialias: true });\nif (!gl) { alert('WebGL2 not supported'); }\n\nconst W = canvas.width;\nconst H = canvas.height;\ncanvas.width = W * devicePixelRatio;\ncanvas.height = H * devicePixelRatio;",
+    "// WebGL — Black Hole Shader\n"
+   ],
+   [
+    "  let u = mix(hash(i)",
+    "  float u = mix(hash(i)"
+   ],
+   [
+    "  let v = mix(hash(i + vec2(0, 1))",
+    "  float v = mix(hash(i + vec2(0, 1))"
+   ],
+   [
+    "gl.bindFrameBuffer",
+    "gl.bindFramebuffer"
+   ]
+  ]
+ },
+ "1791449061016": {
+  "fixes": [
+   "修复变量重名",
+   "补常量"
+  ],
+  "replace": [
+   [
+    "const r = angle * (size / 3);",
+    "const rr = angle * (size / 3);"
+   ],
+   [
+    "Math.cos(r) * size",
+    "Math.cos(rr) * size"
+   ],
+   [
+    "Math.sin(r) * size",
+    "Math.sin(rr) * size"
+   ],
+   [
+    "vec2 uv = vec2((angle + PI) / (2.0 * PI), 0.5);",
+    "vec2 uv = vec2((angle + 3.14159265) / (6.2831853), 0.5);"
+   ]
+  ]
+ },
+ "1791520332161": {
+  "fixes": [
+   "补括号",
+   "去掉失效统计库"
+  ],
+  "replace": [
+   [
+    "rotateX(Math.PI / 2;",
+    "rotateX(Math.PI / 2);"
+   ],
+   [
+    "const stats = new Stats();",
+    "const stats = {dom:document.createElement('div'),update(){},begin(){},end(){}};"
+   ]
+  ]
+ },
+ "1791536884756": {
+  "fixes": [
+   "修复语法"
+  ],
+  "replace": [
+   [
+    "800px-Lens_example.jpg'), 1) });",
+    "800px-Lens_example.jpg') });"
+   ]
+  ]
+ },
+ "1791291551957": {
+  "fixes": [
+   "JSX改用Babel",
+   "补Three.js引用"
+  ],
+  "replace": [
+   [
+    "<script type=\"application/javascript\">",
+    "<script type=\"text/babel\">"
+   ],
+   [
+    "<script src=\"https://unpkg.com/react@18/umd/react.development.js\"></script>",
+    "<script src=\"https://unpkg.com/react@18/umd/react.development.js\"></script><script src=\"https://unpkg.com/react-dom@18/umd/react-dom.development.js\"></script>"
+   ],
+   [
+    "<script src=\"https://unpkg.com/react@18/umd/react.development.js\"></script><script",
+    "<script src=\"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js\"></script><script src=\"https://unpkg.com/react@18/umd/react.development.js\"></script><script"
+   ]
+  ]
+ },
+ "1791522019058": {
+  "fixes": [
+   "补元素id"
+  ],
+  "replace": [
+   [
+    "<!-- 头部 -->",
+    "<g id=\"pelican\"><!-- 头部 -->"
+   ],
+   [
+    "<!-- 自行车车架 -->",
+    "</g><!-- 自行车车架 -->"
+   ]
+  ]
+ },
+ "1791273355428": {
+  "fixes": [
+   "API名修正"
+  ],
+  "replace": [
+   [
+    "m.translate(",
+    "m.makeTranslation("
+   ]
+  ]
+ },
+ "1791445285841": {
+  "fixes": [
+   "API名修正",
+   "变量名修正"
+  ],
+  "replace": [
+   [
+    ".setFromPosition(",
+    ".makeTranslation("
+   ],
+   [
+    "groundInstances.push",
+    "terrainInstances.push"
+   ]
+  ]
+ },
+ "1791448321697": {
+  "fixes": [
+   "API名修正",
+   "删除无效调用"
+  ],
+  "replace": [
+   [
+    "cloudMesh.setCount(cloudLayer.length);",
+    "cloudMesh.count = Math.min(cloudLayer.length, cloudMesh.instanceMatrix.count);"
+   ],
+   [
+    "cloudDummy.copy(c);",
+    ""
+   ],
+   [
+    "dummy.copy(c);",
+    ""
+   ]
+  ]
+ },
+ "1791453505116": {
+  "fixes": [
+   "修正importmap"
+  ],
+  "replace": [
+   [
+    "\"three/addons/\": \"https://unpkg.com/three@0.160.0/build/three.module.js\"",
+    "\"three/addons/\": \"https://unpkg.com/three@0.160.0/examples/jsm/\""
+   ]
+  ]
+ },
+ "1791520327411": {
+  "fixes": [
+   "补噪声函数"
+  ],
+  "replace": [
+   [
+    "const simplex = new THREE.SimplexNoise();",
+    "function __n2(x,y){const s=(a,b)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v)};const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=s(xi,yi),b=s(xi+1,yi),c=s(xi,yi+1),d=s(xi+1,yi+1);return (a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v)*2-1}; const simplex = { noise2D: __n2 };"
+   ]
+  ]
+ },
+ "1791567246876": {
+  "fixes": [
+   "补噪声函数"
+  ],
+  "replace": [
+   [
+    "Math.perlin2(",
+    "(Math.perlin2||(Math.perlin2=(function(){function __n2(x,y){const s=(a,b)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v)};const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=s(xi,yi),b=s(xi+1,yi),c=s(xi,yi+1),d=s(xi+1,yi+1);return (a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v)*2-1};return __n2})()))("
+   ]
+  ]
+ },
+ "1791515310667": {
+  "fixes": [
+   "修正CDN",
+   "API名修正"
+  ],
+  "replace": [
+   [
+    "https://cdn.jsdelivr.net/npm/simplex-noise@3.0.1/dist/esm/index.min.js",
+    "https://cdn.jsdelivr.net/npm/simplex-noise@3.0.1/+esm"
+   ],
+   [
+    "simplex.noise(",
+    "simplex.noise2D("
+   ]
+  ]
+ },
+ "1791466128706": {
+  "fixes": [
+   "修正着色器"
+  ],
+  "replace": [
+   [
+    "if (color.a < 0.1 || !hitDisk) {",
+    "if (length(color) < 0.1 || !hitDisk) {"
+   ]
+  ]
+ },
+ "1791515683542": {
+  "fixes": [
+   "修正着色器与笔误",
+   "补矩阵函数"
+  ],
+  "replace": [
+   [
+    "gl.getUniformLocation(programTorus='uModel')",
+    "gl.getUniformLocation(programTorus=programSphere,'uModel')"
+   ],
+   [
+    "out vec3 vPos;\nvoid main(){\n  vec4 world",
+    "out vec3 vPos;\nout vec2 vTexCoord;\nvoid main(){\n  vTexCoord = aPosition.xy*0.5+0.5;\n  vec4 world"
+   ],
+   [
+    "var mat4 = {",
+    "var mat4 = {\n  translate:function(o,a,v){for(let i=0;i<16;i++)o[i]=a[i];o[12]=a[0]*v[0]+a[4]*v[1]+a[8]*v[2]+a[12];o[13]=a[1]*v[0]+a[5]*v[1]+a[9]*v[2]+a[13];o[14]=a[2]*v[0]+a[6]*v[1]+a[10]*v[2]+a[14];o[15]=a[3]*v[0]+a[7]*v[1]+a[11]*v[2]+a[15];return o;},"
+   ]
+  ]
+ },
+ "1791452267675": {
+  "fixes": [
+   "半径取正",
+   "笔误修正"
+  ],
+  "replace": [
+   [
+    "ctx.arc(x, y, 5 - i * 0.1, 0, Math.PI * 2);",
+    "ctx.arc(x, y, Math.max(0.1, 5 - i * 0.1), 0, Math.PI * 2);"
+   ],
+   [
+    "context.font",
+    "ctx.font"
+   ]
+  ]
+ },
+ "1791533821353": {
+  "fixes": [
+   "修正着色器与API名"
+  ],
+  "replace": [
+   [
+    "gl_Position = vec4(a_position, 0.0);",
+    "gl_Position = vec4(a_position, 0.0, 1.0);"
+   ],
+   [
+    "gl.attachObject(",
+    "gl.attachShader("
+   ]
+  ]
+ },
+ "1791532646147": {
+  "fixes": [
+   "笔误修正"
+  ],
+  "replace": [
+   [
+    "renderer.domGrid",
+    "renderer.domElement"
+   ]
+  ]
+ },
+ "1791536647628": {
+  "fixes": [
+   "变量作用域修正"
+  ],
+  "replace": [
+   [
+    "setInterval(updateFrame, 1000 / fps);",
+    "setInterval(updateFrame, 1000 / 60);"
+   ]
+  ]
+ },
+ "1791539965806": {
+  "fixes": [
+   "删除错误索引"
+  ],
+  "replace": [
+   [
+    "geometry.setIndex(new THREE.BufferAttribute([0], 1));",
+    ""
+   ]
+  ]
+ },
+ "1791271266079": {
+  "fixes": [
+   "统一Three实例",
+   "补未定义变量"
+  ],
+  "replace": [
+   [
+    "import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';",
+    "import * as THREE from 'three';"
+   ],
+   [
+    "  // 屋顶边缘（更厚）\n  const edgeMat",
+    "  const wStep = 0, dStep = 0;\n  // 屋顶边缘（更厚）\n  const edgeMat"
+   ]
+  ]
+ }
+}

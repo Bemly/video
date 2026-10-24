@@ -1,0 +1,12 @@
+{
+  "name": "voxel-zenith",
+  "version": "1.0.0",
+  "description": "A 3D Voxel Nature Scene using Three.js",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}

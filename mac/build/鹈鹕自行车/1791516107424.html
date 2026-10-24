@@ -1,0 +1,61 @@
+<meta charset="utf-8">
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 骑行移动动画 -->
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      from="0 0"
+      to="300 0"
+      dur="5s"
+      repeatCount="indefinite"/>
+    
+    <!-- 翅膀扇动动画 -->
+    <animateTransform
+      attributeName="transform"
+      type="rotate"
+      from="0 200 250"
+      to="-10 200 250"
+      dur="1s"
+      repeatCount="indefinite"/>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="100%" height="100%" fill="#e6f7ff"/>
+  
+  <!-- 鹈鹕和自行车组合 -->
+  <g id="pelican-bike">
+    <!-- 鹈鹕身体 -->
+    <ellipse cx="200" cy="250" rx="60" ry="80" fill="#8B4513"/>
+    
+    <!-- 鹈鹕头部 -->
+    <ellipse cx="180" cy="220" rx="25" ry="35" fill="#8B4513"/>
+    
+    <!-- 鹈鹕喙 -->
+    <path d="M 180 210 L 220 215 L 200 230 Z" fill="#FFA500"/>
+    
+    <!-- 鹈鹕左翅膀 -->
+    <path d="M 200 250 L 150 180 L 170 220 Z" fill="#654321"/>
+    
+    <!-- 鹈鹕右翅膀 -->
+    <path d="M 200 250 L 250 180 L 230 220 Z" fill="#654321"/>
+    
+    <!-- 自行车车架 -->
+    <path d="M 350 300 L 400 250 L 450 280 L 440 320 Z" fill="#4169E1"/>
+    
+    <!-- 自行车前轮 -->
+    <circle cx="380" cy="290" r="30" fill="#333"/>
+    
+    <!-- 自行车后轮 -->
+    <circle cx="430" cy="300" r="30" fill="#333"/>
+    
+    <!-- 自行车座椅 -->
+    <ellipse cx="425" cy="275" rx="10" ry="15" fill="#8B4513"/>
+    
+    <!-- 自行车车把 -->
+    <rect x="380" y="240" width="40" height="20" fill="#4169E1"/>
+  </g>
+  
+  <!-- 应用动画到组合元素 -->
+  <use xlink:href="#pelican-bike" transform="translate(0,0)"/>
+</svg>

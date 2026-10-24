@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+<meta charset="utf-8"><title>Voxel Mountain & Waterfall</title>
+<style>*{margin:0;overflow:hidden;}canvas{display:block;}</style></head>
+
+<body>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152/examples/jsm/controls/OrbitControls.js';
+import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@3.0.1/+esm';
+
+const scene = new THREE.Scene();scene.fog=new THREE.Fog(0x88ccee,200,500);
+const camera = new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,1,1000);
+camera.position.set(60,40,80);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.setClearColor(0x88ccee);document.body.appendChild(renderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.autoRotate=true;controls.autoRotateSpeed=0.5;
+const hemiLight=new THREE.HemisphereLight(0xffffff,0x444444,1.5);hemiLight.position.set(0,200,0);
+scene.add(hemiLight);
+const dirLight=new THREE.DirectionalLight(0xffffff,1);dirLight.position.set(-100,200,-50);
+scene.add(dirLight);
+
+const voxelMat=new THREE.MeshLambertMaterial({color:0x8B4513});
+const waterMat=new THREE.MeshLambertMaterial({color:0x88ccee,transparent:true,opacity:.6});
+const cloudMat=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:.4});
+const treeMat=new THREE.MeshLambertMaterial({color:0x228B22});
+
+const simplex = new SimplexNoise();
+
+function generateMountain(){let sizeX=30,sizeZ=20,maxHeight=15,voxelSize=2;
+const geometry=new THREE.BoxGeometry(voxelSize,voxelSize,voxelSize);
+const instanceCount=sizeX*maxHeight*sizeZ;
+const instancedMesh=new THREE.InstancedMesh(geometry,voxelMat,instanceCount);
+let idx=0;const dummy=new THREE.Object3D();
+for(let x=-sizeX/2;x<sizeX/2;++x){for(let z=-sizeZ/2;z<sizeZ/2;++z){
+const height=Math.floor(simplex.noise2D(x/5,z/5)*maxHeight+(maxHeight/2));
+for(let y=0;y<height;++y){dummy.position.set(x*voxelSize,(y-1)*voxelSize,z*voxelSize);
+dummy.updateMatrix();instancedMesh.setMatrixAt(idx++,dummy.matrix);}}}
+scene.add(instancedMesh);}
+generateMountain();
+
+function generateWaterfall(){const waterfallPos={x:5,z:-8};
+const baseHeight=Math.floor(simplex.noise2D(waterfallPos.x/5,waterfallPos.z/5)*15+(15/2));
+const height=baseHeight-5;
+const geometry=new THREE.BoxGeometry(2,1.5,2);
+const instanceCount=height*4;
+const instancedMesh=new THREE.InstancedMesh(geometry,waterMat,instanceCount);
+const dummy=new THREE.Object3D();let idx=0;
+for(let y=-5;y<height-5;++y){for(let i=0;i<4;++i){
+dummy.position.set(waterfallPos.x*2+(Math.random()-0.5)*4,y*1.5,waterfallPos.z*2);
+dummy.updateMatrix();instancedMesh.setMatrixAt(idx++,dummy.matrix);}}
+scene.add(instancedMesh);}
+generateWaterfall();
+
+function generateCloud(){const cloudGeo=new THREE.PlaneGeometry(200,100);
+const cloudMesh=new THREE.Mesh(cloudGeo,cloudMat);cloudMesh.position.set(0,70,-30);
+cloudMesh.rotation.x=Math.PI/2;scene.add(cloudMesh);const cloudSpeed=0.02;
+return()=>{cloudMesh.position.x+=cloudSpeed;if(cloudMesh.position.x>100)cloudMesh.position.x=-100;};}
+const moveCloudFn=generateCloud();
+
+function generateTrees(){let sizeX=30,sizeZ=20,treeCount=200;
+const trunkGeo=new THREE.CylinderGeometry(0.3,0.5,2);
+const leafGeo=new THREE.ConeGeometry(1.5,3);
+const trunkInst=new THREE.InstancedMesh(trunkGeo,treeMat,treeCount);
+const leafInst=new THREE.InstancedMesh(leafGeo,new THREE.MeshLambertMaterial({color:0x006400}),treeCount);
+const dummy=new THREE.Object3D();
+for(let i=0;i<treeCount;++i){let x=Math.random()*sizeX-sizeX/2;
+let z=Math.random()*sizeZ-sizeZ/2;const y=Math.floor(simplex.noise2D(x/5,z/5)*15+(15/2));
+if(y<5)continue;dummy.position.set(x*2,y-1,z*2);dummy.updateMatrix();trunkInst.setMatrixAt(i,dummy.matrix);
+dummy.position.y+=y;leafInst.setMatrixAt(i,dummy.matrix);}
+scene.add(trunkInst,leafInst);}generateTrees();
+
+function animate(){requestAnimationFrame(animate);controls.update();moveCloudFn();
+renderer.render(scene,camera);}
+animate();
+
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+</script>
+</body></html>

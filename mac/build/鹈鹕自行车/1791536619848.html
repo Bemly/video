@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>鹈鹕骑自行车动画</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #f0f0f0;
+    }
+    svg {
+      width: 100%;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <svg id="scene" xmlns="http://www.w3.org/2000/svg" version="1.1">
+    <!-- 鹈鹕 -->
+    <g id="eagle">
+      <circle cx="50" cy="50" r="20" fill="#ff0000" />
+      <path d="M50 30 Q60 20 70 30" fill="#ff0000" />
+      <path d="M50 60 Q70 40 80 30" fill="#ff0000" />
+    </g>
+
+    <!-- 自行车 -->
+    <g id="bike">
+      <rect x="50" y="100" width="200" height="20" fill="#ff0000" />
+      <rect x="50" y="80" width="100" height="20" fill="#0000ff" />
+      <rect x="150" y="100" width="50" height="20" fill="#00ff00" />
+    </g>
+
+    <!-- 鹈鹕骑行 -->
+    <g id="eagle-motion">
+      <path d="M50 50 Q60 40 70 30" fill="#ff0000" />
+      <path d="M50 60 Q70 40 80 30" fill="#ff0000" />
+    </g>
+  </svg>
+
+  <script>
+    // 动画参数
+    const eagle = document.getElementById('eagle');
+    const bike = document.getElementById('bike');
+    const eagleMotion = document.getElementById('eagle-motion');
+
+    // 鹈鹕速度
+    const eagleSpeed = 2;
+
+    // 自行车速度
+    const bikeSpeed = 1;
+
+    // 动画帧数
+    const frames = 30;
+    let angle = 0;
+
+    function update() {
+      // 鹈鹕移动
+      eagle.setAttribute('transform', `translate(${eagle.x + Math.cos(angle) * 10}, ${eagle.y + Math.sin(angle) * 10})`);
+
+      // 自行车移动
+      bike.setAttribute('transform', `translate(${bike.x + Math.cos(angle) * bikeSpeed * frames}, ${bike.y + Math.sin(angle) * bikeSpeed * frames})`);
+
+      // 更新角度
+      angle += eagleSpeed;
+
+      requestAnimationFrame(update);
+    }
+
+    update();
+  </script>
+</body>
+</html>

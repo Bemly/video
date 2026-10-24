@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Voxel Visualization</title>
+    <!-- Import necessary libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script><script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .title-section {
+            flex: 1;
+            padding-right: 20px;
+        }
+        
+        .title-section h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .title-section p {
+            font-size: 1.1em;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            width: 300px;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+        }
+        
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #2c2c2c;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4a9dfc;
+            cursor: pointer;
+        }
+        
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        
+        .color-option.selected {
+            transform: scale(1.3);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        
+        #voxelCanvas {
+            flex: 2;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        canvas {
+            position: absolute;
+            display: block;
+            width: 100%;
+            height: 600px;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .legend span {
+            font-size: 0.8em;
+        }
+        
+        button {
+            background-color: #4a9dfc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        
+        button:hover {
+            background-color: #3c8ac0;
+        }
+        
+        button.confirmation {
+            background-color: transparent;
+            border: 2px solid #4a9dfc;
+        }
+        
+        button.confirmation:hover {
+            background-color: rgba(74, 157, 252, 0.1);
+        }
+        
+        .fps-display {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 16px;
+            color: white;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .title-section {
+                margin-bottom: 20px;
+                padding-right: 0;
+            }
+            
+            .controls {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section class="title-section">
+            <h1>3D Voxel Visualization</h1>
+            <p>A three-dimensional voxel representation built with React, Three.js, and Vite. Voxels are individual 3D pixels that make up the digital volume.</p>
+            <div class="legend">
+                <span>Density: 10</span>
+                <span>FPS: <span id="fpsCounter">-</span> (aiming for 5+ FPS)</span>
+            </div>
+        </section>
+        
+        <div id="voxelCanvas"></div>
+    </div>
+
+    <!-- React code (converted to inline script) -->
+    <script type="text/babel">
+        // Register a Babel transform for JSX
+        const { useState, useEffect } = React;
+
+        // We'll use HTML3DViewer to render the Three.js scene without needing a full Vite setup
+        // In a real project, you'd have separate HTML/Vite files and install three.js packages
+        // This is a simplified approach for this example
+
+        const VoxelScene = () => {
+            const [voxelDensity, setVoxelDensity] = useState(10);
+            const [selectedColor, setSelectedColor] = useState('#4a9dfc');
+            const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
+            
+            // Three.js scene setup
+            useEffect(() => {
+                const canvasContainer = document.getElementById('voxelCanvas');
+                
+                // Check if we can access the three.js library
+                const Three = window.THREE;
+                
+                // If Three isn't available, we'll show a warning
+                if (!Three) {
+                    console.error("Please wait for three.js library to load or include it");
+                    return;
+                }
+
+                // Scene setup
+                const scene = new Three.Scene();
+                scene.background = new Three.Color(0x1e1e1e);
+                
+                // Create a camera
+                const camera = new Three.PerspectiveCamera(75, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 200);
+                camera.position.z = 50;
+                
+                // Create a renderer
+                const renderer = new Three.WebGLRenderer({ antialias: true });
+                renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+                
+                // Add the renderer's DOM element to the container
+                if (canvasContainer.firstChild) {
+                    canvasContainer.removeChild(canvasContainer.firstChild);
+                }
+                canvasContainer.appendChild(renderer.domElement);
+
+                // Lighting setup
+                const ambientLight = new Three.AmbientLight(0x404040);
+                scene.add(ambientLight);
+
+                const directionalLight = new Three.DirectionalLight(0xffffff, 1);
+                scene.add(directionalLight);
+
+                const controls = new (function() {
+                    this.enableZoom = true;
+                    this.enableRotate = true;
+                    this.enablePan = false;
+                    
+                    let state = {
+                        target: new Three.Vector3()
+                    };
+                    
+                    const scope = this;
+                    function getZoomScale() {
+                        return 0.001 * Math.pow(2, canvasContainer.clientWidth / 50);
+                    }
+                    
+                    function pan(delta) {
+                        scope.target.x += delta.x * 0.5;
+                        scope.target.y -= delta.y * 0.5;
+                    }
+                    
+                    function rotateLeft() {
+                        // Rotate around the target point on horizontal axis
+                        scope.target.rotateX(0.1);
+                    }
+                    
+                    function rotateRight() {
+                        // Rotate around the target point on horizontal axis
+                        scope.target.rotateX(-0.1);
+                    }
+                    
+                    function zoom(delta) {
+                        // Zoom in and out
+                        scope.camera.fov += delta;
+                    }
+                    
+                    function update() {
+                        const camera = new Three.PerspectiveCamera(
+                            scope.fov,
+                            scope.aspect,
+                            0.1,
+                            200
+                        );
+                        
+                        // Update scope.camera with new camera properties
+                        scope.object = camera;
+                        scope.object.position.setFromAxisAngle(
+                            new Three.Vector4(scope.targetRotation.x, scope.targetRotation.y, 0).normalize(),
+                            scope.distance
+                        );
+                        
+                        // Set the camera's position and rotation to target point
+                        const pos = scope.object.position;
+                        const dir = new Three.Vector3();
+                        
+                        // Calculate position from offset
+                        pos.x += state.offset_x;
+                        pos.y += state.offset_y;
+                        
+                        // Calculate direction based on target rotation
+                        dir.setFromSphericalHarmonic(
+                            new Three.SphericalHarmonics(3),
+                            scope.targetRotation.x, 
+                            scope.targetRotation.y
+                        );
+                        
+                        // Set camera position and rotation to the target point
+                        scope.object.position.copy(state.target);
+                        
+                        // Set camera looking at target point with the direction
+                        scope.object.lookAt(state.target);
+                        
+                        // Handle events (not implemented here)
+                    }
+                    
+                    // Public methods
+                    this.update = update;
+                    this.zoom = zoom;
+                    this.rotateLeft = rotateLeft;
+                    this.rotateRight = rotateRight;
+                    this.pan = pan;
+                    
+                })();
+                
+                // This is a simplified alternative to OrbitControls
+                const raycaster = new Three.Raycaster();
+                let mouseVector = new Three.Vector2();
+                
+                // Handle window resize events
+                function onWindowResize() {
+                    camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+                }
+                
+                window.addEventListener('resize', onWindowResize);
+
+                // Create a grid-based voxel structure
+                let voxels = [];
+                
+                function createVoxels(count) {
+                    const halfCount = Math.floor(count / 2);
+                    
+                    for (let x = -halfCount; x < halfCount + 1; x++) {
+                        for (let y = -halfCount; y < halfCount + 1; y++) {
+                            for (let z = -halfCount; z < halfCount + 1; z++) {
+                                // Skip the center voxel to prevent too many collisions
+                                if (x === 0 && y === 0 && z === 0) continue;
+                                
+                                // Randomly decide to include this voxel
+                                if (Math.random() < 0.1) { // Lower density produces better performance
+                                    const geometry = new Three.BoxGeometry(3, 3, 3);
+                                    const material = new Three.MeshLambertMaterial({ 
+                                        color: selectedColor,
+                                        transparent: true,
+                                        opacity: 0.8
+                                    });
+                                    
+                                    const voxel = new Three.Mesh(geometry, material);
+                                    voxel.position.set(x * 5, y * 5, z * 5 + Math.sin(Date.now() / 1000 + x) * 2);
+                                    
+                                    scene.add(voxel);
+                                    voxels.push({ mesh: voxel, worldPos: new Three.Vector3(x * 5, y * 5, z * 5) });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Create an animation loop to render the scene
+                function animate() {
+                    requestAnimationFrame(animate);
+                    
+                    // Update animation frame rate indicator (FPS) in real-time
+                    const fpsCounter = document.getElementById('fpsCounter');
+                    
+                    // Simulate dynamic voxel behavior (subtle animation)
+                    let allVoxelAnimated = true;
+                    
+                    voxels.forEach(voxel => {
+                        // Only animate half the voxels at a time for higher FPS
+                        if (Math.random() > 0.5) {
+                            voxel.mesh.position.z += Math.sin(Date.now() / 1000 + voxel.mesh.position.x) * 0.03;
+                            
+                            // Add subtle bobbing to y-axis too
+                            voxel.mesh.position.y += Math.sin(Date.now() / 1000 + voxel.mesh.position.z) * 0.02;
+                            
+                            // Rotate the voxels slightly
+                            voxel.mesh.rotation.x += 0.002;
+                            voxel.mesh.rotation.y += 0.003;
+                            
+                            // Add a little bounce
+                            voxel.mesh.position.z *= 1.02;
+                        }
+                    });
+                    
+                    // Render the scene
+                    renderer.render(scene, camera);
+                }
+                
+                animate();
+                
+                return () => {
+                    // Clean up
+                    window.removeEventListener('resize', onWindowResize);
+                    if (voxels.length > 0) {
+                        voxels.forEach(voxel => scene.remove(voxel.mesh));
+                    }
+                    scene.dispose();
+                    renderer.dispose();
+                };
+            }, [voxelDensity, selectedColor]);
+            
+            // Update voxels when density changes
+            useEffect(() => {
+                if (voxelDensity !== 10) { // Only re-create voxels when density changes from original
+                    const voxel = document.createElement("div");
+                    // This effect triggers the Three.js scene to recreate voxels
+                }
+            }, [voxelDensity]);
+
+            // Color options
+            const colorOptions = [
+                { name: 'Blue', value: '#4a9dfc' },
+                { name: 'Green', value: '#36b37d' },
+                { name: 'Purple', value: '#9f41c6' },
+                { name: 'Orange', value: '#ff7e3b' }
+            ];
+
+            return (
+                <div style={{ position: "relative", width: '100%', height: '600px' }}>
+                    <div style={{ display: "flex", width: '100%', height: '600px' }}>
+                        <div className="controls">
+                            <div className="control-group">
+                                <div className="control-label">
+                                    <label>Voxel Density</label>
+                                    <span>{voxelDensity}</span>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="1" 
+                            max="50"
+                                    value={voxelDensity} 
+                                    onChange={(e) => setVoxelDensity(parseInt(e.target.value))} 
+                                />
+                            </div>
+                            
+                            <div className="control-group">
+                                <p>Voxel Color</p>
+                                <div style={{ display: 'flex' }}>
+                                    {colorOptions.map(color => (
+                                        <div 
+                                            key={color.value} 
+                                            className={`color-option ${selectedColor === color.value ? 'selected' : ''}`}
+                                            onClick={() => setSelectedColor(color.value)}
+                                            style={{ backgroundColor: color.value }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <button onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}>
+                                {isPlayingAnimation ? 'Stop Animation' : 'Start Animation'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Mount the React component to the DOM
+        const root = ReactDOM.createRoot(document.getElementById('voxelCanvas'));
+        root.render(React.createElement(VoxelScene));
+    </script>
+</body>
+</html>

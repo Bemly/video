@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pelican Riding Bicycle Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .pelican {
+            fill: #fff;
+        }
+
+        .bicycle {
+            stroke: #333;
+            fill: none;
+        }
+
+        .wheel {
+            stroke-dasharray: 10, 20;
+            animation: wheel-spin 3s infinite;
+        }
+
+        .pedal {
+            fill: #ff7f00;
+        }
+
+        .wing {
+            animation: wing-flap 2s infinite;
+        }
+
+        @keyframes wheel-spin {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: 100; }
+        }
+
+        @keyframes wing-flap {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(10deg); }
+        }
+
+        .background {
+            fill: #4caf50;
+        }
+
+        .path {
+            stroke-dasharray: 10, 20;
+            animation: path-move 3s infinite;
+        }
+
+        @keyframes path-move {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: 100; }
+        }
+
+    </style>
+</head>
+<body>
+    <svg>
+        <div class="background">
+            <path class="pelican" path="0,100" />
+        </div>
+
+        <div class="bicycle">
+            <path class="wheel" path="0,100" />
+        </div>
+
+        <div class="pedal">
+            <path class="wing" path="0,100" />
+        </div>
+
+        <div class="path">
+            <path class="background" path="0,100" />
+        </div>
+
+    </svg>
+</body>
+</html>

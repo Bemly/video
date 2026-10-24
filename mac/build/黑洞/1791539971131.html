@@ -1,0 +1,180 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html>
+<head>
+    <title>超新纪元黑洞</title>
+</head>
+<body style="margin:0;background:black;">
+    <div id="info-panel" class="ui-panel">
+        <h1>史瓦西半径：3.84×10⁶ km</h1>
+        <p class="stat">质量：<span id="mass">2.6×10³² kg</span></p>
+        <p class="stat">自旋角动量：<span id="spin">0.987 (极限)</span></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { overflow: hidden; }
+        .ui-panel {
+            position: fixed;
+            top: 20px; left: 20px;
+            background: rgba(0,0,0,0.75);
+            padding: 1rem;
+            color: #fff;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+
+    <script>
+        let camera, scene, renderer, controls;
+        const particles = [];
+        const stars = [];
+        
+        function init() {
+            // 初始化场景
+            scene = new THREE.Scene();
+
+            // 黑洞本体构建
+            class BlackHole extends THREE.Group {
+                constructor() {
+                    super();
+                
+                    const sizeAttenuation = true;
+                    const particleGeometry = new THREE.BufferGeometry();
+                    this.add(this.createEventHorizon());
+                    this.add(this.createPhotonRing());
+                    this.add(this.createAccretionDisk());
+                    
+                    // 创建动态粒子流
+                    const particlesCount = 20000;
+                    const posArray = new Float32Array(particlesCount * 3);
+                
+                    for(let i = 0; i < particlesCount * 3; i++) {
+                        posArray[i] = Math.random() - 0.5;
+                    }
+                
+                    particleGeometry.setAttribute('position', 
+                        new THREE.BufferAttribute(posArray, 3));
+                    
+                    const material = new THREE.PointsMaterial({
+                        size: 0.12,
+                        color: '#ffffff',
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    
+                    this.particleMesh = new THREE.Points(particleGeometry, material);
+                    scene.add(this.particleMesh);
+
+                    // 动态更新函数
+                    this.update = () => {
+                        const time = Date.now() * 0.001;
+                        
+                        // 转动自转轴
+                        this.children.forEach(m => m.rotation.y += (time) * 0.01);
+                        
+                        // 更新粒子流
+                        const positions = this.particleMesh.geometry.attributes.position.array;
+                        for(let i=0; i<positions.length; i+=3) {
+                            positions[i] *= Math.cos(time / 2 + i/5000);
+                            positions[i+1] *= Math.sin(time / 3 - i/4000);
+                            positions[i+2] += Math.sin(time * 0.6 + i/7000)*0.2;
+                        }
+                        this.particleMesh.geometry.attributes.position.needsUpdate = true;
+                    };
+                }
+
+                createEventHorizon() {
+                    const geometry = new THREE.CircleGeometry(1, 32);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0x1a1a1a,
+                        wireframe: false,
+                        transparent: true,
+                        opacity: 0.5
+                    });
+                    return new THREE.Mesh(geometry, material);
+                }
+
+                createPhotonRing() {
+                    const geometry = new THREE.CircleGeometry(1.25, 64);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: 0x00ffff,
+                        wireframe: true,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    return new THREE.Mesh(geometry, material);
+                }
+
+                createAccretionDisk() {
+                    const geometry = new THREE.CircleGeometry(1.5, 64);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: 0x3333ff,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    return new THREE.Mesh(geometry, material);
+                }
+            }
+
+            // 初始化摄像头和渲染器
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 添加黑洞实例
+            const bh = new BlackHole();
+            scene.add(bh);
+            camera.position.z = 6;
+
+            // 初始化粒子流和星云背景
+            const starGeometry = new THREE.BufferGeometry();
+            const starsCount = 10000;
+            const posArray = new Float32Array(starsCount * 3);
+
+            for(let i=0; i<starsCount*3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 80;
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            
+            const starMaterial = new THREE.PointsMaterial({
+                size: 1,
+                color: '#ffffff',
+                transparent: true,
+                opacity: 0.2
+            });
+
+            const starMesh = new THREE.Points(starGeometry, starMaterial);
+            scene.add(starMesh);
+
+            // 相机控制
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            camera.lookAt(0,0,0);
+
+            // 动画循环
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                bh.update();
+                particles.forEach(p => p.rotation.y += 0.01);
+                stars.forEach(s => s.position.z -= 0.2);
+
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // 窗口适配
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

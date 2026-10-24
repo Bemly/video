@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVENT HORIZON | 视界奇观</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.4) 100%);
+        }
+
+        .header {
+            border-left: 2px solid rgba(180, 150, 255, 0.6);
+            padding-left: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            font-weight: 200;
+        }
+
+        .subtext {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            letter-spacing: 4px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 40px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            margin-bottom: 5px;
+            color: #a0a0ff;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        .footer {
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .warning {
+            color: #ff4d4d;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+        }
+
+        /* Loading Screen */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 2s ease;
+        }
+
+        .loader-text {
+            color: #fff;
+            letter-spacing: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loader"><div class="loader-text">INITIALIZING SINGULARITY</div></div>
+
+<canvas id="glCanvas"></canvas>
+
+<div id="ui-overlay">
+    <div class="header">
+        <h1>EVENT HORIZON</h1>
+        <div class="subtext">GRAVITATIONAL LENSING SIMULATION v4.02</div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-item">
+            <div class="stat-label">MASS ESTIMATE</div>
+            <div class="stat-value">4.2M M☉</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">SPIN PARAMETER</div>
+            <div class="stat-value">0.987 a*</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">ACCRETION TEMP</div>
+            <div class="stat-value">1.2e7 K</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>WARNING: GRAVITATIONAL TIDES EXCEED SAFETY LIMITS</p>
+    </div>
+</div>
+
+<script id="vshader" type="x-shader/x-glsl">
+    precision highp float;
+    uniform float time;
+    uniform vec2 resolution;
+    uniform vec3 cameraPos;
+    uniform mat4 viewMatrix;
+
+    varying vec2 vUv;
+    varying vec3 vPos;
+
+    void main() {
+        vUv = gl_Position.xy * 0.5 + 0.5;
+        gl_Position = vec4(gl_Position.xy, gl_Position.z, 1.0);
+    }
+</script>
+
+<script id="fshader" type="x-shader/x-glsl">
+    precision highp float;
+    uniform float time;
+    uniform vec2 resolution;
+    uniform mat4 viewMatrix;
+    uniform float zoom;
+
+    varying vec2 vUv;
+    varying vec3 vPos;
+
+    // Constants for the black hole physics
+    const float G = 1.0;
+    const float M = 2.5; // Mass of the black hole
+
+    // Rotation matrix helper
+    mat4 rotationY(float angle) {
+        float c = cos(angle);
+        float s = sin(angle);
+        return mat4(c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, -1, 0);
+    }
+
+    void main() {
+        vec3 ro = vec3(0.0, 0.0, -15.0);
+        vec3 rd = normalize(vec3(vUv, -1.5));
+
+        // Apply view matrix to ray direction
+        rd = (viewMatrix * vec4(rd, 0.0)).xyz;
+
+        float t = 0.0;
+        vec3 p = ro;
+        vec3 color = vec3(0.0);
+        float glow = 0.0;
+
+        // Ray marching with gravitational lensing approximation
+        for(int i = 0; i < 128; i++) {
+            float r = length(p);
+            
+            // Gravitational bending formula: dR/dt = -G*M / R^2
+            // We approximate the bending by modifying the ray direction based on proximity to mass
+            float force = (M * G) / (r * r);
+            rd = normalize(rd + (p / r) * force * 0.15);
+            
+            p += rd * 0.2;
+            t += 0.2;
+
+            // Accretion Disk Geometry (Flat disk with thickness)
+            float diskY = abs(p.y);
+            if (r > 2.5 && r < 6.0 && diskY < 0.4) {
+                float angle = atan(p.y, p.z);
+                float speed = 1.0 / (r * 0.5);
+                float noise = sin(angle * 5.0 - time * 2.0 + r) * cos(r * 3.0);
+                
+                float intensity = smoothstep(6.0, 2.5, r) * (1.0 - diskY / 0.4);
+                float colorShift = sin(time * 0.5 + r) * 0.5 + 0.5;
+                
+                vec3 diskColor = vec3(1.0, 0.4, 0.2) * intensity;
+                diskColor += vec3(0.5, 0.1, 0.8) * noise * intensity;
+                
+                color += diskColor * (1.0 / t) * 0.5;
+                glow += intensity * 0.1;
+            }
+
+            // Event Horizon Check
+            if (r < 2.0) {
+                color = vec3(0.0); // Total darkness inside horizon
+                break;
+            }
+
+            // Starfield and Nebula background
+            if (t > 20.0) {
+                float stars = fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+                if (stars > 0.998) {
+                    color += vec3(1.0) * 0.5;
+                }
+            }
+        }
+
+        // Post processing: Bloom and Color Grading
+        color = color * 1.2;
+        color += vec3(0.1, 0.05, 0.2) * (1.0 / t); // Deep space tint
+        
+        // Add a subtle blue rim light to the event horizon edge
+        float dist = length(p);
+        if (dist < 2.5 && dist > 1.9) {
+            color += vec3(0.2, 0.4, 1.0) * (1.0 - dist/2.5);
+        }
+
+        gl_FragColor = vec4(color, 1.0);
+    }
+</script>
+
+<script>
+    const canvas = document.getElementById('glCanvas');
+    const gl = canvas.getContext('webgl', { antialias: true });
+
+    // Shader Compilation
+    function createShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+        }
+        return shader;
+    }
+
+    const vSource = document.getElementById('vshader').text;
+    const fSource = document.getElementById('fshader').text;
+
+    const vShader = createShader(gl, gl.VERTEX_SHADER, vSource);
+    const fShader = createShader(gl, gl.FRAGMENT_SHADER, fSource);
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vShader);
+    gl.attachShader(program, fShader);
+    gl.linkProgram(program);
+
+    // Full screen quad
+    const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    const positionLoc = gl.getAttribLocation(program, "position");
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+
+    const timeLoc = gl.getUniformLocation(program, "time");
+    const resLoc = gl.getUniformLocation(program, "resolution");
+    const viewLoc = gl.getUniformLocation(program, "viewMatrix");
+
+    let rotationY = 0;
+    let zoom = 15.0;
+    let targetRotationY = 0;
+
+    // Interaction logic
+    window.addEventListener('mousemove', (e) => {
+        if(e.buttons === 1) {
+            targetRotationY += e.movementX * 0.01;
+        }
+    });
+
+    window.addEventListener('wheel', (e) => {
+        zoom += e.deltaY * 0.01;
+        zoom = Math.max(5, Math.min(30, zoom));
+    });
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function render(now) {
+        const time = now * 0.001;
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(program);
+        
+        // Smooth rotation interpolation
+        rotationY += (targetRotationY - rotationY) * 0.1;
+
+        // Create View Matrix
+        const c = Math.cos(rotationY);
+        const s = Math.sin(rotationY);
+        
+        // Simple manual matrix construction for the shader
+        const viewMatrix = new Float32Array([
+            c, 0, s, 0,
+            0, 1, 0, 0,
+            -s, 0, c, 0,
+            0, 0, -zoom, 1
+        ]);
+
+        gl.uniform1f(timeLoc, time);
+        gl.uniform2f(resLoc, canvas.width, canvas.height);
+        gl.uniformMatrix4fv(viewLoc, false, viewMatrix);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        requestAnimationFrame(render);
+    }
+
+    // Initializing sequence
+    window.onload = () => {
+        setTimeout(() => {
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+            }, 2000);
+        }, 1500);
+        requestAnimationFrame(render);
+    };
+
+</script>
+</body>
+</html>

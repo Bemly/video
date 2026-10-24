@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>鹈鹕骑车</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f8fb;
+        }
+        .container {
+            position: relative;
+            width: 500px;
+            height: 400px;
+        }
+        #pelican {
+            animation: pedal 2s infinite alternate;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 鹈鹕 -->
+        <svg width="100%" height="100%">
+            <g id="pelican"><!-- 头部 -->
+            <circle cx="80" cy="35" r="12" fill="#4a6baf"/>
+            <!-- 眼睛 -->
+            <circle cx="85" cy="32" r="2.5" fill="#fff"/>
+            <!-- 喙 -->
+            <path d="M90,37 Q85,42 80,37" stroke="#ff6b19" stroke-width="2" fill="none"/>
+            <!-- 身体 -->
+            <ellipse cx="80" cy="60" rx="15" ry="25" fill="#4a6baf"/>
+            <!-- 翅膀 -->
+            <path d="M70,10 L60,50 C58,45 55,42 53,40 L40,45 C42,47 44,49 46,50" stroke="#ffeb3b" fill="none"/>
+            <!-- 尾羽 -->
+            <path d="M80,15 L90,30 Q100,25 100,20" stroke="#ff6b19" fill="none"/>
+            <!-- 腿部 -->
+            <path d="M70,80 L65,100 L60,95" stroke="#4a525e" fill="none"/>
+            <path d="M90,80 L95,100 L100,95" stroke="#4a525e" fill="none"/>
+            </g><!-- 自行车车架 -->
+            <rect x="30" y="150" width="120" height="4" fill="#8b8d90"/>
+            <!-- 车轮 -->
+            <circle cx="75" cy="180" r="12" fill="#3d4047"/>
+            <circle cx="115" cy="180" r="12" fill="#3d4047"/>
+        </svg>
+    </div>
+    <script>
+        const pelican = document.getElementById('pelican');
+        let pedalAngle = 0;
+        function animatePedal() {
+            pedalAngle += 2;
+            const x = 80 + 35 * Math.cos(pedalAngle * Math.PI / 180);
+            const y = 60 + 25 * Math.sin(pedalAngle * Math.PI / 180);
+            pelican.setAttribute('transform', `translate(${x}, ${y})`);
+            requestAnimationFrame(animatePedal);
+        }
+        setInterval(() => {
+            pedalAngle = 0; // 每2秒重置脚蹬角度
+        }, 2000);
+        animatePedal(); // 开始动画
+    </script>
+</body>
+</html>

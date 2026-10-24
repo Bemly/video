@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>鹈鹕骑自行车</title>
+    <style>
+        body {
+            background: #87CEEB;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <svg width="800" height="400" viewBox="0 0 800 400">
+        <!-- 天空 -->
+        <rect width="800" height="400" fill="#87CEEB"/>
+        
+        <!-- 地面 -->
+        <rect x="0" y="320" width="800" height="80" fill="#9ACD32"/>
+        
+        <!-- 背景树木 -->
+        <g id="trees">
+            <circle cx="50" cy="280" r="30" fill="#2F4F2F"/>
+            <circle cx="150" cy="280" r="35" fill="#2F4F2F"/>
+            <circle cx="600" cy="280" r="30" fill="#2F4F2F"/>
+            <circle cx="700" cy="280" r="35" fill="#2F4F2F"/>
+        </g>
+
+        <!-- 自行车 -->
+        <g id="bike">
+            <!-- 车轮 -->
+            <circle cx="200" cy="320" r="45" fill="none" stroke="#333" stroke-width="8"/>
+            <circle cx="200" cy="320" r="45" fill="none" stroke="#666" stroke-width="2"/>
+            <circle cx="500" cy="320" r="45" fill="none" stroke="#333" stroke-width="8"/>
+            <circle cx="500" cy="320" r="45" fill="none" stroke="#666" stroke-width="2"/>
+            
+            <!-- 车架 -->
+            <path d="M200,320 L350,320 L400,280 L450,280" fill="none" stroke="#FF6B35" stroke-width="10"/>
+            <path d="M200,320 L450,280" fill="none" stroke="#FF6B35" stroke-width="10"/>
+            
+            <!-- 车把 -->
+            <path d="M450,280 L470,260" fill="none" stroke="#333" stroke-width="8"/>
+            
+            <!-- 踏板 -->
+            <circle cx="350" cy="320" r="15" fill="#444"/>
+        </g>
+
+        <!-- 鹈鹕 -->
+        <g id="pelican">
+            <!-- 身体 -->
+            <ellipse cx="350" cy="280" rx="60" ry="40" fill="#F5F5DC"/>
+            
+            <!-- 头部 -->
+            <circle cx="420" cy="250" r="30" fill="#F5F5DC"/>
+            
+            <!-- 喙 -->
+            <path d="M430,250 Q460,250 480,260 Q470,270 430,265 Z" fill="#FF9933"/>
+            
+            <!-- 眼睛 -->
+            <circle cx="415" cy="240" r="8" fill="#333"/>
+            <circle cx="415" cy="240" r="4" fill="#FFF"/>
+            
+            <!-- 翅膀 -->
+            <path d="M320,280 Q340,260 370,270 Z" fill="#F5F5DC"/>
+            
+            <!-- 腿 -->
+            <path d="M340,280 L350,320" fill="none" stroke="#F5F5DC" stroke-width="10"/>
+            <path d="M360,280 L350,320" fill="none" stroke="#F5F5DC" stroke-width="10"/>
+            
+            <!-- 脚 -->
+            <circle cx="350" cy="320" r="10" fill="#F5F5DC"/>
+        </g>
+
+        <!-- 动画：车轮旋转 -->
+        <animateTransform 
+            attributeName="transform" 
+            type="rotate"
+            values="0 200 320;360 200 320"
+            dur="1s"
+            repeatCount="indefinite"/>
+
+        <!-- 动画：鹈鹕上下移动 -->
+        <animateTransform 
+            attributeName="transform" 
+            type="translate"
+            values="0,0; 0,-5; 0,0"
+            dur="1s"
+            repeatCount="indefinite"/>
+
+        <!-- 动画：背景树木移动 -->
+        <animateTransform 
+            attributeName="transform" 
+            type="translate"
+            values="0,0; -800,0"
+            dur="10s"
+            repeatCount="indefinite"/>
+    </svg>
+
+    <script>
+        // 让车轮持续旋转
+        let frontWheel = document.querySelector('#bike circle:nth-child(1)');
+        let rearWheel = document.querySelector('#bike circle:nth-child(2)');
+        
+        // 使用CSS动画替代SVG动画，更流畅
+        let angle = 0;
+        function animate() {
+            angle += 2;
+            frontWheel.style.transform = `rotate(${angle}deg)`;
+            rearWheel.style.transform = `rotate(${angle}deg)`;
+            
+            // 鹈鹕上下移动
+            let pelican = document.querySelector('#pelican');
+            let t = Date.now() / 100;
+            pelican.style.transform = `translateY(${Math.sin(t) * 5}px)`;
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

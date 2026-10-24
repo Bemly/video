@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体素自然景观 - 瀑布与穿云</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script type="module">
+// 引入Three.js库（通过CDN加载）
+import * as THREE from 'three';
+
+// --- 1. 场景初始化 ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB); // 天空背景色
+
+// --- 2. 相机设置 ---
+const camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    10000
+);
+camera.position.set(50, 30, 50); // 初始位置
+
+// --- 3. 渲染器设置 ---
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 硬阴影效果
+document.body.appendChild(renderer.domElement);
+
+// --- 4. 光源设置（晨昏色调） ---
+// 主光源（太阳光）
+const directionalLight = new THREE.DirectionalLight(0xff6600, 1.5); // 橙红色（日出）
+directionalLight.position.set(100, 150, 50);
+directionalLight.castShadow = true;
+directionalLight.shadow.camera.left = -500;
+directionalLight.shadow.camera.right = 500;
+directionalLight.shadow.camera.top = 500;
+directionalLight.shadow.camera.bottom = -500;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+
+// 环境光（天空散射）
+const ambientLight = new THREE.AmbientLight(0x8888aa, 0.5); // 冷蓝色
+
+scene.add(directionalLight);
+scene.add(ambientLight);
+
+// --- 5. 体素山脉生成 ---
+const voxelSize = 0.8; // 体素大小
+const mountainScale = 100; // 山脉尺寸缩放因子
+
+// 使用SimplexNoise生成高度图
+function __n2(x,y){const s=(a,b)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v)};const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=s(xi,yi),b=s(xi+1,yi),c=s(xi,yi+1),d=s(xi+1,yi+1);return (a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v)*2-1}; const simplex = { noise2D: __n2 };
+function noise(x, z) {
+    return simplex.noise2D(x / mountainScale, z / mountainScale);
+}
+
+// 生成山脉体素
+function generateMountainVoxels() {
+    const voxels = [];
+    for (let x = -mountainScale; x < mountainScale; x += voxelSize) {
+        for (let z = -mountainScale; z < mountainScale; z += voxelSize) {
+            const height = noise(x, z);
+            if (height > 0.5) { // 只生成高度大于阈值的体素（形成山脉）
+                const geometry = new THREE.BoxGeometry(voxelSize, height * 10, voxelSize); // 调整y轴高度
+                const material = new THREE.MeshPhongMaterial({ color: 0x8B4513, shininess: 100 }); // 棕色山脉材质
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(x + voxelSize / 2, height * 5, z + voxelSize / 2); // 调整位置
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                voxels.push(mesh);
+            }
+        }
+    }
+    return voxels;
+}
+
+// 添加山脉到场景
+const mountainVoxels = generateMountainVoxels();
+mountainVoxels.forEach(mesh => scene.add(mesh));
+
+// --- 6. 体素瀑布生成 ---
+const waterfallStartX = -80;
+const waterfallStartZ = 0;
+const waterfallEndX = -20;
+const waterfallEndZ = 30;
+
+// 瀑布路径（线性插值）
+function generateWaterfallPath() {
+    const path = [];
+    for (let i = 0; i <= 100; i++) {
+        const t = i / 100;
+        path.push(new THREE.Vector3(
+            waterfallStartX + (waterfallEndX - waterfallStartX) * t,
+            10, // 固定y轴高度（瀑布位置）
+            waterfallStartZ + (waterfallEndZ - waterfallStartZ) * t
+        ));
+    }
+    return path;
+}
+
+const waterfallPath = generateWaterfallPath();
+
+// 生成瀑布体素（水流效果）
+function generateWaterfallVoxels() {
+    const voxels = [];
+    for (let i = 0; i < waterfallPath.length - 1; i++) {
+        const start = waterfallPath[i];
+        const end = waterfallPath[i + 1];
+
+        // 计算水流宽度（根据位置调整）
+        const width = 5 + i * 0.1; // 随位置增加宽度
+
+        // 计算水流方向向量
+        const direction = new THREE.Vector3().subVectors(end, start);
+        direction.normalize();
+
+        // 计算垂直于水流方向的向量
+        const perp = new THREE.Vector3(-direction.z, 0, direction.x);
+        perp.normalize();
+
+        // 在水流路径上生成体素
+        for (let j = 0; j < width / voxelSize; j++) {
+            const offset = perp.clone().multiplyScalar(j * voxelSize);
+            const position = new THREE.Vector3(start.x + offset.x, 10, start.z + offset.y);
+
+            const geometry = new THREE.BoxGeometry(voxelSize, 2, voxelSize); // 矩形体素（模拟水流）
+            const material = new THREE.MeshPhongMaterial({ color: 0x0066ff, transparent: true, opacity: 0.8 }); // 蓝色半透明材质
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            mesh.castShadow = true;
+            voxels.push(mesh);
+        }
+    }
+    return voxels;
+}
+
+// 添加瀑布到场景
+const waterfallVoxels = generateWaterfallVoxels();
+waterfallVoxels.forEach(mesh => scene.add(mesh));
+
+// --- 7. 穿云效果（半透明体素云） ---
+const cloudVoxels = [];
+const numClouds = 5;
+
+// 创建半透明体素云
+function createCloudVoxel(x, y, z) {
+    const geometry = new THREE.BoxGeometry(voxelSize * 2, voxelSize * 1.5, voxelSize * 2);
+    const material = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    return mesh;
+}
+
+// 生成多个云体素并添加动画
+for (let i = 0; i < numClouds; i++) {
+    const cloudVoxel = createCloudVoxel(
+        Math.random() * 200 - 100, // 随机x位置
+        30 + Math.random() * 20, // 云的高度（y轴）
+        Math.random() * 200 - 100   // 随机z位置
+    );
+    cloudVoxels.push(cloudVoxel);
+}
+
+// 添加云到场景
+cloudVoxels.forEach(mesh => scene.add(mesh));
+
+// --- 8. 体素植被（树木）生成 ---
+const numTrees = 30;
+
+function createTreeVoxel(x, y, z) {
+    // 树干（圆柱体）
+    const trunkGeometry = new THREE.CylinderGeometry(0.5, 1, 3, 8);
+    const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x654321 });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y += 1.5; // 调整树干位置
+
+    // 树冠（圆锥体）
+    const crownGeometry = new THREE.ConeGeometry(2, 3, 8);
+    const crownMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+    const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+    crown.position.y += 4.5; // 调整树冠位置
+
+    const tree = new THREE.Group();
+    tree.add(trunk);
+    tree.add(crown);
+
+    return tree;
+}
+
+// 生成树木并添加到场景
+for (let i = 0; i < numTrees; i++) {
+    const treeVoxel = createTreeVoxel(
+        Math.random() * 150 - 75, // 随机x位置
+        0 + Math.random() * 10, // 树木底部y轴高度（地面附近）
+        Math.random() * 150 - 75   // 随机z位置
+    );
+    scene.add(treeVoxel);
+}
+
+// --- 9. 相机自动动画（展示场景全貌） ---
+let cameraAnimation = {
+    targetRotationX: 0,
+    targetRotationY: -Math.PI / 4, // 初始视角（左转45度）
+    currentRotationX: 0,
+    currentRotationY: -Math.PI / 4,
+    animationSpeed: 0.005 // 动画速度（慢速）
+};
+
+function animateCamera() {
+    cameraAnimation.currentRotationX += (cameraAnimation.targetRotationX - cameraAnimation.currentRotationX) * cameraAnimation.animationSpeed;
+    cameraAnimation.currentRotationY += (cameraAnimation.targetRotationY - cameraAnimation.currentRotationY) * cameraAnimation.animationSpeed;
+
+    // 更新相机位置（绕场景中心旋转）
+    const radius = 50; // 相机与中心的距离
+    camera.position.x = Math.cos(cameraAnimation.currentRotationY) * radius;
+    camera.position.z = Math.sin(cameraAnimation.currentRotationY) * radius;
+    camera.position.y = 30; // 固定y轴高度（避免相机过低）
+
+    // 相机朝向场景中心
+    camera.lookAt(0, 10, 0);
+
+    requestAnimationFrame(animateCamera);
+}
+
+// --- 10. 渲染循环 ---
+function render() {
+    requestAnimationFrame(render);
+
+    // 更新相机动画
+    animateCamera();
+
+    renderer.render(scene, camera);
+}
+
+render();
+
+// --- 11. 处理窗口大小变化 ---
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
+</html>
