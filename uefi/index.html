@@ -15,86 +15,33 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "PingFang
 .top nav{margin-left:auto}
 .top nav a{color:var(--teal);text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:4px 12px}
 main{max-width:1080px;margin:0 auto;padding:12px 16px 60px}
-section{margin-top:28px}
+section{margin-top:30px}
 section h2{font-size:19px;margin:0 0 4px}
 section h2 small{color:var(--grey);font-size:13px;font-weight:400;margin-left:8px}
 .desc{color:var(--grey);font-size:13.5px;margin:0 0 12px;max-width:760px}
-.player{background:#000;border-radius:14px;overflow:hidden;position:relative;aspect-ratio:16/9}
-.player video{width:100%;height:100%;display:block;background:#000}
-.empty{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,#1c1f22,#0b0b0f);color:var(--grey);text-align:center}
-.empty[hidden]{display:none}
-.empty b{display:block;font-size:17px;color:var(--ink);letter-spacing:.1em}
-.empty span{font-size:13px}
-.bar{display:flex;gap:10px;align-items:center;padding:10px 2px 0}
-.bar button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}
-.bar button:hover{border-color:var(--teal)}
-.track{flex:1;height:6px;background:#1a2740;border-radius:3px;cursor:pointer;position:relative}
-.fill{height:100%;width:0;background:var(--teal);border-radius:3px}
-.time{font-size:12px;color:var(--grey);font-variant-numeric:tabular-nums;min-width:110px;text-align:right}
-.hint{font-size:12.5px;color:#ff9a5c;min-height:1.2em}
+.player{border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9}
+.player iframe{width:100%;height:100%;border:0;display:block;background:#000}
+.open{display:inline-block;margin-top:10px;font-size:13px;color:var(--teal);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:4px 12px}
 footer{color:var(--grey);font-size:12.5px;margin-top:36px}
 footer a{color:var(--teal)}
 </style>
 </head>
 <body>
-<header class="top"><b>UEFI Player</b><span>开机那一瞬间，直接在固件里播视频</span><nav><a href="../">← 返回</a></nav></header>
+<header class="top"><b>UEFI Player</b><span>开机那一瞬间，直接在固件里播视频 · 浏览器实时渲染</span><nav><a href="../">← 返回</a></nav></header>
 <main>
-<section id="intro">
+<section>
 <h2>介绍<small>1:46 · Rust no_std · 八种格式纯软解</small></h2>
 <p class="desc">不跑 Windows 也不跑 Linux，开机直接在 UEFI 固件里播视频：GOP 帧缓冲、多核一起上屏、手写汇编像素搬运，还能当引导器链式启动。</p>
-<div class="player"><video id="v1" preload="metadata" playsinline></video>
-<div class="empty" id="e1"><div><b>介 绍</b><span>视频文件待上传（intro.mp4）</span></div></div></div>
-<div class="bar"><button id="p1">▶</button><div class="track" id="t1"><div class="fill" id="f1"></div></div><span class="time" id="c1">0:00 / 1:46</span><button id="s1">⛶</button></div>
-<div class="hint" id="h1"></div>
+<div class="player"><iframe src="intro/" loading="lazy" allowfullscreen title="UEFI Player 介绍"></iframe></div>
+<a class="open" href="intro/">新页面打开播放器 ↗</a>
 </section>
-<section id="detail">
+<section>
 <h2>详解<small>12:00 · 真机 + QEMU + 配置工具实录</small></h2>
-<p class="desc">逐项讲清：BSP/AP 与 GOP 直写・Blt、31 档 SIMD、调度后端、解码页、壁纸画廊与引导项、转码与检查保存。</p>
-<div class="player"><video id="v2" preload="metadata" playsinline></video>
-<div class="empty" id="e2"><div><b>详 解</b><span>视频文件待上传（detail.mp4）</span></div></div></div>
-<div class="bar"><button id="p2">▶</button><div class="track" id="t2"><div class="fill" id="f2"></div></div><span class="time" id="c2">0:00 / 12:00</span><button id="s2">⛶</button></div>
-<div class="hint" id="h2"></div>
+<p class="desc">逐项讲清：BSP/AP 与 GOP 直写・Blt、31 档 SIMD、调度后端、解码页、壁纸画廊与引导项、转码与检查保存。实录帧素材未上传，相关段落以降级画面 + 字幕呈现。</p>
+<div class="player"><iframe src="detail/" loading="lazy" allowfullscreen title="UEFI Player 详解"></iframe></div>
+<a class="open" href="detail/">新页面打开播放器 ↗</a>
 </section>
-<footer>源码：<a href="https://github.com/Bemly/video/tree/main/uefi">github.com/Bemly/video/uefi</a> · 把转好的 <code>intro.mp4</code> / <code>detail.mp4</code> 放进目录即自动生效</footer>
+<footer>源码：<a href="https://github.com/Bemly/video/tree/main/uefi">github.com/Bemly/video/uefi</a> · 介绍出自 <code>工程/web</code>、详解出自 <code>工程2/web</code>，播放器逻辑不变、音频时钟换 rAF 时钟（无声版）</footer>
 </main>
-<script>
-(function(){
-function hook(v,p,t,f,c,s,e,h,file,total){
-  const fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');
-  const say=m=>{h.textContent=m;if(m)setTimeout(()=>{if(h.textContent===m)h.textContent=''},2600);};
-  fetch(file,{method:'HEAD'}).then(r=>{
-    if(!r.ok)throw 0;
-    v.src=file;e.hidden=true;
-  }).catch(()=>{});
-  p.onclick=()=>{
-    if(!v.src){say('视频文件待上传');return;}
-    if(v.paused)v.play().catch(()=>say('播放失败'));else v.pause();
-  };
-  v.onplay=()=>p.textContent='⏸';v.onpause=()=>p.textContent='▶';
-  v.ontimeupdate=()=>{
-    if(!v.duration)return;
-    f.style.width=(100*v.currentTime/v.duration)+'%';
-    c.textContent=fmt(v.currentTime)+' / '+fmt(v.duration);
-  };
-  t.onclick=ev=>{
-    if(!v.duration)return;
-    const r=t.getBoundingClientRect();
-    v.currentTime=v.duration*(ev.clientX-r.left)/r.width;
-  };
-  s.onclick=()=>{
-    const box=v.closest('.player');
-    if(document.fullscreenElement)document.exitFullscreen();
-    else box.requestFullscreen().catch(()=>{});
-  };
-  c.textContent='0:00 / '+total;
-}
-hook(v1,p1,t1,f1,c1,s1,e1,h1,'intro.mp4','1:46');
-hook(v2,p2,t2,f2,c2,s2,e2,h2,'detail.mp4','12:00');
-addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT')return;
-  if(e.key==='f'||e.key==='F')document.exitFullscreen?document.exitFullscreen():0;
-});
-})();
-</script>
 </body>
 </html>
