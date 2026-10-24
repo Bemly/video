@@ -7,7 +7,7 @@
 - `index.html`：hub 页（双 iframe + 标题简介）。
 - `intro/index.html + timeline.js`：介绍播放器（播放/暂停、进度、时间、全屏；空格、←/→ 5 秒、F 全屏、R 重播；`?t=秒` 定格）。源自 `工程/web/`，仅把 `?play`（需 `../out/mix.m4a`，不存在）换成 rAF 时钟驱动。
 - `detail/index.html + timeline.js + shaders_v1.js`：详解播放器（同上操作）。源自 `工程2/web/`；`frames/` 实录帧（2GB）未上传，clip 段降级为背景 + 字幕 + “实录素材未收录”提示，不断线。
-- `cover.jpg`：首页卡片用（1920×1080，取自介绍片第 12 秒）。
+- `cover.jpg`：首页卡片用（官方 `封面_16x9.jpg` 原样入库）。
 - `tools/build_site.py`：从本地原目录生成 `intro/`/`detail/`（`UEFILM_SRC` 可改源路径）。
 
 成片 mp4（463MB / 1.5GB / 分享版）、`frames/`、`mix.wav`/`mix.m4a`、TTS、`raw/`、台词稿均未入库。目录内无音频文件。
