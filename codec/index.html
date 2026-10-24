@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>压缩三十年 · 视频编码科普</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#e8ecf3;font:14px "PingFang SC","Hiragino Sans GB",system-ui,sans-serif}
+  #wrap{position:fixed;inset:0;display:flex;flex-direction:column}
+  #top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px 4px}
+  #top b{letter-spacing:.1em}#status{color:#8a91a0}#top a{color:#5CC7C0;text-decoration:none}
+  #note{color:#5a6272;font-size:12px}
+  #stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+  #viewport{width:1920px;height:1080px;position:relative;flex:none;transform-origin:center center;background:#000;overflow:hidden}
+  #gl{width:1920px;height:1080px;display:block}
+  #ui{padding:10px 16px 14px;background:linear-gradient(transparent,rgba(0,0,0,.85));transition:opacity .4s}
+  #ui.playing{opacity:0}#ui.playing:hover{opacity:1}
+  #row{display:flex;align-items:center;gap:12px}
+  button{background:none;border:1px solid #5CC7C0;color:#5CC7C0;border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+  button:disabled{opacity:.35;cursor:default}
+  #bar{flex:1;height:6px;background:#1a2740;border-radius:3px;cursor:pointer;position:relative}
+  #fill{height:100%;width:0;background:#5CC7C0;border-radius:3px}
+  #time{font-variant-numeric:tabular-nums;color:#7fa8ff;min-width:160px;text-align:right;font-size:12px}
+  #start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);cursor:pointer;z-index:5}
+  #start[hidden]{display:none}
+  #start div{text-align:center;color:#fff}
+  #start i{display:block;width:84px;height:84px;margin:0 auto 26px;border-radius:50%;background:#5CC7C0;position:relative}
+  #start i::after{content:"";position:absolute;left:34px;top:27px;border:15px solid transparent;border-left:24px solid #fff;border-right:0}
+  #start b{display:block;font:600 26px system-ui;letter-spacing:.02em}
+  #start span{display:block;margin-top:10px;font-size:14px;color:#9fb3c8}
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="top"><b>压缩三十年</b><span id="status">视频编码科普 · 加载中…</span><span id="note">空格播放/暂停，←/→ 5 秒，R 重播，F 全屏（无声版，音效未入库）</span><a href="../">← 返回</a></div>
+<div id="stage"><div id="viewport"><canvas id="gl" width="1920" height="1080"></canvas><div id="start"><div><i></i><b>压缩三十年 · 36 段</b><span>H.263 → H.266 / AV2 / AVS3 · 15:57 · 点击播放（无声）</span></div></div></div></div>
+<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00 / 0:00</span><button id="fsbtn">⛶</button></div></div>
+</div>
+<canvas id="ui2" width="1920" height="1080" style="display:none"></canvas>
+<script src="timeline.js"></script>
+<script src="shader.js"></script>
+<script src="scenes.js"></script>
+<script>
+'use strict';
+(function(){
+  const qs = new URLSearchParams(location.search);
+  const W = 1920, H = 1080;
+  const T = TL.duration, segs = TL.segments, N = segs.length;
+  const glc = document.getElementById('gl');
+  const gl = glc.getContext('webgl2', {preserveDrawingBuffer: true, antialias: false});
+  const ui = document.getElementById('ui2');
+  const ctx = ui.getContext('2d');
+
+  function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, SHADER_SRC.vert));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, SHADER_SRC.frag));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+  const al = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+  const U = {}; ['uRes','uT','uL','uD','uFx','uFxP','uN','uPR','uPP','uPQ','uUI','uTrans','uAccent','uSeed'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.viewport(0, 0, W, H);
+
+  function hex(c){ const n = parseInt(c.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255]; }
+
+  function renderAt(t){
+    if(t < 0) t = 0; if(t >= T) t = T - 0.001;
+    let si = N - 1;
+    for(let i = 0; i < N; i++){ if(t < segs[i].start + segs[i].dur){ si = i; break; } }
+    const seg = segs[Math.max(0, si)];
+    const L = Math.max(0, t - seg.start);
+    const st = { t, L, D: seg.dur, seg, panels: [], fx: 0, fxp: [0,0,0,0], accent: SC.accentOf(seg) };
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    (SC.scenes[seg.scene] || SC.scenes.blank)(ctx, st);
+    ctx.restore();
+    SC.chrome(ctx, st);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ui);
+    gl.uniform2f(U.uRes, W, H); gl.uniform1f(U.uT, t); gl.uniform1f(U.uL, L); gl.uniform1f(U.uD, seg.dur);
+    gl.uniform1i(U.uFx, st.fx); gl.uniform4fv(U.uFxP, st.fxp);
+    const n = Math.min(12, st.panels.length);
+    const pr = new Float32Array(48), pp = new Float32Array(48), pq = new Float32Array(48);
+    for(let i = 0; i < n; i++){ const p = st.panels[i];
+      pr.set(p.rect, i*4); pp.set([p.vt ?? t, p.mode ?? 0, p.alpha ?? 1, p.param ?? 0], i*4); pq.set(p.q ?? [0,0,0,0], i*4); }
+    gl.uniform1i(U.uN, n); gl.uniform4fv(U.uPR, pr); gl.uniform4fv(U.uPP, pp); gl.uniform4fv(U.uPQ, pq);
+    gl.uniform1i(U.uUI, 0);
+    gl.uniform1f(U.uTrans, si === 0 ? 1 : Math.min(1, L / 0.7));
+    gl.uniform3fv(U.uAccent, hex(st.accent)); gl.uniform1f(U.uSeed, si * 17.0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    return si;
+  }
+
+  const status = document.getElementById('status');
+  const playBtn = document.getElementById('play');
+  const bar = document.getElementById('bar'), fill = document.getElementById('fill'), timeEl = document.getElementById('time');
+  const viewport = document.getElementById('viewport');
+  const startOv = document.getElementById('start');
+  const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+  let tCur = 0, playing = false, lastTs = 0;
+  function paint(){
+    const si = renderAt(tCur);
+    const seg = segs[si];
+    status.textContent = `${si+1}/${N} · ${seg.ch || seg.id} · ${fmt(tCur)} / ${fmt(T)}`;
+    fill.style.width = (100*tCur/Math.max(T,1e-6))+'%';
+    timeEl.textContent = `${fmt(tCur)} / ${fmt(T)}`;
+  }
+  function tick(ts){
+    if(!playing) return;
+    const dt = Math.min(0.25, (ts - lastTs)/1000); lastTs = ts;
+    tCur += dt;
+    if(tCur >= T){ tCur = T; setPlaying(false); startOv.hidden = false; paint(); return; }
+    paint();
+    requestAnimationFrame(tick);
+  }
+  function setPlaying(p){
+    playing = p;
+    playBtn.textContent = p ? '⏸' : '▶';
+    document.getElementById('ui').classList.toggle('playing', p);
+    if(p){ lastTs = performance.now(); requestAnimationFrame(tick); startOv.hidden = true; }
+  }
+  function toggle(){ setPlaying(!playing); if(tCur >= T){ tCur = 0; setPlaying(true); paint(); } }
+
+  playBtn.onclick = e => { e.stopPropagation(); toggle(); };
+  startOv.onclick = () => toggle();
+  viewport.onclick = e => { if(e.target === glc && playing) setPlaying(false); };
+  bar.onclick = e => { const r = bar.getBoundingClientRect(); tCur = Math.min(T, Math.max(0, (e.clientX - r.left)/r.width*T)); paint(); };
+  document.getElementById('fsbtn').onclick = e => { e.stopPropagation(); if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(()=>{}); };
+  addEventListener('keydown', e => {
+    if(e.code === 'Space'){ e.preventDefault(); toggle(); }
+    else if(e.key === 'ArrowRight'){ tCur = Math.min(T, tCur + 5); paint(); }
+    else if(e.key === 'ArrowLeft'){ tCur = Math.max(0, tCur - 5); paint(); }
+    else if(e.key === 'r' || e.key === 'R'){ tCur = 0; setPlaying(true); paint(); }
+    else if(e.key === 'f' || e.key === 'F'){ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(()=>{}); }
+  });
+  function fit(){
+    const r = document.getElementById('stage').getBoundingClientRect();
+    viewport.style.transform = `scale(${Math.min(r.width/W, r.height/H)})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  paint();
+  playBtn.disabled = false; fit();
+  window.__codecReady = true;
+  if(qs.has('t')){
+    tCur = Math.min(Math.max(parseFloat(qs.get('t')), 0), T - 0.001);
+    paint(); setPlaying(false); startOv.hidden = true;
+  }
+  window.__codec = { seek: t => { tCur = t; paint(); }, render: renderAt, T: () => T };
+})();
+</script>
+</body>
+</html>

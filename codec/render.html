@@ -1,0 +1,66 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>codec-video</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}#ui{display:none}</style>
+</head><body>
+<canvas id="gl" width="1920" height="1080"></canvas>
+<canvas id="ui" width="1920" height="1080"></canvas>
+<script src="timeline.js"></script>
+<script src="shader.js"></script>
+<script src="scenes.js"></script>
+<script>
+const W = 1920, H = 1080;
+const glc = document.getElementById('gl');
+const gl = glc.getContext('webgl2', {preserveDrawingBuffer: true, antialias: false});
+const ui = document.getElementById('ui');
+const ctx = ui.getContext('2d');
+
+function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, SHADER_SRC.vert));
+gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, SHADER_SRC.frag));
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+const al = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+const U = {}; ['uRes','uT','uL','uD','uFx','uFxP','uN','uPR','uPP','uPQ','uUI','uTrans','uAccent','uSeed'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+gl.viewport(0, 0, W, H);
+
+function hex(c){ const n = parseInt(c.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255]; }
+
+window.renderAt = function(t){
+  const segs = TL.segments;
+  let si = segs.length - 1;
+  for(let i = 0; i < segs.length; i++){ if(t < segs[i].start + segs[i].dur){ si = i; break; } }
+  const seg = segs[Math.max(0, si)];
+  const L = Math.max(0, t - seg.start);
+  const st = { t, L, D: seg.dur, seg, panels: [], fx: 0, fxp: [0,0,0,0], accent: SC.accentOf(seg) };
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  (SC.scenes[seg.scene] || SC.scenes.blank)(ctx, st);
+  ctx.restore();
+  SC.chrome(ctx, st);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ui);
+  gl.uniform2f(U.uRes, W, H); gl.uniform1f(U.uT, t); gl.uniform1f(U.uL, L); gl.uniform1f(U.uD, seg.dur);
+  gl.uniform1i(U.uFx, st.fx); gl.uniform4fv(U.uFxP, st.fxp);
+  const n = Math.min(12, st.panels.length);
+  const pr = new Float32Array(48), pp = new Float32Array(48), pq = new Float32Array(48);
+  for(let i = 0; i < n; i++){ const p = st.panels[i];
+    pr.set(p.rect, i*4); pp.set([p.vt ?? t, p.mode ?? 0, p.alpha ?? 1, p.param ?? 0], i*4); pq.set(p.q ?? [0,0,0,0], i*4); }
+  gl.uniform1i(U.uN, n); gl.uniform4fv(U.uPR, pr); gl.uniform4fv(U.uPP, pp); gl.uniform4fv(U.uPQ, pq);
+  gl.uniform1i(U.uUI, 0);
+  gl.uniform1f(U.uTrans, si === 0 ? 1 : Math.min(1, L / 0.7));
+  gl.uniform3fv(U.uAccent, hex(st.accent)); gl.uniform1f(U.uSeed, si * 17.0);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  return si;
+};
+window.ready = true;
+</script>
+</body></html>
