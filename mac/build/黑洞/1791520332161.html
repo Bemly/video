@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Hole Visual Spectacle</title>
+    <!-- 内联样式 -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/17.3.0/LDRStats.min.js"></script>
+    <script>
+        // Three.js场景初始化
+        const scene = new THREE.Scene();
+        
+        // 相机设置
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+        camera.position.set(50, 30, 80);
+        
+        // 渲染器设置
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // 添加到body
+        document.body.appendChild(renderer.domElement);
+        
+        // 性能监控
+        const stats = {dom:document.createElement('div'),update(){},begin(){},end(){}};
+        document.body.appendChild(stats.dom);
+        
+        // 光源设置
+        const ambientLight = new THREE.AmbientLight(0x222233, 0.1);
+        scene.add(ambientLight);
+        
+        const pointLight = new THREE.PointLight(0xffffff, 1.5);
+        pointLight.position.set(-30, 20, -50);
+        scene.add(pointLight);
+        
+        // 黑洞事件视界
+        const eventHorizonGeometry = new THREE.SphereGeometry(5, 64, 64);
+        const eventHorizonMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            emissive: 0x000004,
+            emissiveIntensity: 1
+        });
+        const eventHorizon = new THREE.Mesh(eventHorizonGeometry, eventHorizonMaterial);
+        scene.add(eventHorizon);
+        
+        // 吸积盘
+        const accretionDiskGeometry = new THREE.RingGeometry(6, 20, 64);
+        accretionDiskGeometry.rotateX(Math.PI / 2);
+        
+        const accretionDiskMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff6600,
+            emissive: 0xff3300,
+            emissiveIntensity: 1,
+            shininess: 100
+        });
+        
+        const accretionDisk = new THREE.Mesh(accretionDiskGeometry, accretionDiskMaterial);
+        scene.add(accretionDisk);
+        
+        // 光子环
+        const photonRingGeometry = new THREE.RingGeometry(5.1, 5.3, 64);
+        photonRingGeometry.rotateX(Math.PI / 2);
+        
+        const photonRingMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            emissive: 0x00ffaa,
+            emissiveIntensity: 2
+        });
+        
+        const photonRing = new THREE.Mesh(photonRingGeometry, photonRingMaterial);
+        scene.add(photonRing);
+        
+        // 背景星空
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 10000;
+        const positions = new Float32Array(starsCount * 3);
+        
+        for (let i = 0; i < starsCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 2000;
+        }
+        
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        
+        const starsMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 1,
+            transparent: true
+        });
+        
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+        
+        // 星云效果
+        const nebulaGeometry = new THREE.BufferGeometry();
+        const nebulaCount = 500;
+        const nebulaPositions = new Float32Array(nebulaCount * 3);
+        
+        for (let i = 0; i < nebulaCount * 3; i++) {
+            const radius = Math.random() * 100 + 50;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            nebulaPositions[i] = radius * Math.sin(phi) * Math.cos(theta);
+            nebulaPositions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
+            nebulaPositions[i + 2] = radius * Math.cos(phi);
+            
+            i += 2;
+        }
+        
+        nebulaGeometry.setAttribute('position', new THREE.BufferAttribute(nebulaPositions, 3));
+        
+        const nebulaMaterial = new THREE.PointsMaterial({
+            color: 0x440088,
+            size: 3,
+            transparent: true,
+            opacity: 0.6
+        });
+        
+        const nebula = new THREE.Points(nebulaGeometry, nebulaMaterial);
+        scene.add(nebula);
+        
+        // 交互控制
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 吸积盘旋转
+            accretionDisk.rotation.z += 0.001;
+            
+            // 光子环旋转
+            photonRing.rotation.z -= 0.002; // 与吸积盘方向相反
+            
+            controls.update();
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

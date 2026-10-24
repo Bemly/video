@@ -1,0 +1,26 @@
+<meta charset="utf-8">
+import { Canvas } from '@react-three/fiber'
+import ChinesePalaceScene from './scenes/ChinesePalaceScene'
+import { OrbitControls, Environment } from '@react-three/drei'
+
+function App() {
+  return (
+    <div className="app">
+      <Canvas camera={{ position: [0, 15, 30], fov: 50 }}>
+        <ambientLight intensity={0.5} />
+        <directionalLight
+          position={[10, 20, 10]}
+          intensity={1}
+          castShadow
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+        />
+        <ChinesePalaceScene />
+        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+        <Environment preset="city" />
+      </Canvas>
+    </div>
+  )
+}
+
+export default App

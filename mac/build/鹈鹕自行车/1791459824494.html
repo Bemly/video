@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>鹈鹕骑自行车动画</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f8ff;
+            overflow: hidden;
+        }
+
+        .canvas {
+            width: 80%;
+            max-width: 800px;
+            filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.1));
+        }
+
+        /* 轮子旋转动画 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .wheel {
+            transform-origin: center;
+            animation: spin 2s linear infinite;
+        }
+
+        /* 鹈鹕上下起伏动画（模拟蹬车动作） */
+        @keyframes bobbing {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(1deg); }
+        }
+
+        .pelican-group {
+            animation: bobbing 0.5s ease-in-out infinite;
+            transform-origin: center bottom;
+        }
+
+        /* 背景道路滚动动画 */
+        @keyframes scrollRoad {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        .road-bg {
+            animation: scrollRoad 2s linear infinite;
+        }
+
+        .container {
+            position: relative;
+            overflow: hidden;
+            border-bottom: 4px solid #888;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <svg class="canvas" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- 滚动背景（简单的路面线条） -->
+        <g class="road-bg">
+            <line x1="0" y1="350" x2="800" y2="350" stroke="#999" stroke-width="4" />
+            <line x1="0" y1="370" x2="800" y2="370" stroke="#bbb" stroke-width="4" />
+            <!-- 循环线条 -->
+            <g id="roadLines">
+                <line x1="0" y1="360" x2="800" y2="360" stroke="#ccc" stroke-dasharray="50,50" />
+                <line x1="400" y1="360" x2="1200" y2="360" stroke="#ccc" stroke-dasharray="50,50" />
+            </g>
+        </g>
+
+        <!-- 自行车组 -->
+        <g id="bicycle" transform="translate(300, 250)">
+            <!-- 后轮 -->
+            <g class="wheel" transform="translate(-100, 60)">
+                <circle cx="0" cy="0" r="40" fill="none" stroke="#333" stroke-width="5"/>
+                <path d="M -40 0 L 40 0 M 0 -40 L 0 40 M -28 -28 L 28 28 M -28 28 L 28 -28" stroke="#333" stroke-width="2"/>
+            </g>
+
+            <!-- 前轮 -->
+            <g class="wheel" transform="translate(100, 60)">
+                <circle cx="0" cy="0" r="40" fill="none" stroke="#333" stroke-width="5"/>
+                <path d="M -40 0 L 40 0 M 0 -40 L 0 40 M -28 -28 L 28 28 M -28 28 L 28 -28" stroke="#333" stroke-width="2"/>
+            </g>
+
+            <!-- 车架 -->
+            <path d="M -100 60 L -20 60 L 30 0 L 90 60 M -20 60 L 10 30 L -70 30 Z" 
+                  fill="none" stroke="#2c3e50" stroke-width="6" stroke-linejoin="round"/>
+            <!-- 车把 -->
+            <path d="M 30 0 L 50 -10 L 60 -5" fill="none" stroke="#2c3e50" stroke-width="4"/>
+            <!-- 座位 -->
+            <path d="M -70 30 L -50 30" fill="none" stroke="#2c3e50" stroke-width="8" stroke-linecap="round"/>
+        </g>
+
+        <!-- 鹈鹕组 -->
+        <g class="pelican-group" transform="translate(305, 180)">
+            <!-- 身体 -->
+            <ellipse cx="0" cy="30" rx="45" ry="35" fill="white" stroke="#ddd" stroke-width="1"/>
+            <!-- 翅膀 -->
+            <path d="M -20 30 Q -50 10 10 40" fill="none" stroke="#eee" stroke-width="8" stroke-linecap="round"/>
+            <!-- 脖子 -->
+            <path d="M 30 20 Q 50 0 45 -10" fill="none" stroke="white" stroke-width="12" stroke-linecap="round"/>
+            <!-- 头部 -->
+            <circle cx="45" cy="-10" r="12" fill="white" />
+            <!-- 巨大的喙 (鹈鹕特征) -->
+            <path d="M 52 -10 L 95 -5 Q 105 0 90 5 L 52 0 Z" fill="#ff8c00" stroke="#e67e22" stroke-width="1"/>
+            <!-- 眼睛 -->
+            <circle cx="48" cy="-12" r="2" fill="black" />
+        </g>
+
+    </svg>
+</div>
+
+</body>
+</html>

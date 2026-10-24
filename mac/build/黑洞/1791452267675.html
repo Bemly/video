@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黑洞</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas"></canvas>
+<script>
+var canvas = document.getElementById('myCanvas');
+var ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// 事件视界数据模型
+var eventHorizonModel = {
+    position: [50, 30], // 地球中心对事件视界中心的距离
+    radius: 150, // 等于地球半径的2倍
+    speedX: 3, // 每张图片滑动的速度 (相对于事件视界中心)
+    speedY: 2, // 每张图片旋转的速度 (相对于事件视界中心)
+    particleSpeed: 5 // 流星尾部粒子的速度
+};
+
+// 星盘元素配置列表
+var starryDiscs = [
+    { x: 10, y: 45 }, // 星盘中心的星尘位置
+    { x: -10, y: 45 },
+];
+
+// 流星尾部元素配置列表
+var tailStones = [
+    { x: 5, y: 50 },
+    { x: -5, y: 60 },
+];
+
+// 长条形元素配置列表
+var stripes = [
+    { x: 0, y: 85 },
+    { x: canvas.width / 2 - 450, y: canvas.height / 1.5 },
+    { x: canvas.width / 2 + 400, y: canvas.height / 1.5 },
+];
+
+// 小行星元素配置列表
+var asteroids = [
+    { x: 10, y: 50 },
+];
+
+// 画图函数
+function drawStars() {
+    ctx.fillStyle = 'white';
+    for (let i = 0; i < starryDiscs.length; i++) {
+        let dx = Math.random() * canvas.width;
+        let dy = Math.random() * canvas.height;
+        ctx.beginPath();
+        ctx.arc(dx, dy, 5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawStones() {
+    for (let i = 0; i < tailStones.length; i++) {
+        let dx = Math.random() * canvas.width;
+        let dy = Math.random() * 20 + 30; // 小石落下高度
+        ctx.fillStyle = 'gray';
+        ctx.beginPath();
+        ctx.arc(dx, i * 10 + dy, 5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawStripes() {
+    for (let i = 0; i < stripes.length; i++) {
+        let dx = Math.random() * canvas.width;
+        let dy = Math.random() * 45 + 20; // 小条高度
+        ctx.fillStyle = 'blue';
+        ctx.beginPath();
+        ctx.arc(dx, dy + stripes[i].y * 20, 15, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawAsteroids() {
+    for (let i = 0; i < asteroids.length; i++) {
+        let dx = Math.random() * canvas.width;
+        let dy = Math.random() * 20 + 30; // 小行星落下高度
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(dx, dy + asteroids[i].y * 20, 18, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// 揤现事件视界、银河元素和宇宙背景
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 揤现事件视界
+    drawEventHorizon();
+
+    // 揤现银河元素
+    for (let i = 0; i < starryDiscs.length; i++) {
+        drawStars();
+    }
+    for (let i = 0; i < tailStones.length; i++) {
+        drawStones();
+    }
+
+    // 揤现宇宙背景
+    drawSky();
+
+    // 这些代码用于进一步增强视图效果
+    ctx.font = '30px Arial';
+    ctx.fillText('黑洞', 5, canvas.height - 20);
+}
+
+// 开始旋转事件视界
+function rotateTheEventHorizon() {
+    eventHorizonModel.position[0] += eventHorizonModel.speedX;
+}
+
+// 揤现事件视界
+function drawEventHorizon() {
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    for (let i = 0; i < eventHorizonModel.radius + 1; i++) {
+        let x = eventHorizonModel.position[0] + i * Math.cos(Math.PI * 2 / 3);
+        let y = eventHorizonModel.position[1] + i * Math.sin(Math.PI * 2 / 3);
+        ctx.arc(x, y, Math.max(0.1, 5 - i * 0.1), 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// 揤现银河元素
+function drawStarryDisc() {
+    // ...
+}
+
+// 根据星尘元素的位置和方向来绘制小行星
+function drawAsteroid() {
+    // ...
+}
+
+// 揤现天空背景，这里采用渐变色来造成星际物质的复杂度
+function drawSky() {
+    ctx.fillStyle = 'rgba(0, 0, 128, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 揤现小行星
+    for (let i = 0; i < asteroids.length; i++) {
+        drawAsteroid();
+    }
+
+    // 揤现小条
+    for (let i = 0; i < stripes.length; i++) {
+        drawStripes();
+    }
+}
+
+// 更新小行星位置
+function updateAsteroids() {
+    for (let i = 0; i < asteroids.length; i++) {
+        asteroids[i].x += asteroidSpeed;
+    }
+}
+
+// 初始化并运行系统
+draw();
+document.addEventListener('mousemove', function(event) {
+    rotateTheEventHorizon(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop);
+});
+
+</script>
+
+</body>
+</html>
+
+
+

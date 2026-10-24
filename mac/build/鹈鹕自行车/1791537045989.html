@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>大雁骑自行车</title>
+ <!-- 引入 CSS 文件 -->
+</head>
+<body>
+
+<svg width="500" height="300" viewBox="0 0 500 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @keyframes cycle {
+        from { transform: translateX(0); }
+        to { transform: translateX(120px); } /* 自行车移动距离 */
+      }
+
+      @keyframes fly {
+        from { transform: translateY(0); }
+        to { transform: translateY(-50px); } /* 大雁飞翔的模拟动画 */
+      }
+
+      .elephant, .bikeFrame, .wheel1, .wheel2 {
+        animation: cycle 5s infinite linear; /* 控制动画速度和循环 */
+      }
+      
+      .egret {
+        animation: fly 3s infinite alternate; /* 大雁飞行动画 */
+      }
+
+      .bikeBody {
+        fill: #000;
+      }
+
+      .handleBar, .seat {
+        fill: #ff0;
+      }
+    </style>
+  </defs>
+
+  <!-- 大雁 -->
+  <g class="egret">
+    <ellipse cx="250" cy="150" rx="30" ry="20"/> <!-- 大雁身体 -->
+    <ellipse cx="230" cy="160" rx="5" ry="10"/> <!-- 头部 -->
+    <circle cx="220" cy="180" r="3"/> <!-- 鸡嘴 -->
+    <rect x="225" y="170" width="20" height="15" class="handleBar"/> <!-- 把手 -->
+    <rect x="245" y="150" width="10" height="5" class="seat"/> <!-- 座椅 -->
+  </g>
+
+  <!-- 自行车框架 -->
+  <rect x="180" y="100" width="80" height="120" class="bikeFrame"/>
+  <!-- 轮子 -->
+  <ellipse cx="200" cy="170" rx="15" ry="5" class="wheel1"/>
+  <ellipse cx="240" cy="170" rx="15" ry="5" class="wheel2"/>
+
+</svg>
+
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国古典建筑群场景</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #scene {
+            width: 100%;
+            height: 100%;
+            perspective: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scene"></div>
+    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/three.resource.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react.resource.min.js"></script>
+    <script type="module">
+import React from 'react';
+import Scene from './components/Scene';
+
+const App = () => {
+  return (
+    <div>
+      <Scene />
+    </div>
+  );
+};
+
+export default App;
+
+</script>
+</body>
+</html>

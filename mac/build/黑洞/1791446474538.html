@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SINGULARITY — 黑洞观测站</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:#c8d6e5;cursor:crosshair}
+#canvas{display:block;width:100vw;height:100vh}
+#overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+#ui-panel{position:absolute;top:24px;left:32px;pointer-events:auto}
+#title{font-size:28px;font-weight:700;letter-spacing:6px;color:#ffffff;text-shadow:0 0 30px rgba(120,140,255,0.6);margin-bottom:4px}
+#subtitle{font-size:11px;letter-spacing:3px;color:#6b7a9e;text-transform:uppercase}
+#data-panel{position:absolute;top:24px;right:32px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}
+.data-card{background:rgba(15,20,40,0.7);border:1px solid rgba(120,140,255,0.15);border-radius:8px;padding:14px 16px;backdrop-filter:blur(10px);min-width:200px}
+.data-card h3{font-size:10px;letter-spacing:2px;color:#6b7a9e;text-transform:uppercase;margin-bottom:8px}
+.data-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0}
+.data-row .label{color:#8b95a8}
+.data-row .value{font-weight:600;color:#a0b4d8}
+.data-row .value.highlight{color:#7eb8ff}
+#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(120,140,255,0.3);border-radius:1px}
+#crosshair::before{width:24px;height:1px;top:-0.5px;left:-12px}
+#crosshair::after{width:1px;height:24px;left:-0.5px;top:-12px}
+#instructions{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:20;text-align:center}
+#instructions p{font-size:11px;letter-spacing:2px;color:#4a5568;text-transform:uppercase}
+#instructions span{color:#7eb8ff;opacity:0.6}
+#loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:#000;color:#fff;text-align:center}
+#loading h2{font-size:36px;letter-spacing:8px;margin-bottom:16px}
+#loading p{font-size:12px;letter-spacing:3px;color:#6b7a9e}
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="overlay">
+  <div id="ui-panel">
+    <div id="title">SINGULARITY</div>
+    <div id="subtitle">深空黑洞观测站 · Event Horizon</div>
+  </div>
+
+  <div id="data-panel">
+    <div class="data-card">
+      <h3>观测参数</h3>
+      <div class="data-row"><span class="label">质量 (M☉)</span><span class="value highlight" id="d-mass">8.64×10⁹</span></div>
+      <div class="data-row"><span class="label">自旋 (a*)</span><span class="value" id="d-spin">0.998</span></div>
+      <div class="data-row"><span class="label">温度 (K)</span><span class="value" id="d-temp">6.0×10⁻⁸</span></div>
+      <div class="data-row"><span class="label">事件视界</span><span class="value" id="d-horizon">12.4 km</span></div>
+      <div class="data-row"><span class="label">红移 (z)</span><span class="value" id="d-redshift">∞</span></div>
+    </div>
+    <div class="data-card">
+      <h3>系统状态</h3>
+      <div class="data-row"><span class="label">帧率</span><span class="value" id="d-fps">60 FPS</span></div>
+      <div class="data-row"><span class="label">视角距离</span><span class="value" id="d-dist">25.0 AU</span></div>
+      <div class="data-row"><span class="label">时间</span><span class="value" id="d-time">00:00:00</span></div>
+    </div>
+  </div>
+
+  <div id="crosshair"></div>
+
+  <div id="instructions">
+    <p><span>鼠标拖拽</span> 旋转视角 · <span>滚轮</span> 缩放距离 · <span>空格键</span> 切换模式
+  </div>
+</div>
+
+<div id="loading">
+  <h2>SINGULARITY</h2>
+  <p>Initializing observation station...</p>
+</div>
+
+<script>
+// ============================================================
+// 主程序 — Singularity Black Hole Visualization
+// ============================================================
+
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl2', { alpha: false, antialias: true });
+if (!gl) { alert('WebGL2 not supported'); }
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ============================================================
+// 背景星空 (Canvas 2D)
+// ============================================================
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = W; bgCanvas.height = H;
+const bgCtx = bgCanvas.getContext('2d');
+
+// 生成stars
+const starCount = 4000;
+let stars = [];
+for (let i = 0; i < starCount; i++) {
+  stars.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    size: Math.random() * 2.5 + 0.3,
+    brightness: Math.random(),
+    twinkleSpeed: Math.random() * 0.02 + 0.003,
+    twinkleOffset: Math.random() * Math.PI * 2,
+    color: [Math.random()*0.3+0.7, Math.random()*0.3+0.7, 1][Math.floor(Math.random()*3)]
+  });
+}
+
+// 星云粒子
+let nebulaParticles = [];
+for (let i = 0; i < 80; i++) {
+  nebulaParticles.push({
+    x: Math.random() * W,
+    y: Math.random() * H }); }
+
+function renderBackground(time) {
+  bgCtx.fillStyle = '#020308';
+  bgCtx.fillRect(0, 0, W, H);
+
+  // 大星云
+  const nebulaGrad = bgCtx.createRadialGradient(W*0.3, H*0.45, 10, W*0.3, H*0.45, W*0.2);
+  nebulaGrad.addColorStop(0, 'rgba(30,15,60,0.08)');
+  nebulaGrad.addColorStop(0.5, 'rgba(20,10,40,0.03)');
+  nebulaGrad.addColorStop(1, 'rgba(5,2,20,0)');
+  bgCtx.fillStyle = nebulaGrad;
+  bgCtx.fillRect(0, 0, W, H);
+
+  const nebulaGrad2 = bgCtx.createRadialGradient(W*0.75, H*0.6, 15, W*0.75, H*0.6, W*0.25);
+  nebulaGrad2.addColorStop(0, 'rgba(40,15,35,0.06)');
+  nebulaGrad2.addColorStop(1, 'rgba(5,2,10,0)');
+  bgCtx.fillStyle = nebulaGrad2;
+  bgCtx.fillRect(0, 0, W, H);
+
+  // 恒星
+  const t = time * 0.5;
+  for (const s of stars) {
+    const twinkle = 0.5 + 0.5 * Math.sin(t * s.twinkleSpeed * 60 + s.twinkleOffset);
+    const alpha = s.brightness * (0.3 + 0.7 * twinkle);
+    bgCtx.fillStyle = `rgba(200,210,255,${alpha})`;
+    bgCtx.beginPath();
+    bgCtx.arc(s.x, s.y, s.size * (0.5 + 0.5 * twinkle), 0, Math.PI * 2);
+    bgCtx.fill();
+  }
+
+  // 星尘粒子
+  for (let i = 0; i < 200; i++) {
+    const px = (Math.sin(i * 137.5 + t*0.2) * 0.5 + 0.5) * W;
+    const py = (Math.cos(i * 271.9 + t*0.3) * 0.5 + 0.5) * H;
+    const ps = Math.sin(i * 43.7 + t*0.1) * 0.5 + 0.5;
+    bgCtx.fillStyle = `rgba(180,200,240,${ps * 0.3})`;
+    bgCtx.beginPath();
+    bgCtx.arc(px, py, ps * 0.8, 0, Math.PI * 2);
+    bgCtx.fill();
+  }
+
+  // 辉光晕
+  const glow = bgCtx.createRadialGradient(W*0.5, H*0.48, W*0.12, W*0.5, H*0.48, W*0.3);
+  glow.addColorStop(0, 'rgba(40,60,120,0.03)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  bgCtx.fillStyle = glow;
+  bgCtx.fillRect(0, 0, W, H);
+
+  bgCtx.imageSmoothingEnabled = false;
+}
+
+// ============================================================
+// WebGL — Black Hole Shader
+
+gl.viewport(0, 0, W, H);
+
+// --- Shaders ---
+
+const vertexShader = `#version 300 es
+in vec2 aPosition;
+out vec2 vUv;
+void main() {
+  vUv = aPosition;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`;
+
+const fragmentShader = `#version 300 es
+precision highp float;
+
+out vec4 fragColor;
+
+// Uniforms
+uniform sampler2D uBgTexture;
+uniform float uTime;
+uniform vec2 uMouse;
+uniform float uZoom;
+
+// ============ MATH HELPERS ============
+float dist(vec2 a, vec2 b) { return length(a - b); }
+
+// ============ NOISE ============
+vec2 f2(vec2 p) { return fract(p * vec2(12989.78, 78233.13)) - vec2(0.5); }
+vec2 hash(vec2 p) { return f2(p + vec2(346.8, 197.5)); }
+float noise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f -= vec2(0.5); f *= vec2(1.0, 1.0);
+  float u = mix(hash(i), hash(i + vec2(1, 0)), f.x);
+  float v = mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.y);
+  return mix(u, v, f.y);
+}
+
+// ============ SMOOTHSTEP & MIX ============
+float smoothstep(float t) { return t * t * (3.0 - 2.0 * t); }
+vec3 mix(vec3 a, vec3 b, float t) { return a + (b - a) * t; }
+
+// ============ BLACK HOLE RENDERING ============
+const float BH_RADIUS = 1.0;
+const float ACCRETION_INNER = 1.5;
+const float ACCRETION_OUTER = 8.0;
+
+vec3 rayMarchAccretionDisk(vec2 rayOrigin, vec2 rayDir) {
+  // Accumulate disk emission along the ray
+  float totalEmission = 0.0;
+  vec3 color = vec3(0);
+  
+  for (int i = 0; i < 8; i++) {
+    // Find intersection with disk plane (z = -0.5)
+    float t = 0.5 / rayDir.z;
+    if (t < 0) continue;
+    
+    vec2 diskPos = rayOrigin + rayDir * t;
+    float r = length(diskPos);
+    
+    // Accretion disk density profile
+    float density = 0.0;
+    if (r > ACCRETION_INNER && r < ACCRETION_OUTER) {
+      // Inner edge falloff
+      float innerFalloff = smoothstep(ACCRETION_INNER, ACCRETION_INNER + 0.3, r);
+      // Outer edge falloff
+      float outerFalloff = smoothstep(ACCRETION_OUTER - 0.5, ACCRETION_OUTER, r);
+      density = innerFalloff * outerFalloff;
+      
+      // Turbulent structure
+      density *= noise(diskPos * 2.0 + uTime * 1.5) * 0.5 + 0.5;
+      density *= noise(diskPos * 3.0) * 0.7 + 0.3;
+    }
+    
+    // Temperature profile (hotter closer to hole)
+    float tempFactor = smoothstep(ACCRETION_OUTER, ACCRETION_INNER + 0.5, r);
+    tempFactor = smoothstep(0.3, 1.0, tempFactor) * 0.5 + 0.5;
+    
+    // Color based on temperature (red -> orange -> yellow -> white)
+    vec3 diskColor;
+    if (tempFactor < 0.4) {
+      diskColor = mix(vec3(1, 0.2, 0), vec3(1, 0.6, 0), tempFactor / 0.3);
+    } else if (tempFactor < 0.7) {
+      diskColor = mix(vec3(1, 0.6, 0), vec3(1, 0.9, 0.8), (tempFactor - 0.4) / 0.3);
+    } else {
+      diskColor = mix(vec3(1, 0.9, 0.8), vec3(0.7, 0.8, 1.2), (tempFactor - 0.7) / 0.3);
+    }
+    
+    // Doppler shift (rotation effect)
+    float angle = atan2(diskPos.y, diskPos.x);
+    float rotationFactor = sin(angle * 3.0 + uTime * 2.0);
+    float doppler = 1.0 + rotationFactor * 0.3;
+    
+    // Opacity based on density and distance from hole
+    float opacity = density * 0.8;
+    
+    // Add emission
+    color += diskColor * opacity * doppler;
+    totalEmission += opacity;
+    
+    if (totalEmission > 0.95) break;
+  }
+  
+  return clamp(color, 0, 3);
+}
+
+// Gravitational lensing ray bending
+vec2 bendRay(vec2 origin, vec2 dir) {
+  float r = length(origin);
+  if (r < 0.1) return dir;
+  
+  // Schwarzschild metric approximation for ray bending
+  float mu = BH_RADIUS * 1.5; // impact parameter scaled
+  float bendingAngle = mu / (r * r);
+  
+  // Perpendicular direction for bending
+  vec2 perp = normalize(vec2(-dir.y, dir.x));
+  
+  // Apply bending (simplified)
+  float bend = sin(bendingAngle * 3.0) * bendingAngle;
+  dir += perp * bend * 0.1;
+  
+  return normalize(dir);
+}
+
+// Photon ring calculation
+float photonRing(float r) {
+  float ringWidth = 0.15;
+  float baseIntensity = smoothstep(ringWidth, 0, r) * smoothstep(0, ringWidth, r);
+  
+  // Multiple rings
+  float ring1 = smoothstep(ringWidth * 0.5, 0, r - 1.7) * smoothstep(0, ringWidth * 0.5, r - 1.7);
+  float ring2 = smoothstep(ringWidth * 0.4, 0, r - 1.75) * smoothstep(0, ringWidth * 0.4, r - 1.75);
+  
+  return baseIntensity * (ring1 * 0.8 + ring2 * 0.6);
+}
+
+// Main rendering function
+vec3 mainRender(vec2 uv, float time) {
+  // Camera position - orbital view
+  float camDist = 25.0 / uZoom;
+  float camAngleX = 1.5 + time * 0.02;
+  float camAngleY = uMouse.x * Math.PI * 2 + time * 0.1;
+  
+  // Convert UV to screen space ray direction
+  float aspect = W / H;
+  vec2 ndc = uv * 2.0 - 1.0;
+  
+  // Camera orientation
+  float camX = sin(camAngleY) * cos(camAngleX);
+  float camZ = cos(camAngleY) * cos(camAngleX);
+  float camUpX = -sin(camAngleX);
+  
+  // Ray direction in camera space
+  vec3 camDir = normalize(vec3(ndc.x * aspect, ndc.y, -1.0));
+  
+  // Apply camera rotation
+  float cosC = cos(camAngleX), sinC = sin(camAngleX);
+  camDir.z = camDir.z * cosC - camUpX * sinC;
+  camUpX = camUpX * cosC + camDir.z * sinC;
+  
+  // Black hole center
+  vec2 bhCenter = vec2(0.5, 0.48);
+  
+  // Normalize ray to sphere coordinates
+  vec2 screenRay = ndc;
+  
+  // Calculate distance from black hole center in normalized coordinates
+  float bhScreenX = bhCenter.x;
+  float bhScreenY = bhCenter.y;
+  
+  // Screen-space distance from black hole center
+  vec2 toBH = screenRay - vec2(bhScreenX, bhScreenY);
+  float distToBH = length(toBH);
+  
+  // Normalized black hole radius on screen (depends on zoom and camera angle)
+  float bhRadius = 0.18 / uZoom * (0.9 + 0.1 * cos(camAngleX));
+  
+  // ============ EVENT HORIZON (shadow) ============
+  float shadow = smoothstep(bhRadius * 1.05, bhRadius * 0.92, distToBH);
+  
+  // ============ PHOTON RING ============
+  float photonIntensity = photonRing(distToBH / bhRadius) * 0.8;
+  
+  // Photon ring color - blueshifted on one side, redshifted on other
+  float angle = atan2(toBH.y, toBH.x);
+  float ringColor = mix(vec3(0.6, 0.7, 1.2), vec3(1.5, 1.2, 0.8), angle * 0.1);
+  
+  // ============ ACCRETION DISK (ray marching in screen space) ============
+  vec3 diskEmission = rayMarchAccretionDisk(screenRay, normalize(toBH));
+  
+  // Disk brightness falloff with angle (we see the disk edge-on mostly)
+  float diskBrightness = sin(max(0.1, cos(angle + time * 0.5))) * 0.8;
+  
+  // ============ GRAVITATIONAL LENSING EFFECT ============
+  // Light from background stars gets bent around the black hole
+  float lensBend = smoothstep(bhRadius * 1.5, bhRadius * 0.8, distToBH) * 2.0;
+  
+  // Sample background with lensing distortion
+  vec2 lensedUV = screenRay + toBH * lensBend * 0.1;
+  
+  // ============ COMPOSITION ============
+  vec3 color = mix(vec3(0.02, 0.03, 0.06), diskEmission * diskBrightness + ringColor * photonIntensity, shadow);
+  
+  // Add photon ring glow (soft)
+  float glow = smoothstep(bhRadius * 2.0, bhRadius * 1.5, distToBH) * smoothstep(0.02, 0.1, bhRadius - distToBH);
+  color += vec3(0.5, 0.6, 1.0) * glow * 0.3;
+  
+  // Add subtle noise for texture
+  color += noise(screenRay * 5.0 + time * 0.3) * 0.02;
+  
+  // Vignette - darker at edges
+  vec2 center = vec2(0.5, bhCenter.y);
+  float vignette = smoothstep(1.2, 0.4, length(screenRay - center));
+  color *= vignette;
+  
+  // Add subtle chromatic aberration for photon ring
+  vec3 cR = mix(vec3(0.02, 0.03, 0.06), diskEmission * diskBrightness + ringColor * photonIntensity * vec3(1.05, 0.95, 0.85), shadow);
+  vec3 cG = mix(vec3(0.02, 0.03, 0.06), diskEmission * diskBrightness + ringColor * photonIntensity * vec3(1.0, 1.0, 1.0), shadow);
+  vec3 cB = mix(vec3(0.02, 0.03, 0.06), diskEmission * diskBrightness + ringColor * photonIntensity * vec3(0.95, 0.85, 1.05), shadow);
+  
+  color = mix(vec3(cR.r * vignette, cG.g * vignette, cB.b * vignette), color, 0.95);
+  
+  // Final tone mapping - Reinhard
+  float intensity = length(color) * 0.3;
+  color = color / (1.0 + intensity);
+  
+  // Add subtle glow to photon ring for drama
+  float ringGlow = smoothstep(bhRadius * 1.8, bhRadius * 0.95, distToBH) * smoothstep(0.1, 0.2, bhRadius - distToBH);
+  color += vec3(0.8, 1.0, 1.4) * ringGlow * 0.2;
+  
+  return color;
+}
+
+void main() {
+  // Sample background texture (star field)
+  vec4 bg = texture(uBgTexture, vUv);
+  
+  // Render black hole
+  vec3 bh = mainRender(vUv, uTime);
+  
+  // Composite: black hole in center, stars around with lensing
+  float bhRadius = 0.18 / uZoom * (0.9 + 0.1 * cos(uTime * 0.02));
+  float dist = length(vUv - vec2(0.5, 0.48));
+  
+  // Blend with background based on distance from black hole
+  float blend = smoothstep(bhRadius * 3.0, bhRadius * 0.6, dist);
+  vec3 finalColor = mix(bg.rgb, bh, blend);
+  
+  // Screen-space chromatic aberration on the black hole image
+  float aberrate = smoothstep(bhRadius * 1.0, bhRadius * 0.7, dist) * 0.2;
+  
+  // Add subtle color variation based on angle
+  float angle = atan2(vUv.y - 0.48, vUv.x - 0.5);
+  float colorShift = sin(angle * 4.0 + uTime * 2.0) * 0.1;
+  
+  finalColor += colorShift;
+  
+  // Bloom effect (simple)
+  float bloomFactor = smoothstep(bhRadius * 1.5, bhRadius * 0.8, dist);
+  float bloom = mix(1.0, 2.5, bloomFactor) * smoothstep(bhRadius * 3.0, bhRadius * 1.2, dist);
+  
+  finalColor = mix(finalColor, clamp(finalColor * bloom, 0, 1), smoothstep(bhRadius * 2.5, bhRadius * 1.0, dist));
+  
+  // Final tone mapping
+  float intensity = length(finalColor) * 0.4;
+  finalColor = finalColor / (1.0 + intensity);
+  
+  // Add slight color temperature shift for depth
+  finalColor *= vec3(0.9, 1.0, 1.15);
+  
+  // Clamp and output
+  fragColor = vec4(clamp(finalColor, 0.0, 1.2), 1.0);
+}`;
+
+// Compile shaders
+function compileShader(type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(shader));
+  }
+  return shader;
+}
+
+const program = gl.createProgram();
+gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vertexShader));
+gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fragmentShader));
+gl.linkProgram(program);
+
+// Create framebuffer for background texture
+const bgFBO = gl.createFramebuffer();
+gl.bindFramebuffer(gl.FRAMEBUFFER, bgFBO);
+
+// Create texture for background
+const bgTexture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+gl.glTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+// Create simple quad
+const quadBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+const quadVerts = new Float32Array([
+  -1, -1, 1, -1, 1, 1, -1, 1
+]);
+gl.bufferData(gl.ARRAY_BUFFER, quadVerts, gl.STATIC_DRAW);
+
+// Create uniform locations
+const locTime = gl.getUniformLocation(program, 'uTime');
+const locMouse = gl.getUniformLocation(program, 'uMouse');
+const locZoom = gl.getUniformLocation(program, 'uZoom');
+const locBgTex = gl.getUniformLocation(program, 'uBgTexture');
+
+// Create VAO
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+
+// ============================================================
+// Interaction State
+// ============================================================
+let mouseX = 0.5, mouseY = 0.48;
+let zoom = 1.0;
+let isDragging = false;
+let lastMouseX = 0, lastMouseY = 0;
+let time = 0;
+let fpsCounter = 0, lastFpsTime = performance.now();
+
+// ============================================================
+// Animation Loop
+// ============================================================
+function animate(timestamp) {
+  requestAnimationFrame(animate);
+  
+  const dt = (timestamp - lastFpsTime) / 1000;
+  if (dt > 0.5) {
+    const fps = Math.round(fpsCounter / ((timestamp - lastFpsTime) / 1000));
+    document.getElementById('d-fps').textContent = fps + ' FPS';
+    fpsCounter = 0;
+    lastFpsTime = timestamp;
+  }
+  fpsCounter++;
+  
+  const elapsed = (timestamp - window.startTime) / 1000;
+  document.getElementById('d-time').textContent = 
+    String(Math.floor(elapsed/60)).padStart(2,'0') + ':' +
+    String(Math.floor(elapsed%60)).padStart(2,'0') + ':' +
+    String(Math.floor((elapsed*100)%60)).padStart(2,'0');
+  
+  time = timestamp * 0.001;
+  
+  // Render background stars
+  renderBackground(time);
+  
+  // Upload background to WebGL texture
+  gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, bgCanvas);
+  
+  // Render black hole
+  gl.useProgram(program);
+  gl.bindVertexArray(vao);
+  
+  // Set uniforms
+  gl.uniform1f(locTime, time);
+  gl.uniform2f(locMouse, mouseX, mouseY);
+  gl.uniform1f(locZoom, zoom);
+  
+  // Set texture unit and bind background
+  gl.uniform1i(locBgTex, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+  
+  // Draw quad (full screen)
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  
+  // Update UI values
+  const dist = (25.0 / zoom).toFixed(1);
+  document.getElementById('d-dist').textContent = dist + ' AU';
+}
+
+// ============================================================
+// Event Listeners
+// ============================================================
+canvas.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+});
+
+canvas.addEventListener('mouseup', () => { isDragging = false; });
+canvas.addEventListener('mouseleave', () => { isDragging = false; });
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  
+  const dx = (e.clientX - lastMouseX) / W * 0.5;
+  const dy = (e.clientY - lastMouseY) / H * 0.5;
+  
+  mouseX += dx;
+  mouseY -= dy;
+  
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoom *= e.deltaY > 0 ? 1.02 : 0.98;
+  zoom = Math.max(0.3, Math.min(4.0, zoom));
+}, { passive: false });
+
+// Keyboard for mode switching
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    // Toggle between different viewing modes
+  }
+});
+
+// ============================================================
+// Hide loading, start animation
+// ============================================================
+window.startTime = performance.now();
+document.getElementById('loading').style.display = 'none';
+
+// Initialize
+requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>

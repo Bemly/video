@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxel Landscape - Mountain, Waterfall & Clouds</title>
+    <style>
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #000;
+}
+
+#container {
+    width: 100vw;
+    height: 100vh;
+}
+
+</style>
+</head>
+<body>
+    <div id="container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/controls/OrbitControls.js"></script>
+    <script type="text/javascript">
+// Main scene setup
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x87CEEB, 50, 200); // Light blue fog for distance
+
+// Camera setup
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 50, 80);
+
+// Renderer setup
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.getElementById('container').appendChild(renderer.domElement);
+
+// Controls for rotation and zoom
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+// Lighting setup
+const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(100, 200, 100);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+scene.add(directionalLight);
+
+// Time tracking for day/night cycle
+let time = 0;
+const dayNightCycleSpeed = 0.005;
+
+// Load textures
+const textureLoader = new THREE.TextureLoader();
+const grassTexture = textureLoader.load('assets/textures/grass.jpg');
+const rockTexture = textureLoader.load('assets/textures/rock.jpg');
+const waterTexture = textureLoader.load('assets/textures/water.png');
+
+// Skybox setup
+function createSkybox() {
+    const skyBoxGeometry = new THREE.BoxGeometry(1000, 1000, 1000);
+    const skyBoxMaterial = new THREE.MeshBasicMaterial({
+        color: 0x87CEEB,
+        side: THREE.BackSide
+    });
+    const skyBox = new THREE.Mesh(skyBoxGeometry, skyBoxMaterial);
+    scene.add(skyBox);
+
+    // Add clouds with transparency
+    const cloudGroup = new THREE.Group();
+    for (let i = 0; i < 20; i++) {
+        const cloud = createCloud();
+        cloud.position.set(
+            Math.random() * 1000 - 500,
+            Math.random() * 300 + 200,
+            Math.random() * 1000 - 500
+        );
+        cloudGroup.add(cloud);
+    }
+    scene.add(cloudGroup);
+
+    // Store reference to cloud group for animation
+    window.cloudGroup = cloudGroup;
+}
+
+function createCloud() {
+    const geometry = new THREE.BoxGeometry(20, 10, 20);
+    const material = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+        shininess: 30
+    });
+    const cloud = new THREE.Mesh(geometry, material);
+    return cloud;
+}
+
+// Mountain generation with voxel approach
+function generateMountains() {
+    const mountainGroup = new THREE.Group();
+    scene.add(mountainGroup);
+
+    // Base terrain parameters
+    const width = 200;
+    const depth = 200;
+    const heightScale = 50;
+
+    // Create base terrain
+    for (let x = -width/2; x < width/2; x += 1) {
+        for (let z = -depth/2; z < depth/2; z += 1) {
+            // Perlin noise for natural mountain shape
+            const height = Math.sin(x * 0.05) * Math.cos(z * 0.05) * heightScale +
+                          (Math.perlin2||(Math.perlin2=(function(){function __n2(x,y){const s=(a,b)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v)};const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=s(xi,yi),b=s(xi+1,yi),c=s(xi,yi+1),d=s(xi+1,yi+1);return (a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v)*2-1};return __n2})()))(x * 0.02, z * 0.02) * heightScale * 1.5;
+
+            // Create mountain segments
+            if (height > 30) {
+                const geometry = new THREE.BoxGeometry(1, height + 1, 1);
+                const material = new THREE.MeshStandardMaterial({
+                    map: rockTexture,
+                    roughness: 0.8,
+                    metalness: 0.2
+                });
+                const mountainSegment = new THREE.Mesh(geometry, material);
+                mountainSegment.position.set(x, height/2 + 0.5, z);
+                mountainGroup.add(mountainSegment);
+
+                // Add some variation to the top
+                if (height > 40) {
+                    const peakGeometry = new THREE.ConeGeometry(1.5, Math.random() * 3 + 2, 8);
+                    const peakMaterial = new THREE.MeshStandardMaterial({
+                        map: rockTexture,
+                        roughness: 0.9,
+                        metalness: 0.1
+                    });
+                    const mountainPeak = new THREE.Mesh(peakGeometry, peakMaterial);
+                    mountainPeak.position.set(x, height + 2, z);
+                    mountainGroup.add(mountainPeak);
+                }
+            } else if (height > 10) {
+                // Lower terrain with grass
+                const geometry = new THREE.BoxGeometry(1, height + 1, 1);
+                const material = new THREE.MeshStandardMaterial({
+                    map: grassTexture,
+                    roughness: 0.7,
+                    metalness: 0.1
+                });
+                const terrainSegment = new THREE.Mesh(geometry, material);
+                terrainSegment.position.set(x, height/2 + 0.5, z);
+                mountainGroup.add(terrainSegment);
+            }
+        }
+    }
+
+    // Add some large rocks for detail
+    addLargeRocks(mountainGroup);
+
+    return mountainGroup;
+}
+
+function addLargeRocks(group) {
+    const rockCount = 15;
+    for (let i = 0; i < rockCount; i++) {
+        const size = Math.random() * 3 + 2;
+        const geometry = new THREE.BoxGeometry(size, size * 1.5, size);
+        const material = new THREE.MeshStandardMaterial({
+            map: rockTexture,
+            roughness: 0.9,
+            metalness: 0.3
+        });
+
+        // Add some irregularities to the rock shape
+        for (let x = -size/2; x < size/2; x += 1) {
+            for (let y = -size*1.5/2; y < size*1.5/2; y += 1) {
+                for (let z = -size/2; z < size/2; z += 1) {
+                    if (Math.random() > 0.7) continue;
+
+                    const rockSegment = new THREE.Mesh(
+                        new THREE.BoxGeometry(1, 1, 1),
+                        material.clone()
+                    );
+                    rockSegment.position.set(x + Math.random() * 0.5 - 0.25,
+                                            y + Math.random() * 0.5 - 0.25,
+                                            z + Math.random() * 0.5 - 0.25);
+                    group.add(rockSegment);
+                }
+            }
+        }
+
+        const rock = new THREE.Mesh(geometry, material);
+        rock.position.set(
+            Math.random() * 100 - 50,
+            Math.max(10, Math.sin(Math.random() * Math.PI) * 20 + 30),
+            Math.random() * 100 - 50
+        );
+        group.add(rock);
+    }
+}
+
+// Waterfall generation
+function generateWaterfall() {
+    const waterfallGroup = new THREE.Group();
+    scene.add(waterfallGroup);
+
+    // Main waterfall structure
+    const baseWidth = 20;
+    const height = 30;
+
+    // Create the waterfall base
+    for (let x = -baseWidth/2; x < baseWidth/2; x += 1) {
+        for (let z = 0; z < 5; z += 1) {
+            const geometry = new THREE.BoxGeometry(1, height + 1, 1);
+            const material = new THREE.MeshStandardMaterial({
+                map: waterTexture,
+                transparent: true,
+                opacity: 0.7,
+                roughness: 0.3
+            });
+            const segment = new THREE.Mesh(geometry, material);
+            segment.position.set(x, height/2 + 0.5, z - 2.5);
+            waterfallGroup.add(segment);
+        }
+    }
+
+    // Create the falling water effect
+    const fallingWater = createFallingWater(baseWidth, height);
+    waterfallGroup.add(fallingWater);
+
+    // Add some rocks around the waterfall
+    addWaterfallRocks(waterfallGroup, baseWidth, height);
+
+    return waterfallGroup;
+}
+
+function createFallingWater(width, height) {
+    const particles = 50;
+
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particles * 3);
+    const sizes = new Float32Array(particles);
+
+    for (let i = 0; i < particles; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * width;
+        positions[i * 3 + 1] = height + Math.random() * 10;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
+
+        sizes[i] = Math.random() * 0.5 + 0.2;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    const material = new THREE.PointsMaterial({
+        color: 0x4a90e2,
+        size: 0.5,
+        transparent: true,
+        opacity: 0.8,
+        shininess: 30
+    });
+
+    const waterParticles = new THREE.Points(geometry, material);
+    return waterParticles;
+}
+
+function addWaterfallRocks(group, width, height) {
+    for (let i = 0; i < 10; i++) {
+        const size = Math.random() * 2 + 1;
+        const geometry = new THREE.BoxGeometry(size, size * 1.5, size);
+        const material = new THREE.MeshStandardMaterial({
+            map: rockTexture,
+            roughness: 0.9,
+            metalness: 0.3
+        });
+
+        // Add some irregularities to the rock shape
+        for (let x = -size/2; x < size/2; x += 1) {
+            for (let y = -size*1.5/2; y < size*1.5/2; y += 1) {
+                for (let z = -size/2; z < size/2; z += 1) {
+                    if (Math.random() > 0.7) continue;
+
+                    const rockSegment = new THREE.Mesh(
+                        new THREE.BoxGeometry(1, 1, 1),
+                        material.clone()
+                    );
+                    rockSegment.position.set(x + Math.random() * 0.5 - 0.25,
+                                            y + Math.random() * 0.5 - 0.25,
+                                            z + Math.random() * 0.5 - 0.25);
+                    group.add(rockSegment);
+                }
+            }
+        }
+
+        const rock = new THREE.Mesh(geometry, material);
+        rock.position.set(
+            (Math.random() - 0.5) * width * 1.5,
+            height + Math.random() * 10,
+            (Math.random() - 0.5) * 8
+        );
+        group.add(rock);
+    }
+}
+
+// Add trees and vegetation
+function addVegetation() {
+    const vegetationGroup = new THREE.Group();
+    scene.add(vegetationGroup);
+
+    // Add some large trees
+    for (let i = 0; i < 20; i++) {
+        const tree = createTree();
+        tree.position.set(
+            Math.random() * 150 - 75,
+            Math.max(10, Math.sin(Math.random() * Math.PI) * 10 + 15),
+            Math.random() * 150 - 75
+        );
+        vegetationGroup.add(tree);
+    }
+
+    // Add some bushes and small plants
+    for (let i = 0; i < 50; i++) {
+        const bush = createBush();
+        bush.position.set(
+            Math.random() * 150 - 75,
+            Math.max(5, Math.sin(Math.random() * Math.PI) * 5 + 8),
+            Math.random() * 150 - 75
+        );
+        vegetationGroup.add(bush);
+    }
+
+    return vegetationGroup;
+}
+
+function createTree() {
+    const treeGroup = new THREE.Group();
+
+    // Trunk
+    const trunkGeometry = new THREE.CylinderGeometry(2, 3, 8, 8);
+    const trunkMaterial = new THREE.MeshStandardMaterial({
+        color: 0x5d4037,
+        roughness: 0.9
+    });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    treeGroup.add(trunk);
+
+    // Leaves (using multiple boxes for voxel effect)
+    const leavesCount = 20;
+    for (let i = 0; i < leavesCount; i++) {
+        const leafSize = Math.random() * 3 + 1;
+        const geometry = new THREE.BoxGeometry(leafSize, leafSize/2, leafSize);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x4caf50,
+            roughness: 0.7
+        });
+        const leaf = new THREE.Mesh(geometry, material);
+
+        // Position the leaf randomly around the trunk
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * 10 + 5;
+        leaf.position.set(
+            Math.sin(angle) * distance,
+            Math.cos(angle) * distance - 4, // Start above the trunk
+            Math.random() * 3 - 1.5
+        );
+
+        treeGroup.add(leaf);
+    }
+
+    return treeGroup;
+}
+
+function createBush() {
+    const bushGroup = new THREE.Group();
+
+    // Bush base (multiple small boxes)
+    for (let i = 0; i < 20; i++) {
+        const size = Math.random() * 1.5 + 0.5;
+        const geometry = new THREE.BoxGeometry(size, size/2, size);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x8bc34a,
+            roughness: 0.6
+        });
+        const bushSegment = new THREE.Mesh(geometry, material);
+
+        // Position the segment randomly within the bush
+        bushSegment.position.set(
+            (Math.random() - 0.5) * size * 2,
+            (Math.random() - 0.5) * size,
+            (Math.random() - 0.5) * size * 2
+        );
+
+        bushGroup.add(bushSegment);
+    }
+
+    return bushGroup;
+}
+
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Update day/night cycle
+    time += dayNightCycleSpeed;
+
+    // Update sky color based on time (morning, noon, evening)
+    const skyColor = getSkyColor(time);
+    scene.fog.color.setHex(skyColor);
+    directionalLight.color.setHex(skyColor * 0.8);
+
+    // Animate waterfall
+    animateWaterfall();
+
+    // Animate clouds
+    animateClouds();
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+function getSkyColor(time) {
+    // Normalize time to [0, 1]
+    const normalizedTime = (time % (Math.PI * 2)) / (Math.PI * 2);
+
+    if (normalizedTime < 0.25 || normalizedTime >= 0.75) { // Night or early morning/late evening
+        return 0x1a237e; // Deep blue night sky
+    } else if (normalizedTime < 0.4) { // Morning
+        const progress = (normalizedTime - 0.25) / 0.15;
+        return interpolateColor(0x1a237e, 0x87CEEB, progress);
+    } else if (normalizedTime < 0.6) { // Day
+        return 0x87CEEB; // Light blue day sky
+    } else { // Evening
+        const progress = (normalizedTime - 0.6) / 0.15;
+        return interpolateColor(0x87CEEB, 0x1a237e, progress);
+    }
+}
+
+function interpolateColor(color1, color2, factor) {
+    const r = Math.floor(color1 >> 16 & 0xff) + (color2 >> 16 & 0xff - (color1 >> 16 & 0xff)) * factor;
+    const g = Math.floor(color1 >> 8 & 0xff) + (color2 >> 8 & 0xff - (color1 >> 8 & 0xff)) * factor;
+    const b = Math.floor(color1 & 0xff) + (color2 & 0xff - color1 & 0xff) * factor;
+    return (r << 16) | (g << 8) | b;
+}
+
+function animateWaterfall() {
+    // Get the waterfall group
+    const waterfallGroup = scene.children.find(child => child.name === 'waterfall');
+    if (!waterfallGroup) return;
+
+    // Animate falling water particles
+    const fallingWater = waterfallGroup.children[1];
+    const positions = fallingWater.geometry.attributes.position.array;
+    for (let i = 0; i < positions.length; i += 3) {
+        positions[i + 1] -= 0.2; // Move down
+
+        // Reset position if it falls too low
+        if (positions[i + 1] < -10) {
+            positions[i] = (Math.random() - 0.5) * 20;
+            positions[i + 1] = 30 + Math.random() * 10;
+            positions[i + 2] = (Math.random() - 0.5) * 5;
+        }
+    }
+
+    fallingWater.geometry.attributes.position.needsUpdate = true;
+
+    // Animate water texture with time
+    const waterTexture = waterfallGroup.children[0].material.map;
+    if (waterTexture) {
+        waterTexture.offset.y += 0.01;
+    }
+}
+
+function animateClouds() {
+    const cloudGroup = window.cloudGroup;
+    if (!cloudGroup) return;
+
+    // Animate clouds slowly
+    for (let i = 0; i < cloudGroup.children.length; i++) {
+        const cloud = cloudGroup.children[i];
+        cloud.position.y += Math.sin(time * 0.01 + i) * 0.02;
+        cloud.rotation.x += 0.005;
+        cloud.rotation.z += 0.003;
+
+        // Fade clouds based on time (more visible at night)
+        const opacity = 0.8 + Math.sin(time) * 0.1;
+        cloud.material.opacity = opacity;
+    }
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Initialize the scene
+function init() {
+    createSkybox();
+
+    // Generate mountains with voxel approach
+    const mountainGroup = generateMountains();
+    mountainGroup.name = 'mountains';
+
+    // Generate waterfall
+    const waterfallGroup = generateWaterfall();
+    waterfallGroup.position.set(0, 25, -30);
+    waterfallGroup.name = 'waterfall';
+
+    // Add vegetation
+    addVegetation();
+
+    // Position camera to show the full scene
+    controls.update();
+
+    animate();
+}
+
+// Start the application
+init();
+
+</script>
+</body>
+</html>

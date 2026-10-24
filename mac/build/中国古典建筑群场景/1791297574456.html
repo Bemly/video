@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voxel Traditional Chinese Architecture</title>
+  <style> body { margin: 0; overflow: hidden; } canvas { display: block; } </style>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+
+    // Setup scene
+    const scene = new THREE.Scene();
+    
+   // Setup camera: perspectiv
+   const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+   camera.position.set(20, 10, 30);
+   scene.background = new THREE.Color(0x87ceeb); // light sky blue maybe
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Controls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x808080);
+    scene.add(ambientLight);
+
+   const directionalLight = new THREE.DirectionalLight(0xFFFF00, 1);
+   directionalLight.position.set(10, 10, 10).normalize();
+   scene.add(directionalLight);
+
+    // Ground plane: represent courtyard and roads maybe.
+    const groundGeometry = new THREE.PlaneBufferGeometry(100, 100);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x9bcd9b });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI/2;
+    scene.add(ground);
+
+    // For voxel building, we'll create a function to add cubes:
+    // Function to generate a building using multiple cubes. We'll produce one sample building style.
+    function createVoxelBuilding(x, y, z, size, detail) {
+       // The building is built with several cubes to simulate different roof levels etc.
+       let material = new THREE.MeshStandardMaterial({ color: 0xa0522d });
+       // main body cube
+       const base = new THREE.Mesh(new THREE.BoxGeometry(size, size/4, size), material);
+       base.position.set(x, y, z);
+
+       let parts = [base];
+       
+       // if detail > 0 then add roof eave (simulate overhanging roof) as a slightly smaller cube above the main building
+       if(detail > 0) {
+          // roof eave: a cube with side length size*0.8 and height size/10, placed at x,y+size/4
+          const roof = new THREE.Mesh(new THREE.BoxGeometry(size * 0.8, size/10, size * 0.8), material);
+          roof.position.set(x, y + size/4, z);
+          parts.push(roof);
+       }
+       
+       // if detail > 1 then add a decorative column (maybe at the front)
+       if(detail > 1) {
+          const pillar = new THREE.Mesh(new THREE.BoxGeometry(size*0.2, size/4, size*0.2), new THREE.MeshStandardMaterial({ color: 0x8b4513 }));
+          pillar.position.set(x - size/4, y + (size/2), z);
+          parts.push(pillar);
+       }
+       
+       // add a roof tip (simulate peaked roof) if detail > 2
+       if(detail > 2) {
+          const tip = new THREE.Mesh(new THREE.BoxGeometry(size*0.6, size/10, size*0.6), new THREE.MeshStandardMaterial({ color: 0x8b0000 }));
+          tip.position.set(x, y + size/4 + size/10, z);
+          parts.push(tip);
+       }
+
+       // add these to scene.
+       parts.forEach(part => scene.add(part));
+       
+       return parts;
+    }
+
+    // Create buildings. We need at least five buildings.
+    // Let's place them along x axis with symmetry around center (x=0). Use some sample positions.
+    // We'll create one building as main hall, two buildings as subordinate halls, mountain gate and pagoda tower.
+    
+    // Main hall (largest) at center
+    createVoxelBuilding(0, 4, 0, 6, 3);
+
+    // Subordinate hall (small) left to main hall
+    createVoxelBuilding(-10, 4, -5, 3.5, 2);
+    // Subordinate hall (small) right to main hall
+    createVoxelBuilding(10, 4, -5, 3.5, 2);
+
+    // Mountain gate at front (maybe center of building group)
+    createVoxelBuilding(0, 4, -10, 3.5, 1);
+
+    // Pagoda or bell tower
+    createVoxelBuilding(0, 4, -15, 2.5, 3);
+
+    // "上不封顶" building: maybe a building that is open on top (no roof eave)
+    // We'll simulate it by not adding the roof eaves detail.
+    createVoxelBuilding(5, 4, -20, 3.5, 0); // no roof details
+
+    // Optionally, add some decorative cubes (like stone lions, lanterns) near buildings
+    function createDecorativeObject(x,y,z, detailType) {
+       let geo;
+       let material;
+       if(detailType === 'stone') { 
+          // stone lion: a cube with a slight offset
+          geo = new THREE.BoxGeometry(2, 3, 1);
+          material = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+       } else if(detailType === 'lantern') {
+          // lantern: sphere + cylinder for base
+          geo = new THREE.SphereGeometry(1, 16, 8);
+          material = new THREE.MeshStandardMaterial({ emissive: 0xffd700, metalness: 1 });
+       }
+       let mesh = new THREE.Mesh(geo, material);
+       mesh.position.set(x,y,z);
+       scene.add(mesh);
+    }
+
+    createDecorativeObject(-8, 4.5, -7, 'stone');
+    createDecorativeObject(8, 4.5, -7, 'stone');
+
+    // Create decorative lanterns at two locations
+    createDecorativeObject(0, 5.6, -12, 'lantern');
+    createDecorativeObject(4, 5.6, -20, 'lantern');
+
+    // Create some additional decorative columns to simulate archways
+    function createColumn(x,y,z) {
+      const geometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 16);
+      const material = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+      let col = new THREE.Mesh(geometry, material);
+      col.position.set(x,y,z);
+      scene.add(col);
+    }
+    
+    createColumn(0, 1.5, -8); // column at mountain gate
+    createColumn(-10, 2, -5);
+    createColumn(10, 2, -5);
+
+    // Add some steps for mountain gate
+    function createSteps(x, y, z, numSteps) {
+       const stepWidth = 1;
+       for(let i=0; i<numSteps; i++){
+           let stepGeometry = new THREE.BoxGeometry(stepWidth, 0.5, stepWidth);
+           let stepMaterial = new THREE.MeshStandardMaterial({ color: 0xdeb887 });
+           let step = new THREE.Mesh(stepGeometry, stepMaterial);
+           // Place steps with slight upward increment
+           let stepPos = new THREE.Vector3(x + (i - numSteps/2)*stepWidth, y + 0.5*i*0.5, z);
+           step.position.copy(stepPos);
+           scene.add(step);
+       }
+    }
+
+    createSteps(0, 2.5, -10, 4); // steps in front of mountain gate
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      controls.update();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+    
+  </script>
+</body>
+</html>

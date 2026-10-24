@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>鹈鹕骑自行车动画</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f8ff;
+            overflow: hidden;
+        }
+
+        .canvas {
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(#87CEEB, #E0F6FF);
+            border-bottom: 50px solid #7cfc00; /* 草地 */
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 道路 */
+        .road {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50px;
+            background-color: #555;
+            border-top: 4px solid #444;
+        }
+
+        /* 动画容器 */
+        .scene {
+            position: absolute;
+            bottom: 40px;
+            left: 100px;
+            animation: moveForward 10s linear infinite;
+        }
+
+        /* 轮子旋转 */
+        .wheel {
+            transform-origin: center;
+            animation: rotateWheel 2s linear infinite;
+        }
+
+        /* 鹈鹕身体起伏 */
+        .pelican-body {
+            animation: bobbing 0.5s ease-in-out infinite;
+        }
+
+        /* 翅膀扇动 */
+        .wing {
+            transform-origin: 320px 240px;
+            animation: flap 0.4s ease-in-out infinite;
+        }
+
+        /* 关键帧动画 */
+        @keyframes rotateWheel {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes bobbing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes flap {
+            0%, 100% { transform: rotate(-10deg); }
+            50% { transform: rotate(20deg); }
+        }
+
+        @keyframes moveForward {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(900px); }
+        }
+
+        .road-line {
+            position: absolute;
+            width: 100px;
+            height: 4px;
+            background: white;
+            top: 20px;
+            animation: moveLine 1s linear infinite;
+        }
+
+        @keyframes moveLine {
+            from { left: -100px; }
+            to { left: 900px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="canvas">
+    <!-- 道路线装饰 -->
+    <div class="road-line" style="top: 15px;"></div>
+    <div class="road-line" style="top: 35px; animation-delay: 0.5s;"></div>
+    <div class="road"></div>
+
+    <div class="scene">
+        <svg width="400" height="300" viewBox="0 0 400 300">
+            <!-- 自行车结构 -->
+            <g id="bicycle">
+                <!-- 后轮 -->
+                <g class="wheel">
+                    <circle cx="100" cy="230" r="40" fill="none" stroke="#333" stroke-width="5"/>
+                    < spoke r="40" cx="100" cy="230" /> <!-- 辐条辅助视觉 -->
+                    <line x1="100" y1="230" x2="100" y2="190" stroke="#333" stroke-width="2" />
+                    <line x1="100" y1="230" x2="140" y2="230" stroke="#333" stroke-width="2" />
+                </g>
+                <!-- 前轮 -->
+                <g class="wheel">
+                    <circle cx="300" cy="230" r="40" fill="none" stroke="#333" stroke-width="5"/>
+                    <line x1="300" y1="230" x2="300" y2="190" stroke="#333" stroke-width="2" />
+                    <line x1="300" y1="230" x2="340" y2="230" stroke="#333" stroke-width="2" />
+                </g>
+                <!-- 车架 -->
+                <path d="M100 230 L180 230 L240 160 L200 160 Z" fill="none" stroke="#ff4444" stroke-width="6" stroke-linejoin="round"/>
+                <path d="M180 230 L240 160 L280 160 L280 230" fill="none" stroke="#ff4444" stroke-width="6" stroke-linejoin="round"/>
+                <line x1="240" y1="160" x2="290" y2="140" stroke="#333" stroke-width="5" /> <!-- 车把 -->
+                <line x1="180" y1="230" x2="160" y2="240" stroke="#333" stroke-width="5" /> <!-- 踏板 -->
+                <!-- 座椅 -->
+                <ellipse cx="185" cy="165" rx="20" ry="5" fill="#333" />
+            </g>
+
+            <!-- 鹈鹕 -->
+            <g class="pelican-body">
+                <!-- 翅膀 -->
+                <path class="wing" d="M250 180 Q320 160 300 220 Q280 230 250 210" fill="#eee" stroke="#ccc" stroke-width="2" />
+                
+                <!-- 身体 -->
+                <ellipse cx="220" cy="180" rx="60" ry="40" fill="#fff" stroke="#ccc" stroke-width="2" />
+                
+                <!-- 脖子与头部 -->
+                <path d="M260 160 Q300 140 310 110" stroke="#fff" stroke-width="15" fill="none" stroke-linecap="round" />
+                <ellipse cx="310" cy="100" rx="25" ry="20" fill="#fff" stroke="#ccc" stroke-width="2" />
+                
+                <!-- 巨大的喙（鹈鹕标志） -->
+                <path d="M330 95 Q380 100 380 130 Q380 150 330 140 L330 110 Z" fill="#ffb347" stroke="#d2691e" stroke-width="2" />
+                
+                <!-- 眼睛 -->
+                <circle cx="315" cy="95" r="3" fill="#000" />
+                
+                <!-- 腿 (简化) -->
+                <line x1="200" y1="220" x2="210" y2="250" stroke="#ccc" stroke-width="4" />
+                <line x1="240" y1="220" x2="250" y2="250" stroke="#ccc" stroke-width="4" />
+            </g>
+        </svg>
+    </div>
+</div>
+
+</body>
+</html>

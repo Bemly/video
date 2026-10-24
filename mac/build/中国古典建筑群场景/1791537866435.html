@@ -1,0 +1,97 @@
+<!DOCTYPE html><html lang="en"><head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+<meta charset="UTF-8">
+<title>Chinese Ancient Architecture Voxel Scene</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<style>body{margin:0;background:#111;color:#eee;font-family:sans-serif;}canvas{display:block;}</style></head><body><div id='controls'></div><!-- THREE.JS CANVAS --><div id='stats'></div><!-- RAYCATCHER FOR STATS --><script src="https://cdn.jsdelivr.net/npm/stats.js@0.17/build/stats.module.min.js"></script><script type="module">import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';// ----- SCENE SETUP ----- const scene = new THREE.Scene();scene.background = new THREE.Color('#2b2b2b');const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200);camera.position.set(0, 30, 60);const renderer = new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth, innerHeight);document.body.appendChild(renderer.domElement);window.addEventListener('resize',()=>{ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });const controls = new OrbitControls(camera, renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.25;// ----- LIGHTING ----- const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);scene.add(hemiLight);const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);dirLight.position.set(20,30,25);scene.add(dirLight);// ----- BUILDING GEOMETRY (voxel style)----- const voxelSize = 4; // each side of a cube const roofHeight = 12;// overall height (including base) function buildVoxelBuilding(basePos){    const group = new THREE.Group();    // ground rectangle
+    group.add(new THREE.Mesh(
+        new THREE.BoxGeometry(voxelSize*10, voxelSize, voxelSize*2),
+        new THREE.MeshStandardMaterial({color:0x8b4515}) // tan土城
+    ));
+    group.position.set(basePos.x, basePos.y-voxelSize, basePos.z);
+    scene.add(group);
+    // body (cube)
+    const body = new THREE.Mesh(
+        new THREE.BoxGeometry(voxelSize*12, voxelSize*6, voxelSize),
+        new THREE.MeshStandardMaterial({color:0x8b4515})
+    );
+    body.rotation.x = Math.PI/2;
+    body.position.set(basePos.x, basePos.y, basePos.z);
+    scene.add(body);
+
+    // main roof (flat top)
+    const roofBase = new THREE.Mesh(
+        new THREE.BoxGeometry(voxelSize*10, voxelSize/4, voxelSize*2),
+        new THREE.MeshStandardMaterial({color:0x8b4515})
+    );
+    roofBase.rotation.x = -Math.PI/2;
+    roofBase.position.set(basePos.x+voxelSize*6, basePos.y-voxelSize/4+voxelSize/2, basePos.z);
+    scene.add(roofBase);
+
+    // secondary roof (hipped)
+    const hipRoof = new THREE.Mesh(
+        new THREE.BoxGeometry(voxelSize*8, voxelSize/6, voxelSize),
+        new THREE.MeshStandardMaterial({color:0x8b4515})
+    );
+    hipRoof.rotation.x = -Math.PI/2;
+    hipRoof.position.set(basePos.x+voxelSize*4, basePos.y-voxelSize/6+voxelSize/3, basePos.z);
+    scene.add(hipRoof);
+
+    // door (vertical panel)
+    const door = new THREE.Mesh(
+        new THREE.BoxGeometry(voxelSize*2, voxelSize/4, voxelSize*0.5),
+        new THREE.MeshStandardMaterial({color:0xffffff})
+    );
+door.position.set(basePos.x+voxelSize*6-voxelSize, basePos.y-voxelSize/8, basePos.z);
+door.rotation.z = Math.PI/2;
+group.add(door);
+
+    // window strips (horizontal panels)
+    for(let y=0;y<3;++y){
+        const win = new THREE.Mesh(
+            new THREE.BoxGeometry(voxelSize*4, voxelSize/6, voxelSize*0.5),
+            new THREE.MeshStandardMaterial({color:0xffffff})
+        );
+        win.position.set(basePos.x+voxelSize*6-voxelSize*2, basePos.y-voxelSize/8+y*voxelSize/3, basePos.z);
+group.add(win);
+    }
+
+    // decorative chimney (cylinder)
+    const chimney = new THREE.Mesh(
+        new THREE.ConeGeometry(voxelSize/4, voxelSize*1.2, 6),
+        new THREE.MeshStandardMaterial({color:0x777777})
+    );
+    chimney.position.set(basePos.x+voxelSize*6-voxelSize/2, basePos.y+voxelSize*5+voxelSize/4, basePos.z);
+group.add(chimney);
+
+    // decorative roof tile (square)
+    const tile = new THREE.Mesh(
+        new THREE.BoxGeometry(voxelSize*1.8, voxelSize/10, voxelSize*0.2),
+        new THREE.MeshStandardMaterial({color:0x888888})
+    );
+    tile.position.set(basePos.x+voxelSize*6-voxelSize*0.9, basePos.y-voxelSize/4+voxelSize/12, basePos.z);
+group.add(tile);
+
+    // lantern (sphere with texture)
+    const lantern = new THREE.Mesh(
+        new THREE.SphereGeometry(voxelSize/6, 8, 8),
+        new THREE.MeshBasicMaterial({map:THREE.ImageUtils.loadTexture('https://threejs.org/examples/textures/sky/large.jpg'),side:THREE.DoubleSide})
+    );
+lantern.position.set(basePos.x+voxelSize*6-voxelSize/2, basePos.y+voxelSize*5+voxelSize/4, basePos.z);
+group.add(lantern);
+
+    return group;} // ----- BUILDING INSTANCES (main palace + two side halls)----- const buildings = [    buildVoxelBuilding({x:-15,y:0,z:0}),   // main palace
+    buildVoxelBuilding({x: 10,y:0,z:0}),   // east hall
+    buildVoxelBuilding({x: -10,y:0,z:20})  // west hall
+];
+// ----- SCENE CONTROLS AND RENDER LOOP -----
+function animate(){
+    controls.update();
+    stats.begin();
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    stats.end();
+}
+animate();
+</script></body></html>

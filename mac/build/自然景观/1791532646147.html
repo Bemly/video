@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Voxel Horizon — Mountain Dawn</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #1a1a2e; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ============================================================
+// Voxel Horizon — Mountain Dawn Scene
+// Procedural voxel landscape with waterfall, clouds, and dawn lighting
+// ============================================================
+
+const scene = new THREE.Scene();
+
+// --- Camera & Controls ---
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(30, 25, 40);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.15;
+
+// --- Lighting: Warm dawn atmosphere ---
+const ambientLight = new THREE.AmbientLight(0xffe6c2, 0.4);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffd5a0, 1.2);
+sunLight.position.set(-30, 40, -20);
+scene.add(sunLight);
+
+// Warm rim light from behind (dawn glow)
+const rimLight = new THREE.DirectionalLight(0xffa050, 0.3);
+rimLight.position.set(40, 10, -30);
+scene.add(rimLight);
+
+// Fog for atmospheric depth (warm dawn tone)
+scene.fog = new THREE.Fog(0xffe6c2, 30, 150);
+
+// ============================================================
+// Terrain Generation (Procedural Voxel Mountain)
+// ============================================================
+
+const GRID_SIZE = 60; // 60x60 grid
+const BLOCK_SIZE = 1.0;
+
+// Simple procedural heightmap using sine waves + noise
+function getHeight(x, z) {
+  // Mountain ridge along x-axis with variation
+  let h = Math.sin(x * 0.15) * 8 + Math.cos(z * 0.2) * 4;
+  // Add some randomness via pseudo-noise
+  h += Math.sin(x * 0.3 + z * 0.1) * 3;
+  // Create a valley/river in the center
+  if (Math.abs(z) < 5) {
+    h -= 6; // Lower the center for river
+  }
+  return Math.max(0, h);
+}
+
+// Build terrain from blocks
+const terrainGroup = new THREE.Group();
+let blockCount = 0;
+
+for (let x = -GRID_SIZE / 2; x < GRID_SIZE / 2; x += BLOCK_SIZE) {
+  for (let z = -GRID_SIZE / 2; z < GRID_SIZE / 2; z += BLOCK_SIZE) {
+    const height = getHeight(x, z);
+    if (height > 0.5) { // Only place blocks where there's terrain
+
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(BLOCK_SIZE, height, BLOCK_SIZE),
+        new THREE.MeshStandardMaterial({
+          color: new THREE.Color(0.45 + Math.random() * 0.1, 0.35 + Math.random() * 0.05, 0.25),
+          roughness: 0.8
+        })
+      );
+
+      block.position.set(x, height / 2, z);
+      terrainGroup.add(block);
+      blockCount++;
+    }
+  }
+}
+
+scene.add(terrainGroup);
+
+// ============================================================
+// Waterfall (Animated Particles)
+// ============================================================
+
+const waterfallGroup = new THREE.Group();
+waterfallGroup.position.set(-15, 0, 0); // Position on mountain slope
+
+// Create waterfall particles
+const particleCount = 200;
+const particles = [];
+for (let i = 0; i < particleCount; i++) {
+  const size = Math.random() * 0.3 + 0.1;
+  const particle = new THREE.Mesh(
+    new THREE.BoxGeometry(size, size * 2, size),
+    new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.6 })
+  );
+
+  // Random position along waterfall path
+  const t = Math.random();
+  particle.position.set(
+    -15 + (Math.random() - 0.5) * 2,
+    t * 15 + 2, // Height: falling from top to bottom
+    -8 + (Math.random() - 0.5) * 3 // Spread across slope
+  );
+
+  waterfallGroup.add(particle);
+  particles.push({ mesh: particle, speed: Math.random() * 0.5 + 0.3 });
+}
+
+scene.add(waterfallGroup);
+
+// ============================================================
+// Clouds (Animated Voxel Clouds)
+// ============================================================
+
+const clouds = [];
+for (let i = 0; i < 8; i++) {
+  const cloudGroup = new THREE.Group();
+
+  // Each cloud is made of several blocks
+  for (let j = 0; j < 5; j++) {
+    const block = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 2, 3),
+      new THREE.MeshStandardMaterial({
+        color: 0xe6e6ff,
+        transparent: true,
+        opacity: 0.4 + Math.random() * 0.2,
+        roughness: 1
+      })
+    );
+
+    block.position.set(
+      (Math.random() - 0.5) * 8,
+      Math.random() * 2,
+      (Math.random() - 0.5) * 6
+    );
+
+    cloudGroup.add(block);
+  }
+
+  // Position clouds at various heights and locations
+  cloudGroup.position.set(
+    Math.random() * 80 - 40,
+    15 + Math.random() * 10,
+    Math.random() * 60 - 30
+  );
+
+  scene.add(cloudGroup);
+  clouds.push({ group: cloudGroup, speed: Math.random() * 0.5 + 0.2 });
+}
+
+// ============================================================
+// Vegetation (Trees & Grass)
+// ============================================================
+
+const vegetationGroup = new THREE.Group();
+
+// Trees (simple voxel trees)
+for (let i = 0; i < 30; i++) {
+  const treeGroup = new THREE.Group();
+
+  // Trunk
+  const trunk = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 3, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x4a3528 })
+  );
+  trunk.position.y = 1.5;
+
+  // Canopy (multiple blocks for a fuller tree)
+  const canopyBlocks = [];
+  for (let j = 0; j < 5; j++) {
+    const canopyBlock = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 1.5, 1.5),
+      new THREE.MeshStandardMaterial({ color: 0x2d6b3a })
+    );
+    canopyBlock.position.set(
+      (Math.random() - 0.5) * 2,
+      3 + Math.random(),
+      (Math.random() - 0.5) * 2
+    );
+    canopyBlocks.push(canopyBlock);
+  }
+
+  treeGroup.add(trunk, ...canopyBlocks);
+
+  // Random position on terrain
+  const x = Math.random() * GRID_SIZE - GRID_SIZE / 2;
+  const z = Math.random() * GRID_SIZE - GRID_SIZE / 2;
+  treeGroup.position.set(x, getHeight(x, z), z);
+
+  vegetationGroup.add(treeGroup);
+}
+
+// Grass patches (small green blocks)
+for (let i = 0; i < 50; i++) {
+  const grass = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.3, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x4a8f3a })
+  );
+
+  const x = Math.random() * GRID_SIZE - GRID_SIZE / 2;
+  const z = Math.random() * GRID_SIZE - GRID_SIZE / 2;
+  grass.position.set(x, getHeight(x, z), z);
+
+  vegetationGroup.add(grass);
+}
+
+scene.add(vegetationGroup);
+
+// ============================================================
+// Animation Loop
+// ============================================================
+
+let time = 0;
+function animate() {
+  time += 0.016;
+
+  // Animate waterfall particles (falling motion)
+  for (const particle of particles) {
+    particle.mesh.position.y -= particle.speed * 0.1;
+
+    // Reset when it reaches the bottom
+    if (particle.mesh.position.y < 0) {
+      particle.mesh.position.y = 15;
+    }
+  }
+
+  // Animate clouds (drifting motion)
+  for (const cloud of clouds) {
+    cloud.group.position.x += cloud.speed * 0.1;
+
+    // Reset when it goes out of bounds
+    if (cloud.group.position.x > 50) {
+      cloud.group.position.x = -50;
+    }
+  }
+
+  // Slow camera orbit for cinematic effect
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.5;
+
+  renderer.render(scene, camera);
+}
+
+renderer.setAnimationLoop(animate);
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Initial render
+renderer.render(scene, camera);
+</script>
+</body>
+</html>

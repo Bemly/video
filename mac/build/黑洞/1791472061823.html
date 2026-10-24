@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SINGULARITY | Gravitational Lensing Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            color: rgba(255, 255, 255, 0.8);
+            background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.4) 100%);
+        }
+
+        .header {
+            border-left: 2px solid rgba(0, 255, 255, 0.5);
+            padding-left: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 8px;
+            font-weight: 200;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: rgba(0, 255, 255, 0.6);
+        }
+
+        .data-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+
+        .data-item {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 10px;
+        }
+
+        .data-label {
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .data-value {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.1rem;
+            color: #fff;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: #00ffff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ffff;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="ui-layer">
+        <div class="header">
+            <h1>Singularity</h1>
+            <p>Event Horizon Analysis - Sector 7G</p>
+        </div>
+
+        <div class="data-panel">
+            <div class="data-item">
+                <div class="data-label">Gravitational Radius</div>
+                <div class="data-value">12.48 km</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Accretion Velocity</div>
+                <div class="data-value" id="vel-val">0.98c</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Photon Sphere</div>
+                <div class="data-value">24.96 km</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>SYSTEM STATUS: <div class="status-indicator"><div class="dot"></div> STABLE</div></div>
+            <div class="controls-hint">MOUSE_DRAG: ROTATE | SCROLL: ZOOM</div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Shader Source ---
+        const vertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            precision highp float;
+            uniform float iTime;
+            uniform vec2 iResolution;
+            uniform vec3 iCameraPos;
+            uniform vec3 iCameraTarget;
+            uniform float iZoom;
+
+            varying vec2 vUv;
+
+            // Noise functions for the accretion disk
+            mat2 rot(float a) {
+                return mat2(cos(a), -sin(a), sin(a), cos(a));
+            }
+
+            float hash(float n) {
+                return fract(sin(n) * 43758.5453123);
+            }
+
+            float noise(vec3 x) {
+                vec3 p = floor(x);
+                vec3 f = fract(x);
+                f = f*f*(3.0-2.0*f);
+                float n = p.x + p.y*57.0 + 113.0*p.z;
+                return mix(mix(mix(hash(n), hash(n+1.0), f.x),
+                               mix(hash(n+57.0), hash(n+58.0), f.x), f.y),
+                           mix(mix(hash(n+113.0), hash(n+114.0), f.x),
+                               mix(hash(n+170.0), hash(n+171.0), f.x), f.y), f.z);
+            }
+
+            void main() {
+                vec2 uv = (vUv - 0.5) * 2.0;
+                uv.x *= iResolution.x / iResolution.y;
+
+                vec3 ro = iCameraPos;
+                vec3 rd = normalize(vec3(uv, -iZoom));
+
+                // Simple view orientation
+                vec3 target = iCameraTarget;
+                vec3 forward = normalize(target - ro);
+                vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
+                vec3 up = cross(forward, right);
+                rd = normalize(uv.x * right + uv.y * up + forward);
+
+                // Raymarching variables
+                vec3 p = ro;
+                vec3 col = vec3(0.0);
+                float t = 0.0;
+                
+                // Gravitational Lens Parameters
+                float rs = 1.5; // Schwarzschild radius
+                float diskInner = 2.8;
+                float diskOuter = 8.0;
+                
+                // Raymarching for the black hole and accretion disk
+                // We simulate light bending by modifying the ray direction at each step
+                for(int i = 0; i < 100; i++) {
+                    float dist = length(p);
+                    
+                    // Gravity bending: dR = (1.5 * rs^2) / r^3
+                    vec3 gravity = -1.5 * rs * rs * p / (dist * dist * dist);
+                    rd += gravity * 0.05;
+                    rd = normalize(rd);
+                    
+                    p += rd * 0.15;
+                    t += 0.15;
+
+                    // Event Horizon
+                    if(dist < rs) {
+                        col = vec3(0.0);
+                        break;
+                    }
+
+                    // Accretion Disk Intersection
+                    // The disk is a plane at y = 0
+                    if(abs(p.y) < 0.1 && dist > diskInner && dist < diskOuter) {
+                        float diskTime = iTime * 2.0;
+                        float angle = atan(p.z, p.x) + diskTime;
+                        
+                        // Procedural disk texture
+                        float n = noise(vec3(p.x * 0.5, p.y * 5.0, p.z * 0.5 + iTime * 0.2));
+                        float ring = smoothstep(diskOuter, diskInner, dist);
+                        
+                        // Relativistic beaming & Doppler shift simulation
+                        float velocity = sin(angle); // simplified
+                        float brightness = ring * (1.0 + velocity * 0.5);
+                        
+                        // Color gradient
+                        vec3 diskCol = mix(vec3(1.0, 0.6, 0.2), vec3(1.0, 0.9, 0.7), dist/diskOuter);
+                        col += diskCol * brightness * (1.0 - n);
+                        
+                        // Add a bit of "heat" glow
+                        col += vec3(1.0, 0.3, 0.0) * (1.0 / dist) * 0.2;
+                    }
+
+                    // Background: Simple procedural starfield
+                    if(t > 40.0) {
+                        float stars = pow(noise(rd * 500.0), 20.0);
+                        col += vec3(stars);
+                        break;
+                    }
+                }
+
+                // Post-processing: Bloom / Vignette
+                col *= 1.0 - length(uv) * 0.5;
+                col += pow(col.r, 2.0) * 0.5; // fake bloom
+
+                gl_FragColor = vec4(pow(col, vec3(0.85)), 1.0);
+            }
+        `;
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // The main black hole shader object
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const uniforms = {
+            iTime: { value: 0 },
+            iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            iCameraPos: { value: new THREE.Vector3(0, 2, 8) },
+            iCameraTarget: { value: new THREE.Vector3(0, 0, 0) },
+            iZoom: { value: 1.0 }
+        };
+
+        const material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            transparent: true
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        // Add some actual particles for the "Star Dust" feel
+        const particleCount = 5000;
+        const particlesGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        for(let i=0; i<particleCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 100;
+        }
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particlesMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        const particles = new THREE.Points(particlesGeo, particlesMat);
+        scene.add(particles);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+        controls.maxDistance = 20;
+        controls.minDistance = 3;
+
+        camera.position.set(0, 2, 8);
+
+        // --- Animation Loop ---
+        const clock = new THREE.Clock();
+        const velLabel = document.getElementById('vel-val');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const elapsed = clock.getElapsedTime();
+
+            uniforms.iTime.value = elapsed;
+            uniforms.iCameraPos.value.copy(camera.position);
+            uniforms.iCameraTarget.value.copy(controls.target);
+            
+            // Dynamic UI update
+            velLabel.innerText = (0.95 + Math.sin(elapsed * 2) * 0.03).toFixed(3) + 'c';
+
+            particles.rotation.y += 0.0005;
+            particles.rotation.x += 0.0002;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- Responsiveness ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.iResolution.value.x = window.innerWidth;
+            uniforms.iResolution.value.y = window.innerHeight;
+        });
+
+        animate();
+    </script>
+</body>
+</html>

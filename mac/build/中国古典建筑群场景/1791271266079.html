@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>体素风格中国古典建筑群 — 青瓦红墙古庭</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12}
+canvas{display:block}
+#info{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:#c8a67b;font-size:12px;letter-spacing:2px;text-shadow:0 1px 4px rgba(0,0,0,.6);pointer-events:none;z-index:10}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0a0a12;z-index:999;font-size:18px;color:#c8a67b;letter-spacing:3px}
+</style>
+</head>
+<body>
+
+<div id="loading">青瓦红墙 · 古庭体素场景 加载中...</div>
+
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+/* ═══════════════════════════════════════════════
+   全局常量与配色
+   ═══════════════════════════════════════════════ */
+const V = 0.5; // 体素单元大小（voxel size）
+
+// 中式古典配色
+const COLORS = {
+  redWall:      '#b83020',   // 朱墙
+  redWallDark:  '#9a2518',
+  roofTileBlue: '#3a6b8c',   // 青瓦
+  roofTileDark: '#2d5470',
+  roofHighlight:'#5a8fa8',   // 琉璃瓦高光
+  woodDark:     '#6b4226',   // 深木色（柱/梁）
+  woodMedium:   '#8b5a3a',   // 中木色（门/窗）
+  woodLight:    '#a07852',   // 浅木色（装饰）
+  stoneBase:    '#7a7568',    // 石基台
+  stoneLight:   '#908a7e',
+  gold:         '#c9a24b',    // 金色（装饰）
+  greenPlant:   '#2d6b3a',
+  greenDark:    '#1e4a28',
+};
+
+// 体素网格辅助
+const grid = new THREE.GridHelper(200, 40, 0x3a3a3a, 0x2a2a2a);
+grid.position.y = -0.3;
+
+/* ═══════════════════════════════════════════════
+   场景初始化
+   ═══════════════════════════════════════════════ */
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x1a1830, 0.006);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 800);
+camera.position.set(45, 32, 60);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// 轨道控制
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle   = Math.PI * 0.45;
+controls.minDistance     = 15;
+controls.maxDistance     = 180;
+controls.target.set(0, 4, 0);
+
+/* ═══════════════════════════════════════════════
+   材质工厂
+   ═══════════════════════════════════════════════ */
+
+function makeMat(hex, rough = 0.85) {
+  return new THREE.MeshLambertMaterial({ color: hex, roughness: rough });
+}
+
+function makeMeshVoxel(w, h, d, mat) {
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  return new THREE.Mesh(geometry, mat);
+}
+
+// 批量添加体素（共享几何以提高性能）
+const sharedGeo = new THREE.BoxGeometry(1, 1, 1);
+
+function buildVoxelStructure(points, mat) {
+  const group = new THREE.Group();
+  for (const [x, y, z] of points) {
+    const mesh = new THREE.Mesh(sharedGeo, mat);
+    mesh.position.set(x * V, y * V, z * V);
+    group.add(mesh);
+  }
+  return group;
+}
+
+/* ═══════════════════════════════════════════════
+   基础构件生成函数
+   ═══════════════════════════════════════════════ */
+
+// 台阶：多层石台，逐级外扩
+function buildStairs(count, width, depth, mat) {
+  const group = new THREE.Group();
+  for (let i = 0; i < count; i++) {
+    const w2 = width + (count - 1 - i) * V * 2;
+    const d2 = depth + (count - 1 - i) * V * 2;
+    for (let x = -Math.floor(w2 / V) + 1; x <= Math.floor(w2 / V); x++) {
+      for (let z = -Math.floor(d2 / V) + 1; z <= Math.floor(d2 / V); z++) {
+        group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, i * V, z * V));
+      }
+    }
+  }
+  return group;
+}
+
+// 柱（圆柱用多个薄体素堆叠成圆）
+function buildColumn(radius, height, mat) {
+  const group = new THREE.Group();
+  const rInV = radius / V;
+  for (let y = 0; y < height; y++) {
+    for (let x = -rInV + 1; x <= rInV - 1; x++) {
+      for (let z = -rInV + 1; z <= rInV - 1; z++) {
+        if (x * x + z * z <= rInV * rInV) {
+          group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y * V, z * V));
+        }
+      }
+    }
+  }
+  return group;
+}
+
+// 梁（横向/纵向）
+function buildBeam(length, height = V * 0.4, zPos = 0, mat) {
+  const group = new THREE.Group();
+  for (let x = -Math.floor(length / V) + 1; x <= Math.floor(length / V); x++) {
+    for (let y = 0; y < Math.floor(height / V) + 1; y++) {
+      group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y * V, zPos * V));
+    }
+  }
+  return group;
+}
+
+// 屋顶（歇山顶式：梯形坡 + 檐边）
+function buildHyparRoof(halfWidth, halfDepth, eaveOut = 2, slopeHeight = 1.5, mat) {
+  const group = new THREE.Group();
+
+  // 主屋顶体素（梯形的层）
+  const layers = Math.floor(slopeHeight / V);
+  for (let layer = 0; layer <= layers; layer++) {
+    const wStep = V * (layers - layer) / Math.max(layers, 1);
+    const dStep = V * (layers - layer) / Math.max(layers, 1);
+    const w2 = halfWidth + eaveOut * V + layer * (wStep);
+    const d2 = halfDepth + eaveOut * V + layer * (dStep);
+
+    for (let x = -Math.floor(w2 / V) + 1; x <= Math.floor(w2 / V); x++) {
+      for (let z = -Math.floor(d2 / V) + 1; z <= Math.floor(d2 / V); z++) {
+        group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, layer * V, z * V));
+      }
+    }
+  }
+
+  // 檐边（突出）
+  for (let side = -1; side <= 1; side += 2) {
+    for (let x = -halfWidth - eaveOut; x <= halfWidth + eaveOut; x += V) {
+      const z = side * (halfDepth + eaveOut);
+      for (let y = 0; y < V * 0.3; y += V) {
+        group.add(new THREE.Mesh(sharedGeo, mat).position.set(x, y * V / V, z));
+      }
+    }
+  }
+
+  return group;
+}
+
+// 折屋顶（庑殿顶 / 歇山顶简化）
+function buildGableRoof(halfWidth, halfDepth, height = 2.0, mat) {
+  const group = new THREE.Group();
+
+  // 左坡
+  for (let x = -halfWidth; x <= halfWidth; x += V) {
+    const zMax = Math.max(0, halfDepth - Math.abs(x * V) / (halfWidth * V) * halfDepth);
+    for (let z = -zMax; z <= zMax; z += V) {
+      const y = (height * V / Math.max(halfWidth, 1)) * (halfWidth - Math.abs(x * V) / V);
+      group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y, z * V));
+    }
+  }
+
+  return group;
+}
+
+// 攒尖顶（四坡顶，如宝塔）
+function buildSpireRoof(halfWidth, halfDepth, height = 3.0, mat) {
+  const group = new THREE.Group();
+
+  for (let x = -halfWidth; x <= halfWidth; x += V) {
+    for (let z = -halfDepth; z <= halfDepth; z += V) {
+      const dist = Math.max(Math.abs(x * V), Math.abs(z * V)) / V;
+      const maxDist = halfWidth + halfDepth;
+      if (dist <= maxDist) {
+        const y = height - (height / Math.max(maxDist, 1)) * dist;
+        group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y, z * V));
+      }
+    }
+  }
+
+  return group;
+}
+
+// 墙（中空的，带门洞）
+function buildWall(width, height, depth = V * 2, doorH = 1.5, mat) {
+  const group = new THREE.Group();
+
+  for (let x = -Math.floor(width / V) + 1; x <= Math.floor(width / V); x++) {
+    for (let z = -Math.floor(depth / V) + 1; z <= Math.floor(depth / V); z++) {
+      for (let y = 0; y < Math.floor(height / V) + 1; y++) {
+        // 门洞（中间）
+        const cx = Math.floor(width / V);
+        if (Math.abs(x) <= Math.floor(doorH / V) && z === 0) continue;
+        group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y * V, z * V));
+      }
+    }
+  }
+
+  return group;
+}
+
+// 门窗装饰
+function buildDoorWindows(width, height, mat) {
+  const group = new THREE.Group();
+
+  // 门框（四柱）
+  for (let side = -1; side <= 1; side += 2) {
+    group.add(new THREE.Mesh(sharedGeo, mat).position.set(side * V, 0, -V / 2));
+    group.add(new THREE.Mesh(sharedGeo, mat).position.set(side * V, (height + 1) / V - 1, -V / 2));
+  }
+
+  // 门板（填充）
+  for (let x = -1; x <= 1; x++) {
+    for (let y = 0; y < Math.floor(height / V); y++) {
+      group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y * V, -V / 2));
+    }
+  }
+
+  // 窗格（两侧）
+  for (let side = -1; side <= 1; side += 2) {
+    for (let x = -1; x <= 1; x++) {
+      for (let y = Math.floor(height / V); y < Math.floor((height + 2) / V); y++) {
+        group.add(new THREE.Mesh(sharedGeo, mat).position.set(x * V, y * V, side * (V + 1)));
+      }
+    }
+  }
+
+  return group;
+}
+
+// 灯笼
+function buildLantern(x, y, z) {
+  const group = new THREE.Group();
+  // 灯笼主体（圆筒近似）
+  for (let y2 = 0; y2 < Math.floor(1.2 / V); y2++) {
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+      const ax = Math.cos(angle);
+      const az = Math.sin(angle);
+      group.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.gold)).position.set(
+        ax * V * 0.9 + x, y2 * V + y, az * V * 0.9 + z
+      ));
+    }
+  }
+  // 顶盖
+  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+    const ax = Math.cos(angle);
+    const az = Math.sin(angle);
+    group.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.gold)).position.set(
+      ax * V * 1.2 + x, (Math.floor(1.2 / V) + 0.5) * V + y, az * V * 1.2 + z
+    ));
+  }
+  return group;
+}
+
+/* ═══════════════════════════════════════════════
+   建筑生成
+   ═══════════════════════════════════════════════ */
+
+const buildings = []; // 记录所有建筑组
+
+// ─── 山门（Gatehouse）─
+function createGateway() {
+  const g = new THREE.Group();
+
+  // 基础台
+  const baseMat = makeMat(COLORS.stoneBase);
+  const base = buildStairs(2, 8, 4, baseMat);
+  g.add(base);
+
+  // 柱（4根大柱）
+  const colMat = makeMat(COLORS.redWall);
+  const cols = [
+    [-3.5, -2], [-3.5, 2], [3.5, -2], [3.5, 2]
+  ];
+  cols.forEach(([cx, cz]) => {
+    const col = buildColumn(0.6, 5, colMat);
+    col.position.set(cx, base.count || 1, cz);
+    g.add(col);
+  });
+
+  // 梁（横梁）
+  const beamMat = makeMat(COLORS.woodDark);
+  const topY = 5;
+  for (let z = -2.5; z <= 2.5; z += 1) {
+    for (let side = -3.8; side <= 3.8; side += 7.6) {
+      const beam = buildBeam(7, V * 0.3, z);
+      beam.position.set(0, topY - 1 + V * 2, z);
+      g.add(beam);
+    }
+  }
+
+  // 门
+  const door = buildDoorWindows(2, 4.5, makeMat(COLORS.woodMedium));
+  door.position.set(0, base.count || 1, -2);
+  g.add(door);
+
+  // 门顶装饰（斗拱简化）
+  const doumat = makeMat(COLORS.woodLight);
+  for (let i = -1; i <= 1; i++) {
+    const dou = new THREE.Group();
+    for (let j = 0; j < 3; j++) {
+      dou.add(new THREE.Mesh(sharedGeo, doumat).position.set(i * V, j * V, 0));
+    }
+    dou.position.set(i * V * 2.5, topY - V, 0);
+    g.add(dou);
+  }
+
+  // 门顶
+  const roofMat = makeMat(COLORS.roofTileBlue);
+  for (let x = -4; x <= 4; x++) {
+    for (let z = -2.5; z <= 2.5; z++) {
+      const y = Math.max(0, topY + 1 - Math.abs(x * V) / 4);
+      if (y > 0) {
+        g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(x * V, y, z * V));
+      }
+    }
+  }
+
+  // 门顶檐边
+  for (let x = -5; x <= 5; x++) {
+    g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.roofTileDark)).position.set(
+      x * V, topY + 1.2, -3));
+    g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.roofTileDark)).position.set(
+      x * V, topY + 1.2, 3));
+  }
+
+  // 狮子（简化，用小方块堆叠）
+  for (let side of [-1, 1]) {
+    const lionGroup = new THREE.Group();
+    // 身体
+    for (let x2 = -1; x2 <= 1; x2++) {
+      for (let y2 = 0; y2 < 1.5; y2++) {
+        for (let z2 = -0.7; z2 <= 0.7; z2++) {
+          lionGroup.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.redWallDark)).position.set(
+            x2 * V, y2 * V, z2 * V));
+        }
+      }
+    }
+    // 头（略尖）
+    for (let y2 = 1.5; y2 < 2.2; y2++) {
+      const w = Math.max(1, 3 - (y2 - 1.5) * 4);
+      for (let x2 = -Math.floor(w / V) + 1; x2 <= Math.floor(w / V); x2++) {
+        for (let z2 = -1; z2 <= 1; z2++) {
+          lionGroup.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.redWallDark)).position.set(
+            x2 * V, y2 * V, z2 * V));
+        }
+      }
+    }
+    lionGroup.position.set(side * 3.5, 0, -3);
+    g.add(lionGroup);
+  }
+
+  return g;
+}
+
+// ─── 主殿（Main Hall）─
+function createMainHall() {
+  const g = new THREE.Group();
+
+  // 基础台（3层）
+  const baseMat = makeMat(COLORS.stoneBase);
+  const stairs = buildStairs(3, 10, 6, baseMat);
+  g.add(stairs);
+
+  // 柱（4根，间距）
+  const colMat = makeMat(COLORS.redWall);
+  const cols = [
+    [-4.5, -2.5], [-4.5, 2.5], [4.5, -2.5], [4.5, 2.5]
+  ];
+  const colGroup = [];
+  cols.forEach(([cx, cz]) => {
+    const col = buildColumn(0.7, 5, colMat);
+    col.position.set(cx, stairs.count || 1.5, cz);
+    g.add(col);
+    colGroup.push(col);
+  });
+
+  // 墙
+  const wallMat = makeMat(COLORS.redWall);
+  const walls = [];
+  for (let side of [-1, 1]) {
+    // 前后墙（含门洞）
+    const wall = buildWall(9, 4.5, V * 2, 1.8, wallMat);
+    wall.position.set(0, stairs.count || 1.5, side * (3 + V));
+    g.add(wall);
+    walls.push(wall);
+
+    // 窗
+    const win = buildDoorWindows(1.5, 2, makeMat(COLORS.woodLight));
+    win.position.set(side * 3.5, stairs.count || 1.5, side * (3 + V));
+    g.add(win);
+
+    // 窗另一侧
+    const win2 = buildDoorWindows(1.5, 2, makeMat(COLORS.woodLight));
+    win2.position.set(side * -3.5, stairs.count || 1.5, side * (3 + V));
+    g.add(win2);
+  }
+
+  // 斗拱（简化表示）
+  const doumat = makeMat(COLORS.woodMedium);
+  for (let side of [-1, 1]) {
+    for (let x2 = -4; x2 <= 4; x2 += 1) {
+      const dou = new THREE.Group();
+      for (let y2 = 0; y2 < 1; y2++) {
+        dou.add(new THREE.Mesh(sharedGeo, doumat).position.set(x2 * V, y2 * V, 0));
+      }
+      dou.position.set(x2 * V, 5 + stairs.count || 1.5, side * (3 + V));
+      g.add(dou);
+    }
+  }
+
+  // 屋顶（歇山顶式）
+  const roofMat = makeMat(COLORS.roofTileBlue);
+  const eaveOut = 3;
+  const slopeHeight = 2.5;
+
+  // 主屋顶体素（更精细）
+  const layers = Math.floor(slopeHeight / V);
+  for (let layer = 0; layer <= layers; layer++) {
+    const wStep = V * (layers - layer) / Math.max(layers, 1);
+    const dStep = V * (layers - layer) / Math.max(layers, 1);
+    const w2 = 5 + eaveOut * V + layer * (wStep);
+    const d2 = 3 + eaveOut * V + layer * (dStep);
+
+    for (let x = -Math.floor(w2 / V) + 1; x <= Math.floor(w2 / V); x++) {
+      for (let z = -Math.floor(d2 / V) + 1; z <= Math.floor(d2 / V); z++) {
+        g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(
+          x * V, layer * V + 5 + stairs.count || 1.5, z * V));
+      }
+    }
+  }
+
+  const wStep = 0, dStep = 0;
+  // 屋顶边缘（更厚）
+  const edgeMat = makeMat(COLORS.roofTileDark);
+  for (let layer = layers; layer <= layers + 1; layer++) {
+    const w2 = 5 + eaveOut * V + layer * (wStep);
+    const d2 = 3 + eaveOut * V + layer * (dStep);
+    for (let x = -Math.floor(w2 / V) + 1; x <= Math.floor(w2 / V); x++) {
+      for (let z = -Math.floor(d2 / V) + 1; z <= Math.floor(d2 / V); z++) {
+        g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(
+          x * V, layer * V + 5 + stairs.count || 1.5, z * V));
+      }
+    }
+  }
+
+  // 屋脊（中央高梁）
+  const ridgeMat = makeMat(COLORS.woodLight);
+  for (let x = -Math.floor(10 / V) + 1; x <= Math.floor(10 / V); x++) {
+    g.add(new THREE.Mesh(sharedGeo, ridgeMat).position.set(
+      x * V, (layers + 2) * V + 5 + stairs.count || 1.5, -V));
+  }
+
+  // 门
+  const door = buildDoorWindows(2.5, 4, makeMat(COLORS.woodMedium));
+  door.position.set(0, stairs.count || 1.5, -3);
+  g.add(door);
+
+  // 门顶装饰
+  for (let x2 = -1; x2 <= 1; x2++) {
+    const dou = new THREE.Group();
+    for (let y2 = 0; y2 < 1.5; y2++) {
+      dou.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.redWall)).position.set(
+        x2 * V, y2 * V, 0));
+    }
+    dou.position.set(x2 * V * 2.5, (layers + 1) * V + 5 + stairs.count || 1.5, -3);
+    g.add(dou);
+  }
+
+  // 窗
+  for (let side of [-1, 1]) {
+    const win = buildDoorWindows(2, 3.5, makeMat(COLORS.woodLight));
+    win.position.set(side * 4, stairs.count || 1.5, -3);
+    g.add(win);
+  }
+
+  // 灯笼
+  buildLantern(-4, stairs.count || 1.5 + 2, -3.5);
+  buildLantern(4, stairs.count || 1.5 + 2, -3.5);
+
+  // 屋顶装饰（脊瓦）
+  for (let x2 = -Math.floor(10 / V) + 1; x2 <= Math.floor(10 / V); x2++) {
+    g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.roofHighlight)).position.set(
+      x2 * V, (layers + 3) * V + 5 + stairs.count || 1.5, -V));
+  }
+
+  return g;
+}
+
+// ─── 配殿（Side Hall）─
+function createSideHall(offsetX, offsetZ) {
+  const g = new THREE.Group();
+
+  // 基础台（2层）
+  const baseMat = makeMat(COLORS.stoneBase);
+  const stairs = buildStairs(2, 6, 4, baseMat);
+  g.add(stairs);
+
+  // 柱（4根）
+  const colMat = makeMat(COLORS.redWall);
+  const cols = [
+    [-2, -1.5], [-2, 1.5], [2, -1.5], [2, 1.5]
+  ];
+  cols.forEach(([cx, cz]) => {
+    const col = buildColumn(0.5, 4, colMat);
+    col.position.set(cx, stairs.count || 1, cz);
+    g.add(col);
+  });
+
+  // 墙
+  const wallMat = makeMat(COLORS.redWall);
+  for (let side of [-1, 1]) {
+    const wall = buildWall(4, 3.5, V * 2, 1.6, wallMat);
+    wall.position.set(0, stairs.count || 1, side * (2 + V));
+    g.add(wall);
+
+    // 窗
+    const win = buildDoorWindows(1, 2.5, makeMat(COLORS.woodLight));
+    win.position.set(side * -1.5, stairs.count || 1, side * (2 + V));
+    g.add(win);
+  }
+
+  // 屋顶（庑殿顶）
+  const roofMat = makeMat(COLORS.roofTileBlue);
+  const slopeH = 1.8;
+  const layers = Math.floor(slopeH / V);
+
+  for (let layer = 0; layer <= layers; layer++) {
+    const wStep = V * (layers - layer) / Math.max(layers, 1);
+    const dStep = V * (layers - layer) / Math.max(layers, 1);
+    const w2 = 2.5 + layer * (wStep);
+    const d2 = 2 + layer * (dStep);
+
+    for (let x = -Math.floor(w2 / V) + 1; x <= Math.floor(w2 / V); x++) {
+      for (let z = -Math.floor(d2 / V) + 1; z <= Math.floor(d2 / V); z++) {
+        g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(
+          x * V, layer * V + 4 + stairs.count || 1, z * V));
+      }
+    }
+  }
+
+  // 屋脊
+  const ridgeMat = makeMat(COLORS.woodLight);
+  for (let x2 = -Math.floor(5 / V) + 1; x2 <= Math.floor(5 / V); x2++) {
+    g.add(new THREE.Mesh(sharedGeo, ridgeMat).position.set(
+      x2 * V, (layers + 1) * V + 4 + stairs.count || 1, -V));
+  }
+
+  // 门
+  const door = buildDoorWindows(1.8, 3.2, makeMat(COLORS.woodMedium));
+  door.position.set(0, stairs.count || 1, -2);
+  g.add(door);
+
+  // 窗
+  for (let side of [-1, 1]) {
+    const win = buildDoorWindows(1.2, 2, makeMat(COLORS.woodLight));
+    win.position.set(side * 1.5, stairs.count || 1, -2);
+    g.add(win);
+  }
+
+  // 灯笼
+  buildLantern(-2, stairs.count || 1 + 1.5, -2.5);
+  buildLantern(2, stairs.count || 1 + 1.5, -2.5);
+
+  g.position.set(offsetX, 0, offsetZ);
+  return g;
+}
+
+// ─── 宝塔 / 钟鼓楼（Pagoda）─
+function createPagoda() {
+  const g = new THREE.Group();
+
+  // 基础台（3层）
+  const baseMat = makeMat(COLORS.stoneBase);
+  const stairs = buildStairs(3, 5, 5, baseMat);
+  g.add(stairs);
+
+  // 主体柱（8根，方形布局）
+  const colMat = makeMat(COLORS.redWall);
+  const half = 2;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.5, 4, colMat);
+      col.position.set(sideX * half, stairs.count || 1.5, sideZ * half);
+      g.add(col);
+
+      // 柱间墙（简化）
+      const wall = buildWall(3, 4, V * 2, 1.5, makeMat(COLORS.redWall));
+      wall.position.set(sideX * half + (sideZ === 1 ? 0 : -V), stairs.count || 1.5, sideZ * half);
+      g.add(wall);
+    }
+  }
+
+  // 第一层窗
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const win = buildDoorWindows(2, 3, makeMat(COLORS.woodLight));
+      win.position.set(sideX * half + (sideZ === 1 ? V : -V), stairs.count || 1.5, sideZ * half);
+      g.add(win);
+    }
+  }
+
+  // 第一层屋顶（平顶）
+  const roofMat = makeMat(COLORS.roofTileBlue);
+  for (let x2 = -3; x2 <= 3; x2++) {
+    for (let z2 = -3; z2 <= 3; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(
+        x2 * V, 5 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  // 第二层（缩进）
+  const half2 = 1.8;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.5, 4, colMat);
+      col.position.set(sideX * half2, 6 + stairs.count || 1.5, sideZ * half2);
+      g.add(col);
+
+      // 窗
+      const win = buildDoorWindows(1.5, 2.8, makeMat(COLORS.woodLight));
+      win.position.set(sideX * half2 + (sideZ === 1 ? V : -V),
+        6 + stairs.count || 1.5, sideZ * half2);
+      g.add(win);
+    }
+  }
+
+  // 第二层屋顶
+  for (let x2 = -3; x2 <= 3; x2++) {
+    for (let z2 = -3; z2 <= 3; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.roofTileDark)).position.set(
+        x2 * V, 10 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  // 第三层（更缩进）
+  const half3 = 1.2;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.5, 3, colMat);
+      col.position.set(sideX * half3, 11 + stairs.count || 1.5, sideZ * half3);
+      g.add(col);
+
+      const win = buildDoorWindows(1.2, 2.5, makeMat(COLORS.woodLight));
+      win.position.set(sideX * half3 + (sideZ === 1 ? V : -V),
+        11 + stairs.count || 1.5, sideZ * half3);
+      g.add(win);
+    }
+  }
+
+  // 第三层屋顶（平顶）
+  for (let x2 = -3; x2 <= 3; x2++) {
+    for (let z2 = -3; z2 <= 3; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(
+        x2 * V, 14 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  // 第四层（攒尖顶简化）
+  const half4 = 0.8;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.4, 2.5, colMat);
+      col.position.set(sideX * half4, 15 + stairs.count || 1.5, sideZ * half4);
+      g.add(col);
+    }
+  }
+
+  // 第四层攒尖顶（四坡）
+  const spireMat = makeMat(COLORS.roofTileBlue);
+  for (let x2 = -4; x2 <= 4; x2++) {
+    for (let z2 = -4; z2 <= 4; z2++) {
+      const dist = Math.max(Math.abs(x2 * V), Math.abs(z2 * V)) / V;
+      const maxDist = 4 + half4;
+      if (dist <= maxDist) {
+        const y = 17 + stairs.count || 1.5 - (dist / maxDist) * 2;
+        g.add(new THREE.Mesh(sharedGeo, spireMat).position.set(
+          x2 * V, y, z2 * V));
+      }
+    }
+  }
+
+  // 塔顶（金顶简化）
+  const goldMat = makeMat(COLORS.gold);
+  for (let x2 = -1; x2 <= 1; x2++) {
+    for (let z2 = -1; z2 <= 1; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, goldMat).position.set(
+        x2 * V, 19 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  for (let x2 = -1; x2 <= 1; x2++) {
+    for (let z2 = -1; z2 <= 1; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, goldMat).position.set(
+        x2 * V, 20 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  return g;
+}
+
+// ─── 鼓楼 / 钟楼（Bell/Drum Tower）─
+function createBellTower() {
+  const g = new THREE.Group();
+
+  // 基础台
+  const baseMat = makeMat(COLORS.stoneBase);
+  const stairs = buildStairs(2, 4, 4, baseMat);
+  g.add(stairs);
+
+  // 主体柱（4根）
+  const colMat = makeMat(COLORS.redWall);
+  const half = 1.8;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.6, 4.5, colMat);
+      col.position.set(sideX * half, stairs.count || 1.5, sideZ * half);
+      g.add(col);
+    }
+  }
+
+  // 墙与窗
+  const wallMat = makeMat(COLORS.redWall);
+  for (let sideX of [-1, 1]) {
+    const wall = buildWall(3.5, 4, V * 2, 1.6, wallMat);
+    wall.position.set(sideX * half + (sideX === 1 ? V : -V),
+      stairs.count || 1.5, 0);
+    g.add(wall);
+
+    // 大窗（鼓）
+    const drum = buildDoorWindows(2.5, 3.5, makeMat(COLORS.woodMedium));
+    drum.position.set(sideX * half + (sideX === 1 ? V : -V),
+      stairs.count || 1.5, 0);
+    g.add(drum);
+
+    // 窗上装饰
+    for (let x2 = -1; x2 <= 1; x2++) {
+      const dou = new THREE.Group();
+      for (let y2 = 0; y2 < 1; y2++) {
+        dou.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.redWall)).position.set(
+          x2 * V, y2 * V, 0));
+      }
+      dou.position.set(x2 * V * 1.5, stairs.count || 1.5 + 4, sideX * half);
+      g.add(dou);
+    }
+  }
+
+  // 第一层屋顶（带飞檐）
+  const roofMat = makeMat(COLORS.roofTileBlue);
+  for (let x2 = -4; x2 <= 4; x2++) {
+    for (let z2 = -3.5; z2 <= 3.5; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(
+        x2 * V, 6 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  // 第二层（缩进）
+  const half2 = 1.5;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.6, 4.5, colMat);
+      col.position.set(sideX * half2, 7 + stairs.count || 1.5, sideZ * half2);
+      g.add(col);
+
+      const drum = buildDoorWindows(1.8, 3, makeMat(COLORS.woodMedium));
+      drum.position.set(sideX * half2 + (sideX === 1 ? V : -V),
+        7 + stairs.count || 1.5, sideZ * half2);
+      g.add(drum);
+    }
+  }
+
+  // 第二层屋顶（带飞檐）
+  for (let x2 = -3; x2 <= 3; x2++) {
+    for (let z2 = -3.5; z2 <= 3.5; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.roofTileDark)).position.set(
+        x2 * V, 12 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  // 第三层（攒尖顶）
+  const half3 = 1.0;
+  for (let sideX of [-1, 1]) {
+    for (let sideZ of [-1, 1]) {
+      const col = buildColumn(0.5, 3, colMat);
+      col.position.set(sideX * half3, 14 + stairs.count || 1.5, sideZ * half3);
+      g.add(col);
+
+      const drum = buildDoorWindows(1.2, 2.5, makeMat(COLORS.woodMedium));
+      drum.position.set(sideX * half3 + (sideX === 1 ? V : -V),
+        14 + stairs.count || 1.5, sideZ * half3);
+      g.add(drum);
+    }
+  }
+
+  // 第三层攒尖顶
+  for (let x2 = -3; x2 <= 3; x2++) {
+    for (let z2 = -3; z2 <= 3; z2++) {
+      const dist = Math.max(Math.abs(x2 * V), Math.abs(z2 * V)) / V;
+      const maxDist = 3 + half3;
+      if (dist <= maxDist) {
+        const y = 17 + stairs.count || 1.5 - (dist / maxDist) * 2;
+        g.add(new THREE.Mesh(sharedGeo, roofMat).position.set(
+          x2 * V, y, z2 * V));
+      }
+    }
+  }
+
+  // 塔顶金顶
+  const goldMat = makeMat(COLORS.gold);
+  for (let x2 = -1; x2 <= 1; x2++) {
+    for (let z2 = -1; z2 <= 1; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, goldMat).position.set(
+        x2 * V, 19 + stairs.count || 1.5, z2 * V));
+    }
+  }
+
+  return g;
+}
+
+/* ═══════════════════════════════════════════════
+   地面与道路
+   ═══════════════════════════════════════════════ */
+
+// 草地
+function buildGround() {
+  const g = new THREE.Group();
+
+  // 草坪基础（低多边形简化为方块）
+  const grassMat = makeMat(COLORS.greenPlant);
+  const darkGrassMat = makeMat(COLORS.greenDark);
+
+  // 地面基础
+  const dirtMat = makeMat('#3d2b1f');
+
+  // 草地区（环形）
+  const grassSize = 80;
+  for (let x = -Math.floor(grassSize / V) + 1; x <= Math.floor(grassSize / V); x++) {
+    for (let z = -Math.floor(grassSize / V) + 1; z <= Math.floor(grassSize / V); z++) {
+      if (x * x + z * z <= 70 * 70) {
+        g.add(new THREE.Mesh(sharedGeo, grassMat).position.set(x * V, 0, z * V));
+      }
+    }
+  }
+
+  // 暗色草（增加层次）
+  for (let x = -Math.floor(60 / V) + 1; x <= Math.floor(60 / V); x++) {
+    for (let z = -Math.floor(60 / V) + 1; z <= Math.floor(60 / V); z++) {
+      if (x * x + z * z <= 50 * 50 && (x + z) % 3 === 0) {
+        g.add(new THREE.Mesh(sharedGeo, darkGrassMat).position.set(x * V, 0.1, z * V));
+      }
+    }
+  }
+
+  return g;
+}
+
+// 道路（中道与旁路）
+function buildRoads() {
+  const g = new THREE.Group();
+
+  // 道路材料
+  const roadMat = makeMat('#5a5548');
+  const edgeMat = makeMat('#6b6352');
+
+  // 中道（南北方向，贯穿整个场景）
+  const roadW = 4; // 道路宽度（体素单位）
+  for (let x = -Math.floor(roadW / V) + 1; x <= Math.floor(roadW / V); x++) {
+    for (let z = -75; z <= 75; z++) {
+      // 忽略建筑区域
+      const bx = Math.abs(x);
+      const bz = Math.abs(z);
+
+      // 主殿区域
+      if (bx < 5 && bz > 18 && bz < 30) continue;
+      // 配殿区域
+      if (bx < 3 && bz > 8 && bz < 12) continue;
+
+      g.add(new THREE.Mesh(sharedGeo, roadMat).position.set(x * V, 0.1, z * V));
+    }
+  }
+
+  // 道路边缘（石栏简化）
+  for (let x = -Math.floor(roadW / V) + 2; x <= Math.floor(roadW / V); x++) {
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, -75));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, 75));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, -35));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, -18));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, -8));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, 8));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, 18));
+    g.add(new THREE.Mesh(sharedGeo, edgeMat).position.set(x * V, 0.2, 35));
+  }
+
+  // 东西道（在中殿两侧）
+  for (let side of [-1, 1]) {
+    const roadZ = side * 7;
+    for (let z2 = -Math.floor(roadW / V) + 1; z2 <= Math.floor(roadW / V); z2++) {
+      for (let x = -70; x <= 70; x++) {
+        // 避开建筑
+        if (Math.abs(x) < 8 && Math.abs(z2 + roadZ) < 5) continue;
+        if (Math.abs(x - side * 60) < 2 && Math.abs(z2 + roadZ) < 3) continue;
+        if (Math.abs(x + side * 60) < 2 && Math.abs(z2 + roadZ) < 3) continue;
+
+        g.add(new THREE.Mesh(sharedGeo, makeMat('#4a4538')).position.set(
+          x * V, 0.1, z2 * V + roadZ * V));
+      }
+    }
+
+    // 横向道（连接中殿两侧）
+    for (let x2 = -5; x2 <= 5; x2++) {
+      for (let z3 = -Math.floor(roadW / V) + 1; z3 <= Math.floor(roadW / V); z3++) {
+        const zx = x2 + side * 15;
+        for (let z4 = -Math.floor(roadW / V) + 1; z4 <= Math.floor(roadW / V); z4++) {
+          g.add(new THREE.Mesh(sharedGeo, makeMat('#4a4538')).position.set(
+            zx * V, 0.1, z4 * V + roadZ * V));
+        }
+      }
+    }
+  }
+
+  return g;
+}
+
+// 庭院地面（石板）
+function buildCourt() {
+  const g = new THREE.Group();
+
+  // 主庭院石板
+  const stoneMat = makeMat('#6b6352');
+
+  for (let x = -4; x <= 4; x++) {
+    for (let z = -5; z <= 5; z++) {
+      if (Math.abs(x) > 1 && Math.abs(z) > 2) continue;
+      if (x === 0 && z === 0) {
+        // 中央石纹
+        for (let x2 = -2; x2 <= 2; x2++) {
+          for (let z2 = -2; z2 <= 2; z2++) {
+            if (x2 * x2 + z2 * z2 <= 5) {
+              g.add(new THREE.Mesh(sharedGeo, makeMat('#7a7468')).position.set(
+                x2 * V + x * V, 0.15, z2 * V + z * V));
+            }
+          }
+        }
+      } else {
+        g.add(new THREE.Mesh(sharedGeo, stoneMat).position.set(
+          x * V, 0.15, z * V));
+      }
+    }
+  }
+
+  // 边院石板
+  for (let side of [-1, 1]) {
+    for (let x = -2; x <= 2; x++) {
+      for (let z = -3; z <= 3; z++) {
+        if (Math.abs(x) > 0.5 && Math.abs(z) > 1) continue;
+        g.add(new THREE.Mesh(sharedGeo, makeMat('#5a5448')).position.set(
+          x * V + side * 6, 0.15, z * V));
+      }
+    }
+  }
+
+  return g;
+}
+
+/* ═══════════════════════════════════════════════
+   装饰元素
+   ═══════════════════════════════════════════════ */
+
+// 树木（简化体素树）
+function buildTree(x, z) {
+  const g = new THREE.Group();
+
+  // 树干
+  for (let y = 0; y < Math.floor(2 / V); y++) {
+    for (let x2 = -0.3; x2 <= 0.3; x2 += V * 0.6) {
+      for (let z2 = -0.3; z2 <= 0.3; z2 += V * 0.6) {
+        g.add(new THREE.Mesh(sharedGeo, makeMat('#4a3520')).position.set(
+          x * V + x2, y * V + z * V));
+      }
+    }
+  }
+
+  // 树冠（球体近似）
+  const canopyMat = makeMat(COLORS.greenPlant);
+  for (let y = Math.floor(2 / V); y < Math.floor(5 / V); y++) {
+    for (let x2 = -Math.floor((4 - (y - Math.floor(2 / V)) * 0.8) / V);
+         x2 <= Math.floor((4 - (y - Math.floor(2 / V)) * 0.8) / V); x2++) {
+      for (let z2 = -Math.floor((4 - (y - Math.floor(2 / V)) * 0.8) / V);
+           z2 <= Math.floor((4 - (y - Math.floor(2 / V)) * 0.8) / V); z2++) {
+        if (x2 * x2 + z2 * z2 <= 16 - ((y - Math.floor(2 / V)) * 0.8) ** 2) {
+          g.add(new THREE.Mesh(sharedGeo, canopyMat).position.set(
+            x * V + x2 * V, y * V + z * V, z2 * V));
+        }
+      }
+    }
+  }
+
+  return g;
+}
+
+// 石灯笼（简化）
+function buildStoneLantern(x, z) {
+  const g = new THREE.Group();
+
+  // 基座
+  for (let x2 = -1; x2 <= 1; x2++) {
+    for (let z2 = -1; z2 <= 1; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.stoneBase)).position.set(
+        x * V + x2 * V, 0.15 + z * V, z * V + z2 * V));
+    }
+  }
+
+  // 柱身
+  for (let y = 1; y < 3; y++) {
+    for (let x2 of [-1, 0, 1]) {
+      for (let z2 of [-1, 0, 1]) {
+        if (x2 === 0 && z2 === 0) continue; // 中间空
+        g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.stoneBase)).position.set(
+          x * V + x2 * V, y * V + 0.15 + z * V, z * V + z2 * V));
+      }
+    }
+  }
+
+  // 顶盖
+  for (let x2 = -1; x2 <= 1; x2++) {
+    for (let z2 = -1; z2 <= 1; z2++) {
+      g.add(new THREE.Mesh(sharedGeo, makeMat(COLORS.stoneLight)).position.set(
+        x * V + x2 * V, 3.15 + z * V, z * V + z2 * V));
+    }
+  }
+
+  // 提灯（发光效果用亮色）
+  for (let x2 of [-0.5, 0.5]) {
+    g.add(new THREE.Mesh(sharedGeo, makeMat('#e8a040')).position.set(
+      x * V + x2 * V, 1.8 + z * V, z * V));
+  }
+
+  return g;
+}
+
+/* ═══════════════════════════════════════════════
+   场景组装
+   ═══════════════════════════════════════════════ */
+
+// 基础
+scene.add(buildGround());
+
+// 道路
+const roads = buildRoads();
+scene.add(roads);
+
+// 庭院石板
+const court = buildCourt();
+scene.add(court);
+
+// 山门（入口）
+const gateway = createGateway();
+gateway.position.set(0, 0, -45);
+scene.add(gateway);
+
+// 主殿（中轴）
+const mainHall = createMainHall();
+mainHall.position.set(0, 0, -20);
+scene.add(mainHall);
+
+// 配殿（两侧）
+const sideHall1 = createSideHall(-5, -20);
+scene.add(sideHall1);
+
+const sideHall2 = createSideHall(5, -20);
+scene.add(sideHall2);
+
+// 配殿二（后）
+const sideHall3 = createSideHall(-5, -8);
+scene.add(sideHall3);
+
+const sideHall4 = createSideHall(5, -8);
+scene.add(sideHall4);
+
+// 宝塔（左后）
+const pagoda = createPagoda();
+pagoda.position.set(-15, 0, -38);
+scene.add(pagoda);
+
+// 钟鼓楼（右后）
+const bellTower = createBellTower();
+bellTower.position.set(15, 0, -38);
+scene.add(bellTower);
+
+// 树木（对称分布）
+const treePositions = [
+  [-8, -35], [12, -35],
+  [-20, -45], [20, -45],
+  [-18, -10], [18, -10],
+  [-6, 5], [6, 5],
+];
+
+treePositions.forEach(([tx, tz]) => {
+  const tree = buildTree(tx, tz);
+  scene.add(tree);
+
+  // 树旁石灯笼
+  const lantern = buildStoneLantern(tx - 1.5, tz);
+  scene.add(lantern);
+});
+
+// 中道两侧石灯笼
+for (let z = -30; z <= 25; z += 12) {
+  for (let side of [-1, 1]) {
+    const lantern = buildStoneLantern(side * 2.5, z);
+    scene.add(lantern);
+  }
+}
+
+// 建筑周围的装饰草
+for (let side of [-1, 1]) {
+  for (let x2 = -3; x2 <= 3; x2++) {
+    for (let y2 = 0; y2 < Math.floor(1 / V); y2++) {
+      for (let z2 = -Math.floor(8 / V) + 1; z2 <= Math.floor(8 / V); z2++) {
+        if (x2 * x2 + z2 * z2 > 4) continue;
+        // 草
+        if (Math.random() < 0.3) {
+          const tree = buildTree(side * 8 + x2, z2);
+          tree.position.y += Math.random() * V;
+          scene.add(tree);
+        }
+      }
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   灯光系统（晨昏色调）
+   ═══════════════════════════════════════════════ */
+
+// 主方向光（模拟清晨/黄昏的太阳）
+const sunDirLight = new THREE.DirectionalLight(0xf4c897, 1.2);
+sunDirLight.position.set(-80, 60, -50); // 左后上方
+sunDirLight.castShadow = true;
+sunDirLight.shadow.mapSize.set(2048, 2048);
+sunDirLight.shadow.camera.near = 1;
+sunDirLight.shadow.camera.far = 200;
+sunDirLight.shadow.camera.left = -150;
+sunDirLight.shadow.camera.right = 150;
+sunDirLight.shadow.camera.top = 150;
+sunDirLight.shadow.camera.bottom = -150;
+scene.add(sunDirLight);
+
+// 补光（柔和漫射）
+const fillLight = new THREE.DirectionalLight(0x8a9eb5, 0.4);
+fillLight.position.set(30, 20, 50);
+scene.add(fillLight);
+
+// 环境光（天光）
+const ambientLight = new THREE.AmbientLight(0x3a4060, 0.6);
+scene.add(ambientLight);
+
+// 建筑内部暖光（模拟灯火）
+const innerLights = [];
+for (let building of [mainHall, sideHall1, sideHall2]) {
+  const warmLight = new THREE.PointLight(0xe8a040, 0.3);
+  warmLight.position.set(0, 2, 0);
+  building.add(warmLight);
+  innerLights.push(warmLight);
+}
+
+/* ═══════════════════════════════════════════════
+   动画循环
+   ═══════════════════════════════════════════════ */
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  // 轻微闪烁的灯笼效果
+  innerLights.forEach((light, i) => {
+    light.intensity = 0.3 + Math.sin(Date.now() * 0.002 + i) * 0.1;
+  });
+
+  // 缓慢旋转场景（自动演示）
+  controls.target.y = 4 + Math.sin(Date.now() * 0.001) * 2;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// 窗口resize处理
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// 开始渲染
+document.getElementById('loading').style.display = 'none';
+animate();
+
+</script>
+</body>
+</html>

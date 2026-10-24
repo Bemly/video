@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>鹘鹑骑自行车</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: linear-gradient(180deg, #87CEEB 0%, #E0F2FE 40%, #fff 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  /* ── 地面滚动背景 ── */
+  .ground {
+    position: fixed; bottom: 0; left: 0; width: 100%; height: 35%;
+    background: linear-gradient(180deg, #C9DBCF 0%, #A0BC7E 40%, #6B8E23 100%);
+    z-index: 0; overflow: hidden;
+  }
+  .ground::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+    background: #5A7D2B; border-radius: 4px 4px 0 0;
+  }
+
+  /* 滚动草地 */
+  .grass-strip {
+    position: fixed; bottom: 0; left: -200%; width: 300%; height: 12px;
+    background: repeating-linear-gradient(90deg, #7CB342 0px, #558B2F 12px, #7CB342 12px);
+    z-index: 1; animation: scrollGround 3s linear infinite;
+  }
+
+  @keyframes scrollGround {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ── 太阳 ── */
+  .sun {
+    position: fixed; top: 30px; right: 80px;
+    width: 70px; height: 70px; border-radius: 50%;
+    background: radial-gradient(circle, #FFF9C4 30%, #FFD54F 60%, #FFA000);
+    box-shadow: 0 0 30px rgba(255,165,0,0.4);
+    z-index: 0; animation: sunBounce 3s ease-in-out infinite alternate;
+  }
+  @keyframes sunBounce {
+    0%   { transform: scale(1); }
+    100% { transform: scale(1.08); }
+  }
+
+  /* ── 云 ── */
+  .cloud {
+    position: fixed; z-index: 0; white-space: nowrap;
+    animation: cloudMove linear infinite;
+  }
+  .cloud svg { filter: drop-shadow(0 2px 4px rgba(0,0,0,.1)); }
+  .cloud:nth-child(2) { animation-duration: 45s; top: 10%; }
+  .cloud:nth-child(3) { animation-duration: 65s; top: 25%; opacity: .7; }
+
+  @keyframes cloudMove {
+    0%   { transform: translateX(-120%); }
+    100% { transform: translateX(120%); }
+  }
+
+  /* ── 主SVG容器 ── */
+  .scene {
+    position: relative; z-index: 2;
+    width: 960px; height: 580px;
+    margin-top: 60px;
+  }
+
+  /* ── 自行车整体摆动 ── */
+  .bicycle-group {
+    animation: bikeBob 1.2s ease-in-out infinite;
+  }
+  @keyframes bikeBob {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-6px); }
+  }
+
+  /* ── 车轮旋转 ── */
+  .wheel { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to   { transform: rotate(360deg); } }
+  .wheel-front { animation: spin 1s linear infinite; transform-origin: center; }
+  .wheel-back  { animation: spin 1s linear infinite; transform-origin: center; }
+
+  /* ──  Penguin  pedaling legs ── */
+  .leg-front { animation: pedalForward 1s ease-in-out infinite; }
+  .leg-back  { animation: pedalBackward 1s ease-in-out infinite; }
+
+  @keyframes pedalForward {
+    0%   { transform: rotate(-15deg); }
+    30%  { transform: translateY(-8px) rotate(5deg); }
+    60%  { transform: translateY(-4px) rotate(15deg); }
+    100% { transform: rotate(-15deg); }
+  }
+  @keyframes pedalBackward {
+    0%   { transform: rotate(15deg); }
+    30%  { transform: translateY(-8px) rotate(5deg); }
+    60%  { transform: translateY(-4px) rotate(15deg); }
+    100% { transform: rotate(-15deg); }
+  }
+
+  /* ── Penguin 摆动 ── */
+  .penguin-body { animation: penguinBob 1.2s ease-in-out infinite; }
+
+  /* ── 蝴蝶 ── */
+  .butterfly { animation: butterflyFly 4s ease-in-out infinite alternate; }
+  @keyframes butterflyFly {
+    0%   { transform: translate(0,0) rotate(0deg); }
+    33%  { transform: translate(25px, -18px) rotate(40deg); }
+    66%  { transform: translate(-15px, -30px) rotate(-20deg); }
+    100% { transform: translate(5px, -20px) rotate(15deg); }
+  }
+
+  /* ── 标题 ── */
+  .title {
+    position: fixed; top: -30px; left: 50%; transform: translateX(-50%);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 28px; color: #5D4037; text-shadow: 1px 2px 4px rgba(0,0,0,.15);
+    letter-spacing: 3px; z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<div class="sun"></div>
+
+<!-- 云 -->
+<div class="cloud">
+<svg width="120" height="50"><path d="M0,30 Q10,8 25,10 T60,8 T95,30 Q90,48 75,50 H25 Q10,48 0,30Z" fill="#FFF"/></svg>
+</div>
+<div class="cloud">
+<svg width="100" height="44"><path d="M0,25 Q8,6 18,8 T55,8 T90,25 Q87,40 75,44 H15 Q3,40 0,25Z" fill="#FFF"/></svg>
+</div>
+<div class="cloud">
+<svg width="140" height="56"><path d="M0,32 Q12,8 28,12 T70,10 T115,32 Q110,50 98,56 H22 Q7,50 0,32Z" fill="#E8F0FE"/></svg>
+</div>
+
+<div class="grass-strip"></div>
+
+<!-- 标题 -->
+<div class="title">🐧 鹘鹑骑行</div>
+
+<!-- ════════ SVG SCENE ════════ -->
+<svg class="scene" viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ════ 背景元素：树、鸟等 ════ -->
+  <g opacity="0.3">
+    <!-- 远处的树 -->
+    <ellipse cx="82" cy="440" rx="14" ry="14" fill="#5D4037"/>
+    <ellipse cx="260" cy="435" rx="18" ry="18" fill="#4CAF50"/>
+    <ellipse cx="760" cy="438" rx="20" ry="20" fill="#66BB6A"/>
+    <ellipse cx="870" cy="425" rx="16" ry="16" fill="#81C784"/>
+    <ellipse cx="900" cy="425" rx="14" ry="14" fill="#A5D6A7"/>
+  </g>
+
+  <!-- ════ 蝴蝶 ─── -->
+  <g class="butterfly" style="left:820px; top:140px;">
+    <ellipse cx="0" cy="0" rx="8" ry="12" fill="#FFEB3B" opacity=".9"/>
+    <ellipse cx="-8" cy="-4" rx="7" ry="10" fill="#FF9800" opacity=".8"/>
+    <ellipse cx="8" cy="-4" rx="7" ry="10" fill="#FF9800" opacity=".8"/>
+    <ellipse cx="0" cy="-2" rx="4" ry="6" fill="#FFF9C4"/>
+  </g>
+
+  <!-- ════ PIGMENT (小鸟) ─── -->
+  <g opacity=".2" style="animation: cloudMove 30s linear infinite;">
+    <path d="M960,-20 Q945,10 930,0" stroke="#5D4037" stroke-width="1.5" fill="none"/>
+  </g>
+
+  <!-- ════ RIDE ─── -->
+  <g class="bicycle-group" transform="translate(420,0)">
+
+    <!-- ════ 前轮 ════ -->
+    <g class="wheel wheel-front" transform-origin="45 200">
+      <!-- 轮胎 -->
+      <ellipse cx="0" cy="0" rx="38" ry="32" fill="#5D4037" opacity=".2"/>
+      <ellipse cx="0" cy="0" rx="36" ry="30" fill="#424242"/>
+      <!--  spokes -->
+      <g opacity=".3">
+        <line x1="0" y1="-28" x2="0" y2="28" stroke="#BDBDBD"/>
+        <line x1="-28" y1="0" x2="28" y2="0" stroke="#BDBDBD"/>
+        <line x1="-20" y1="-20" x2="20" y2="20" stroke="#BDBDBD"/>
+        <line x1="20" y1="-20" x2="-20" y2="20" stroke="#BDBDBD"/>
+        <line x1="-24" y1="15" x2="24" y2="-15" stroke="#BDBDBD"/>
+        <line x1="0" y1="-24" x2="0" y2="24" stroke="#BDBDBD"/>
+        <line x1="-28" y1="0" x2="28" y2="0" stroke="#BDBDBD"/>
+        <line x1="-25" y1="18" x2="25" y2="-18" stroke="#BDBDBD"/>
+        <line x1="25" y1="-18" x2="-25" y2="18" stroke="#BDBDBD"/>
+        <line x1="-30" y1="8" x2="30" y2="-8" stroke="#BDBDBD"/>
+        <line x1="30" y1="-8" x2="-30" y2="8" stroke="#BDBDBD"/>
+      </g>
+      <!-- 中心 -->
+      <circle cx="0" cy="0" r="5" fill="#795548"/>
+      <circle cx="0" cy="0" r="2" fill="#BDBDBD"/>
+    </g>
+
+    <!-- ════ 后轮 ════ -->
+    <g class="wheel wheel-back" transform-origin="-120,205">
+      <ellipse cx="0" cy="0" rx="34" ry="29" fill="#5D4037" opacity=".18"/>
+      <ellipse cx="0" cy="0" rx="32" ry="27" fill="#424242"/>
+      <g opacity=".3">
+        <line x1="0" y1="-26" x2="0" y2="26" stroke="#BDBDBD"/>
+        <line x1="-25" y1="0" x2="25" y2="0" stroke="#BDBDBD"/>
+        <line x1="-18" y1="-18" x2="18" y2="18" stroke="#BDBDBD"/>
+        <line x1="18" y1="-18" x2="-18" y2="18" stroke="#BDBDBD"/>
+        <line x1="-20" y1="14" x2="20" y2="-14" stroke="#BDBDBD"/>
+        <line x1="0" y1="-24" x2="0" y2="24" stroke="#BDBDBD"/>
+        <line x1="-25" y1="0" x2="25" y2="0" stroke="#BDBDBD"/>
+        <line x1="-23" y1="14" x2="23" y2="-14" stroke="#BDBDBD"/>
+        <line x1="23" y1="-14" x2="-23" y2="14" stroke="#BDBDBD"/>
+        <line x1="-28" y1="6" x2="28" y2="-6" stroke="#BDBDBD"/>
+        <line x1="28" y1="-6" x2="-28" y2="6" stroke="#BDBDBD"/>
+      </g>
+      <circle cx="0" cy="0" r="4.5" fill="#795548"/>
+      <circle cx="0" cy="0" r="2" fill="#BDBDBD"/>
+    </g>
+
+    <!-- ════ 车架 ════ -->
+    <g transform="translate(0,145)">
+      <!-- 主 tube -->
+      <path d="M-90,25 L-78,-40" stroke="#616161" stroke-width="6" stroke-linecap="round"/>
+      <!-- 下 tube -->
+      <path d="M-90,25 L10,35" stroke="#616161" stroke-width="7" stroke-linecap="round"/>
+      <!-- 上 tube -->
+      <path d="M-78,-40 L6,5" stroke="#616161" stroke-width="5.5" stroke-linecap="round"/>
+      <!-- 座管 -->
+      <path d="M6,5 L12,-70" stroke="#616161" stroke-width="6" stroke-linecap="round"/>
+      <!-- 座垫 -->
+      <ellipse cx="12" cy="-70" rx="28" ry="9" fill="#37474F"/>
+      <ellipse cx="12" cy="-70" rx="26" ry="6" fill="#546E7A"/>
+      <!-- 前管 -->
+      <path d="M-90,25 L15,35" stroke="#616161" stroke-width="7" stroke-linecap="round"/>
+      <!-- 前 fork -->
+      <path d="M15,35 L40,180" stroke="#616161" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M18,40 L35,170" stroke="#616161" stroke-width="4.5" stroke-linecap="round"/>
+      <!-- 脚踏支架 -->
+      <path d="M-50,60 L40,120" stroke="#616161" stroke-width="5" stroke-linecap="round"/>
+    </g>
+
+    <!-- ════ 踏板 ════ -->
+    <g transform="translate(-50,60)">
+      <!-- 前 pedal -->
+      <g class="leg-front">
+        <line x1="0" y1="45" x2="0" y2="90" stroke="#616161" stroke-width="4.5" stroke-linecap="round"/>
+        <!--  pedal bar -->
+        <ellipse cx="0" cy="92" rx="16" ry="3.5" fill="#BDBDBD"/>
+        <ellipse cx="0" cy="92" rx="14" ry="3" fill="#9E9E9E"/>
+        <!-- 脚踏片 -->
+        <ellipse cx="0" cy="17" rx="20" ry="5.5" fill="#546E7A"/>
+        <ellipse cx="0" cy="17" rx="18" ry="4.5" fill="#424242"/>
+        <!--  pegs -->
+        <circle cx="-10" cy="16" r="3" fill="#BDBDBD"/>
+        <circle cx="-5" cy="16" r="3.5" fill="#BDBDBD"/>
+        <circle cx="5" cy="16" r="3.5" fill="#BDBDBD"/>
+        <circle cx="10" cy="16" r="3" fill="#BDBDBD"/>
+      </g>
+    </g>
+
+    <!-- ════ 后 pedal (Penguin feet) -->
+    <g transform="translate(10,35)">
+      <!-- 后 pedal (Penguin feet) -->
+      <g class="leg-back">
+        <line x1="0" y1="45" x2="0" y2="90" stroke="#616161" stroke-width="4.5" stroke-linecap="round"/>
+        <!--  pedal bar -->
+        <ellipse cx="0" cy="92" rx="16" ry="3.5" fill="#BDBDBD"/>
+        <ellipse cx="0" cy="92" rx="14" ry="3" fill="#9E9E9E"/>
+        <!-- 脚踏片 -->
+        <ellipse cx="0" cy="17" rx="20" ry="5.5" fill="#546E7A"/>
+        <ellipse cx="0" cy="17" rx="18" ry="4.5" fill="#424242"/>
+        <circle cx="-10" cy="16" r="3" fill="#BDBDBD"/>
+        <circle cx="-5" cy="16" r="3.5" fill="#BDBDBD"/>
+        <circle cx="5" cy="16" r="3.5" fill="#BDBDBD"/>
+        <circle cx="10" cy="16" r="3" fill="#BDBDBD"/>
+      </g>
+    </g>
+
+    <!-- ════ 车把手( handlebars) ════ -->
+    <g transform="translate(-90,25)">
+      <!--  stem -->
+      <path d="M0,-8 L-15,2" stroke="#616161" stroke-width="4.5" stroke-linecap="round"/>
+      <!--  handlebar -->
+      <path d="M-20,-15 L-40,0" stroke="#616161" stroke-width="5.5" stroke-linecap="round"/>
+      <!--  handles -->
+      <ellipse cx="-40" cy="1" rx="5" ry="6" fill="#BDBDBD"/>
+      <ellipse cx="-40" cy="1" rx="3.5" ry="4.5" fill="#9E9E9E"/>
+    </g>
+
+    <!-- ════ PIGMENT (Penguin) ─── -->
+    <g class="penguin-body" transform="translate(0,-58)">
+
+      <!-- ════ Back/Head (Penguin Head) ════ -->
+      <ellipse cx="0" cy="-52" rx="32" ry="48" fill="#1A1A1A"/>
+      <!-- 面白(White Face) -->
+      <ellipse cx="0" cy="-28" rx="26" ry="34" fill="#F5F5F5"/>
+      <!-- 面边缘(Edge) -->
+      <path d="M-26,-30 Q-18,5 0,5" stroke="#BDBDBD" stroke-width="2.5" fill="none"/>
+      <path d="M26,-30 Q18,5 0,5" stroke="#BDBDBD" stroke-width="2.5" fill="none"/>
+
+      <!-- ════ 耳朵(Penguin Ears) ════ -->
+      <ellipse cx="-22" cy="-60" rx="8" ry="14" fill="#1A1A1A"/>
+      <ellipse cx="22" cy="-60" rx="8" ry="14" fill="#1A1A1A"/>
+
+      <!-- ════ 眼睛(Penguin Eyes) ════ -->
+      <ellipse cx="-10" cy="-46" rx="7" ry="9" fill="#FFF"/>
+      <ellipse cx="10" cy="-46" rx="7" ry="9" fill="#FFF"/>
+      <!-- 瞳孔 -->
+      <ellipse cx="-10" cy="-46" rx="3.5" ry="4.5" fill="#1A1A1A"/>
+      <ellipse cx="10" cy="-46" rx="3.5" ry="4.5" fill="#1A1A1A"/>
+      <!-- 高光 -->
+      <ellipse cx="-9" cy="-48" rx="1.5" ry="2" fill="#FFF"/>
+      <ellipse cx="9" cy="-48" rx="1.5" ry="2" fill="#FFF"/>
+
+      <!-- ════ 嘴巴(Penguin Beak) ════ -->
+      <ellipse cx="0" cy="-28" rx="14" ry="7" fill="#FFB300"/>
+      <ellipse cx="0" cy="-24" rx="12" ry="5.5" fill="#FFD700"/>
+      <!-- 上嘴线 -->
+      <path d="M-12,-30 L12,-30" stroke="#D48F0A" stroke-width="1.5" fill="none"/>
+
+      <!-- ════  cheeks(面红) -->
+      <ellipse cx="-18" cy="-32" rx="6" ry="4" fill="#FFB74D" opacity=".3"/>
+      <ellipse cx="18" cy="-32" rx="6" ry="4" fill="#FFB74D" opacity=".3"/>
+
+      <!-- ════ 身体(Penguin Body) ════ -->
+      <ellipse cx="0" cy="-18" rx="36" ry="42" fill="#1A1A1A"/>
+      <!-- 面白 -->
+      <ellipse cx="0" cy="-8" rx="24" ry="30" fill="#F5F5F5"/>
+
+      <!-- ════ 翅膀(Penguin Flippers) ════ -->
+      <!-- 左翅膀(Left Flipper) -->
+      <ellipse cx="-34" cy="0" rx="16" ry="28" fill="#F5F5F5"/>
+      <ellipse cx="-36" cy="2" rx="14" ry="25" fill="#F5F5F5"/>
+      <ellipse cx="-38" cy="4" rx="12" ry="22" fill="#F5F5F5"/>
+      <!-- 右翅膀(Right Flipper) -->
+      <ellipse cx="34" cy="0" rx="16" ry="28" fill="#F5F5F5"/>
+      <ellipse cx="36" cy="2" rx="14" ry="25" fill="#F5F5F5"/>
+      <ellipse cx="38" cy="4" rx="12" ry="22" fill="#F5F5F5"/>
+
+      <!-- ════ 脚(Penguin Feet) ════ -->
+      <!-- 左脚(Left Foot) -->
+      <ellipse cx="-28" cy="30" rx="14" ry="9" fill="#FFB74D"/>
+      <ellipse cx="-28" cy="30" rx="12" ry="7" fill="#D48F0A"/>
+      <ellipse cx="-26" cy="30" rx="5" ry="3" fill="#F5F5F5"/>
+      <!-- 右脚(Right Foot) -->
+      <ellipse cx="28" cy="30" rx="14" ry="9" fill="#FFB74D"/>
+      <ellipse cx="28" cy="30" rx="12" ry="7" fill="#D48F0A"/>
+      <ellipse cx="26" cy="30" rx="5" ry="3" fill="#F5F5F5"/>
+
+      <!-- ════ 脚爪(Penguin Toes) ════ -->
+      <ellipse cx="-32" cy="38" rx="4" ry="2.5" fill="#D48F0A"/>
+      <ellipse cx="-36" cy="39" rx="2.5" ry="3" fill="#D48F0A"/>
+      <ellipse cx="-34" cy="41" rx="2.5" ry="2" fill="#D48F0A"/>
+      <ellipse cx="-36" cy="41" rx="2.5" ry="2" fill="#D48F0A"/>
+      <ellipse cx="-34" cy="41" rx="2.5" ry="2" fill="#D48F0A"/>
+      <ellipse cx="32" cy="38" rx="4" ry="2.5" fill="#D48F0A"/>
+      <ellipse cx="36" cy="39" rx="2.5" ry="3" fill="#D48F0A"/>
+      <ellipse cx="34" cy="41" rx="2.5" ry="2" fill="#D48F0A"/>
+      <ellipse cx="36" cy="41" rx="2.5" ry="2" fill="#D48F0A"/>
+      <ellipse cx="34" cy="41" rx="2.5" ry="2" fill="#D48F0A"/>
+
+    </g>
+  </g>
+
+  <!-- ════ Ground Shadow (Penguin + Bike) ════ -->
+  <ellipse cx="420" cy="458" rx="60" ry="12" fill="#1A1A1A" opacity=".12"/>
+  <ellipse cx="450" cy="465" rx="85" ry="16" fill="#1A1A1A" opacity=".08"/>
+
+</svg>
+</body>
+</html>

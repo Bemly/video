@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>骑自行车的鹈鹕</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f8ff;
+        }
+        canvas {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="pelicanCanvas" width="600" height="400"></canvas>
+
+<script>
+    const canvas = document.getElementById('pelicanCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let frame = 0;
+
+    function drawPelican(x, y, scale, rotation) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.rotate(rotation);
+
+        // --- 绘制自行车 ---
+        // 车轮 (旋转动画)
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 4;
+        const wheelRotation = (frame * 0.1) % (Math.PI * 2);
+        
+        // 后轮
+        ctx.beginPath();
+        ctx.arc(-40, 20, 15, 0, Math.PI * 2);
+        ctx.stroke();
+        // 前轮
+        ctx.beginPath();
+        ctx.arc(40, 20, 15, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 车架 (蓝色)
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(-40, 20); // 后轮中心
+        ctx.lineTo(0, 10);    // 座管位置
+        ctx.lineTo(40, 20);   // 前轮中心
+        ctx.moveTo(0, 10);
+        ctx.lineTo(20, -15);  // 把手位置
+        ctx.stroke();
+
+        // --- 绘制鹈鹕 ---
+        // 身体 (白色)
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 5, 25, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 红色衣服 (根据呼吸节奏微动)
+        const breathe = Math.sin(frame * 0.05) * 2;
+        ctx.fillStyle = '#ff4d4d';
+        ctx.beginPath();
+        ctx.ellipse(0, 5, 26, 19 + breathe, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 长长的喙 (橙色)
+        ctx.fillStyle = '#ff8c00';
+        ctx.beginPath();
+        ctx.moveTo(20, -5);
+        ctx.lineTo(60, 5);
+        ctx.lineTo(20, 15);
+        ctx.closePath();
+        ctx.fill();
+
+        // 眼球
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(15, -5, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 脚部 (蹬车动作)
+        const pedalAngle = Math.sin(frame * 0.1) * 0.5;
+        ctx.strokeStyle = '#ffcc99';
+        ctx.lineWidth = 4;
+        // 左脚
+        ctx.beginPath();
+        ctx.moveTo(0, 15);
+        ctx.lineTo(-10 + Math.sin(frame * 0.1) * 10, 25);
+        ctx.stroke();
+        // 右脚
+        ctx.beginPath();
+        ctx.moveTo(0, 15);
+        ctx.lineTo(10 + Math.cos(frame * 0.1) * 10, 25);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function drawBackground() {
+        // 草地
+        ctx.fillStyle = '#90ee90';
+        ctx.fillRect(0, 300, 600, 100);
+        // 天空背景
+        ctx.fillStyle = '#e0f7fa';
+        ctx.fillRect(0, 0, 600, 300);
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        drawBackground();
+
+        // 绘制一个在移动的鹈鹕
+        // 我们让它从左往右缓慢移动，并有轻微的上下颠簸
+        const moveX = (frame * 0.5) % (600 + 100) - 100;
+        const bounceY = Math.sin(frame * 0.1) * 5;
+        
+        drawPelican(moveX, 280 + bounceY, 1.5, 0);
+
+        frame++;
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>

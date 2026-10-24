@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxel Natural Landscape</title>
+    <style>
+        canvas {
+            background-color: #242931;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        // 三藐院建立的场景对象配置
+        var scene = new THREE.Scene();
+        
+        // 地形材质和颜色
+        var terrainMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, overdraw: 0.5 });
+
+        // 山体形状配置
+        var mountainGeometry = new THREE.PlaneGeometry(500, 500);
+        var mountainMaterial = new THREE.MeshBasicMaterial({ color: 0xff8f48 });
+        var mountainMesh = new THREE.Mesh(mountainGeometry, mountainMaterial);
+        
+        // 坡头形状配置
+        var waterfallGeometry = new THREE.PlaneGeometry(50, 300);
+        var waterfallMaterial = new THREE.MeshBasicMaterial({ color: 0x252a36 });
+        var waterfallMesh = new THREE.Mesh(waterfallGeometry, waterfallMaterial);
+        
+        // 穿云效果配置
+        var cloudWidth = 30;
+        var cloudHeight = 600;
+        var cloudArray = [];
+        for (var i = 0; i < 100; i++) {
+            var x = cloudArray.length * cloudWidth / 125;
+            for (var j = 0; j < cloudArray[0].length; j++) {
+                var y = (j + 1) * cloudHeight / 20;
+                cloudArray.push([x, y]);
+            }
+        }
+
+        // 水滴形状配置
+        var dropletGeometry = new THREE.SphereGeometry(10, 64, 64);
+        var dropletMaterial = new THREE.MeshBasicMaterial({ color: 0x2aa6e1 });
+        var dropletMesh = new THREE.Mesh(dropletGeometry, dropletMaterial);
+
+        // 山体配置
+        scene.add(mountainMesh);
+        
+        // 坡头配置
+        scene.add(waterfallMesh);
+
+        // 穿云配置
+        for (var i = 0; i < cloudArray.length; i++) {
+            var x = cloudArray[i][0];
+            var y = cloudArray[i][1];
+            
+            // 生成一个球体
+            var droplet = new THREE.Mesh(dropletGeometry, dropletMaterial);
+            
+            // 旋转
+            var rotationY = THREE.MathUtils.random(1, 60);
+            droplet.rotation.x = -rotationY;
+            
+            // 将球体添加到场景
+            scene.add(droplet);
+        }
+
+        // 显示动画
+        animate();
+
+        function animate() {
+            window.requestAnimationFrame(animate);
+            
+            // 旋转场景
+            var rotationX = THREE.MathUtils.random(-1, 1);
+            scene.rotation.x += 0.01;
+            
+            // 转换环境光色
+            var environment = new THREE.EnvironmentLight();
+            scene.add(environment);
+            
+            // 插入随机颜色
+            environment.hemisphereColor = new THREE.Color(THREE.MathUtils.random(0.8, 1).toString() + " " + THREE.MathUtils.random(0.5, 1).toString());
+
+            // 插入随机噪声
+            environment.intensity = THREE.MathUtils.random(0.5, 1);
+
+            // 插入随机颜色
+            scene.background = new THREE.Color(THREE.MathUtils.random(0.9, 1).toString() + " " + THREE.MathUtils.random(0.2, 1).toString());
+        }
+    </script>
+</body>
+</html>

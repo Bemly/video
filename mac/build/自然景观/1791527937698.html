@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="https://example.com/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxelNatureScene</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 设置相机位置
+    camera.position.z = 50;
+
+    // 添加轨道控制器，以便可以从各个角度观察场景
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 设置场景的背景颜色（晨昏色调）
+    scene.background = new THREE.Color(0x2a4b6c);
+
+    // 光源：环境光 + 平行光
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // ====================== 体素山体生成 =====================
+    // 山体的顶点数据（简化版）
+    const mountainVertices = [];
+    const vertexBufferGeometry = new THREE.BufferGeometry();
+
+    // 生成山体顶点，形成起伏的形状（简化版）
+    for (let i = 0; i < 20; i++) {
+      const x = -15 + Math.random() * 30;
+      const z = -25 + Math.random() * 10;
+      // 山体高度（随机）
+      const y = Math.random() * 20 + 5;
+      mountainVertices.push(x, y, z);
+    }
+
+    // 设置顶点数据到几何体
+    vertexBufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(mountainVertices, 3));
+    // 设置法线，体素风格绘制时使用合适的光照效果
+    const normals = [];
+    for (let i = 0; i < mountainVertices.length / 3; i++) {
+      const x = mountainVertices[i * 3];
+      const y = mountainVertices[i * 3 + 1];
+      const z = mountainVertices[i * 3 + 2];
+      // 简单法线计算（用于光照）
+      const nx = Math.cos(Math.PI / 4 * (y - 10) / 20);
+      const ny = Math.sin(Math.PI / 4 * (y - 10) / 20);
+      const nz = Math.sin(Math.PI / 4 * (y - 10) / 20);
+      normals.push(nx, ny, nz);
+    }
+    vertexBufferGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    // 设置颜色，山体使用棕色系体现山地感觉（晨昏色调）
+    const colors = [];
+    for (let i = 0; i < mountainVertices.length / 3; i++) {
+      const x = mountainVertices[i * 3];
+      const y = mountainVertices[i * 3 + 1];
+      const z = mountainVertices[i * 3 + 2];
+      // 山体颜色（棕褐色）
+      const r = Math.max(0, 230 - y / 2);
+      const g = Math.max(0, 185 - y / 2);
+      const b = Math.max(0, 140 - y / 2);
+      colors.push(r, g, b);
+    }
+    vertexBufferGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    // 创建山体几何体
+    const mountainGeometry = new THREE.BufferGeometry();
+    mountainGeometry.setAttribute('position', vertexBufferGeometry.getAttribute('position'));
+    mountainGeometry.setAttribute('normal', vertexBufferGeometry.getAttribute('normal'));
+    mountainGeometry.setAttribute('color', vertexBufferGeometry.getAttribute('color'));
+    // 创建山体网格材质（仅显示顶点着色，模拟体素风格）
+    const mountainMaterial = new THREE.MeshPhongMaterial({
+      vertexColors: true, // 使用顶点颜色
+    });
+    // 创建山体网格并添加到场景中
+    const mountainMesh = new THREE.Mesh(mountainGeometry, mountainMaterial);
+    scene.add(mountainMesh);
+
+    // ====================== 瀑布生成 =====================
+    // 瀑布的材质是简单的平面，模拟流水效果
+    const waterGeometry = new THREE.PlaneGeometry(40, 20);
+    // 瀑布颜色（淡蓝色模拟水色）
+    const waterMaterial = new THREE.MeshPhongMaterial({ color: 0x87ceeb });
+    const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+    // 瀑布位置在山体底部，随机宽度和高度（模拟真实瀑布）
+    const x = Math.random() * 10 - 5; // -5 到 5 之间
+    const y = -25; // 瀑布底部在山体下方
+    const z = Math.random() * 20 - 10; // -10 到 10 之间
+    waterMesh.position.set(x, y, z);
+    // 使瀑布在 Y 轴旋转（模拟流动感）
+    waterMesh.rotation.y = Math.PI;
+    scene.add(waterMesh);
+
+    // 添加一个用于绘制瀑布水流的粒子系统（可选）
+    const particleSystem = new THREE.Points({
+      geometry: waterGeometry,
+      material: new THREE.PointsMaterial({ color: 0x87cefa, size: 1 }), // 水流粒子颜色（淡蓝色）
+      vertexColors: true, // 使用顶点颜色来模拟水流效果（可选）
+    });
+    particleSystem.position.copy(waterMesh.position); // 粒子系统位置与瀑布相同
+    particleSystem.rotation.y = Math.PI; // 使粒子系统旋转角度与瀑布相同
+    scene.add(particleSystem);
+
+    // ====================== 穿云效果生成 =====================
+    // 穿云的平面用于模拟流云的效果
+    const cloudGeometry = new THREE.PlaneGeometry(60, 30);
+    // 穿云的颜色（淡白色模拟云彩）
+    const cloudMaterial = new THREE.MeshPhongMaterial({ color: 0xd3d3d3 });
+    const cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+    // 穿云位置在山体的上方，随机宽度和高度（模拟真实云彩）
+    const cloudX = Math.random() * 20 - 10; // -10 到 10 之间
+    const cloudY = 30; // 穿云在山体上方
+    const cloudZ = Math.random() * 20 - 10; // -10 到 10 之间
+    cloudMesh.position.set(cloudX, cloudY, cloudZ);
+    // 使穿云在 Y 轴旋转（模拟流动感）
+    cloudMesh.rotation.y = Math.PI * 0.5; // 旋转90度
+    scene.add(cloudMesh);
+
+    // 添加一个用于绘制穿云的粒子系统，模拟流动效果
+    const cloudParticleSystem = new THREE.Points({
+      geometry: cloudGeometry,
+      material: new THREE.PointsMaterial({ color: 0xffffff, size: 2 }), // 粒子颜色为纯白色
+      vertexColors: true,
+    });
+    cloudParticleSystem.position.copy(cloudMesh.position); // 粒子系统位置与穿云相同
+    cloudParticleSystem.rotation.y = Math.PI * 0.5; // 使粒子系统旋转角度与穿云相同
+    scene.add(cloudParticleSystem);
+
+    // ====================== 环境植被生成 =====================
+    // 树木模型（这里使用简单的矩形模拟树体）
+    const createTree = () => {
+      const treeGeometry = new THREE.BoxGeometry(2, 3, 1); // 树体形状
+      const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x5c4033 }); // 棕色树体颜色
+      const treeMesh = new THREE.Mesh(treeGeometry, treeMaterial); // 创建树体网格
+      return treeMesh;
+    };
+    // 添加多个随机位置的树
+    for (let i = 0; i < 15; i++) {
+      const x = Math.random() * 40 - 20; // -20 到 20 之间
+      const y = Math.random() * 5 + 1; // -2 到 3 之间（树的高度）
+      const z = Math.random() * 40 - 20; // -20 到 20 之间
+      const tree = createTree();
+      tree.position.set(x, y, z); // 设置树的位置
+      scene.add(tree); // 将树添加到场景中
+    }
+    // 添加一些随机位置的草地（矩形模拟）
+    const createGrass = () => {
+      const grassGeometry = new THREE.PlaneGeometry(3, 1.5); // 草地形状
+      const grassMaterial = new THREE.MeshPhongMaterial({ color: 0x228b22 }); // 绿色草地颜色
+      const grassMesh = new THREE.Mesh(grassGeometry, grassMaterial); // 创建草地网格
+      return grassMesh;
+    };
+    for (let i = 0; i < 30; i++) {
+      const x = Math.random() * 40 - 20; // -20 到 20 之间
+      const z = Math.random() * 40 - 20; // -20 到 20 之间
+      const grass = createGrass();
+      grass.position.set(x, -0.1, z); // 草地放在树周围（略低于树的底部）
+      scene.add(grass); // 将草地添加到场景中
+    }
+
+    // ====================== 动画循环 =====================
+    const animate = () => {
+      requestAnimationFrame(animate); // 请求下一帧动画
+      controls.update(); // 更新轨道控制器
+
+      // 简单的云朵飘动动画（可选：让穿云的粒子系统发光闪烁）
+      if (cloudParticleSystem) {
+        const intensity = Math.sin(Date.now() * 0.001) * 0.5 + 0.5; // 发光强度随时间变化
+        cloudParticleSystem.material.color.setHex(cloudMaterial.color.getHex() * intensity);
+      }
+
+      renderer.render(scene, camera); // 渲染场景到画布
+    };
+
+    // 开始动画循环
+    animate();
+
+    // 处理窗口大小变化
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+
+</html>

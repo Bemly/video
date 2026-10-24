@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Voxel Chinese Temple - 墨韵古建</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #f0f0f0;
+            z-index: 100;
+            text-shadow: 0 0 5px #000;
+            pointer-events: none;
+        }
+        h1 { font-weight: 300; letter-spacing: 5px; font-size: 24px; }
+        p { font-size: 14px; color: #aaa; }
+    </style>
+    <!-- 使用 Import Map 引入 Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="info">
+        <h1>墨韵 · 古建 (Voxel Style)</h1>
+        <p>晨昏光影 | 中轴对称 | 纯粹 WebGL</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- 配置参数 ---
+        const CONFIG = {
+            groundSize: 150,
+            blockSize: 4,
+            colors: {
+                grass: 0x3a5f0b,
+                road: 0x555555,
+                wallRed: 0xb22c2c, // 朱红
+                woodDark: 0x3d2614, // 黑木
+                woodLight: 0x8b5a2b, // 红褐
+                roofGreen: 0x2f4f4f, // 黛瓦
+                roofGold: 0xcca600, // 琉璃金
+                roofTile: 0x1e3c3c, // 普通青瓦
+                accent: 0xff6b6b // 装饰色
+            }
+        };
+
+        // --- 场景初始化 ---
+        const scene = new THREE.Scene();
+        // 晨昏色调的雾气
+        scene.fog = new THREE.FogExp2(0xddeeff, 0.015); 
+        scene.background = new THREE.Color(0xddeeff); // 远景天空色
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.set(120, 80, 120);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; // 防止穿地
+
+        // --- 灯光系统 (晨昏氛围) ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // 主光源 (模拟太阳) - 侧后方暖光
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.5);
+        sunLight.position.set(100, 100, 50);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 500;
+        sunLight.shadow.camera.left = -150;
+        sunLight.shadow.camera.right = 150;
+        sunLight.shadow.camera.top = 150;
+        sunLight.shadow.camera.bottom = -150;
+        scene.add(sunLight);
+
+        // 补光 (模拟环境反光)
+        const fillLight = new THREE.DirectionalLight(0xaa8866, 0.3);
+        fillLight.position.set(-100, 50, -50);
+        scene.add(fillLight);
+
+        // --- 辅助函数：添加体素块 ---
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        // 为了性能，可以缓存材质，但在体素风格中，频繁切换颜色更直观
+        const getMaterial = (color) => new THREE.MeshStandardMaterial({ 
+            color: color, 
+            roughness: 0.8, 
+            metalness: 0.1 
+        });
+
+        function addBlock(x, y, z, w, h, d, color) {
+            const mesh = new THREE.Mesh(boxGeo, getMaterial(color));
+            mesh.position.set(x * CONFIG.blockSize, y * CONFIG.blockSize + CONFIG.blockSize/2, z * CONFIG.blockSize);
+            mesh.scale.set(w, h, d);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        // --- 辅助函数：绘制中式屋顶 (简化版歇山顶) ---
+        // level 0 是屋脊，向下扩展
+        function buildChineseRoof(parent, width, depth, level, color) {
+            if (level <= 0) return;
+            
+            const s = CONFIG.blockSize;
+            const w = width;
+            const d = depth;
+
+            // 1. 正脊 (Ridge) - 中间最高的一根或一条
+            // 为了体素感，简化为中间几块
+            const topY = level * 2.5;
+            
+            // 2. 垂脊 (Eaves) - 四角
+            // 这里的逻辑是模拟“瓦片”堆叠的感觉
+            const roofMat = new THREE.MeshStandardMaterial({ color: color });
+            
+            // 这种屋顶由多个倒梯形或金字塔块组成
+            // 这里用简单的倒金字塔层叠法
+            
+            // 基础层 (屋身顶部到屋檐)
+            const houseTopZ = Math.floor((w + 2)/2);
+            const houseTopX = Math.floor((d + 2)/2);
+            
+            // 屋顶瓦片层 (倒金字塔)
+            for(let i=0; i<4; i++) { // 屋檐翘起的高度
+                const currentW = w + i * 0.5;
+                const currentD = d + i * 0.5;
+                const currentH = 1 + i * 0.2;
+                
+                // 每一层是一个倒置的方锥台，我们用最简单的方块堆叠：
+                // 这是一个从中间向四周扩大的过程
+                const topSize = Math.max(1, (currentW-currentD)/2); 
+                
+                for (let j = 0; j < currentH; j++) {
+                    // 计算这一层的高度范围 (倒置，所以是向下延伸)
+                    // 这里的逻辑稍微抽象，为了视觉效果：
+                    // 我们构造一个“倒金字塔”结构
+                    if (j === currentH - 1) {
+                        // 最底层 (最大面)
+                        const y = level * 2.5 + (currentH - 1) * 0.6 - 0.5;
+                        const halfW = currentW/2;
+                        const halfD = currentD/2;
+                        // 四块瓦拼成
+                        addBlock(halfW - 0.1, y, halfD - 0.1, currentW*2, 1, 0.1, color); // 前
+                        addBlock(-halfW + 0.1, y, -halfD + 0.1, currentW*2, 1, 0.1, color); // 后
+                        addBlock(-0.1, y, halfD - 0.1, 0.1, 1, currentD*2, color); // 左
+                        addBlock(0.1, y, -halfD + 0.1, 0.1, 1, currentD*2, color); // 右
+                    } else {
+                        // 中间层 (小一点)
+                        const smallW = currentW - 0.5;
+                        const smallD = currentD - 0.5;
+                        const y = level * 2.5 + (currentH - 1 - j) * 0.6 - 0.5;
+                        const halfW = smallW/2;
+                        const halfD = smallD/2;
+                        addBlock(halfW - 0.1, y, halfD - 0.1, smallW*2, 1, 0.1, color);
+                        addBlock(-halfW + 0.1, y, -halfD + 0.1, smallW*2, 1, 0.1, color);
+                        addBlock(-0.1, y, halfD - 0.1, 0.1, 1, smallD*2, color);
+                        addBlock(0.1, y, -halfD + 0.1, 0.1, 1, smallD*2, color);
+                    }
+                }
+            }
+            
+            // 屋脊装饰 (金色)
+            if (level === 0) {
+                 addBlock(0, level*2.5 + 1, 0, w, 1, 2, CONFIG.colors.roofGold);
+            }
+        }
+
+
+        // --- 构建组件 ---
+
+        // 1. 主殿 (Da Gong Dian)
+        function buildMainHall(x, z) {
+            const wallColor = CONFIG.colors.wallRed;
+            const woodColor = CONFIG.colors.woodDark;
+            const roofColor = CONFIG.colors.roofGold;
+
+            const bodyW = 14;
+            const bodyD = 6;
+            const bodyH = 4; // 4 层高
+
+            // 1. 地基/台阶
+            const stepSize = 1;
+            for (let i = 1; i <= 3; i++) {
+                const y = -i * stepSize;
+                const h = stepSize;
+                const w = bodyW + i;
+                const d = bodyD + i;
+                addBlock(0, y, 0, w, h, d, 0x654321); // 土基色
+            }
+
+            // 2. 墙体 (红墙)
+            // 前后墙
+            addBlock(0, -bodyH/2 - 0.5, 0, bodyW, bodyH*2, 1, wallColor);
+            // 左右墙
+            addBlock(0, -bodyH/2 - 0.5, 0, 0.5, bodyH*2, bodyD, wallColor);
+            addBlock(0, bodyH/2 + 0.5, 0, 0.5, bodyH*2, bodyD, wallColor);
+
+            // 门廊入口 (虚空)
+            const dooR = 1;
+            for(let y = 0; y < bodyH; y++) {
+                // 留出中间的门
+                if (y === 1 || y === 2) {
+                   // 门洞不需要加块
+                } else {
+                    // 柱子 (斗拱简化为黑色柱子)
+                    const doorW = 2;
+                    const leftWallX = -bodyW/2 + 1.5;
+                    const rightWallX = bodyW/2 - 1.5;
+                    
+                    // 柱子
+                    addBlock(leftWallX, y, 0, 1, 1, 1, woodColor);
+                    addBlock(rightWallX, y, 0, 1, 1, 1, woodColor);
+                    
+                    // 门框
+                    addBlock(0, -0.5, -0.1, doorW, 1, 1, 0x333333);
+                    addBlock(0, -0.5, bodyD/2 - 0.9, doorW, 1, 1, 0x333333);
+                }
+            }
+
+            // 3. 屋顶 (歇山顶/庑殿顶混合体)
+            const roofWidth = bodyW + 4;
+            const roofDepth = bodyD + 3;
+            buildChineseRoof(0, roofWidth, roofDepth, 5, roofColor);
+
+            // 4. 屋脊兽 (简化为瓦片上的装饰色块)
+            const ridgeY = 5 * 2.5 + 1;
+            const ridgeZ = 3; // 前
+            const ridgeW = 0.5;
+            // 添加一些琉璃瓦装饰
+            addBlock(0, ridgeY, ridgeZ, ridgeW, 1, 2, CONFIG.colors.roofGreen);
+
+            // 5. 装饰：灯笼
+            for(let i=0; i<5; i++) {
+                const zPos = (i-2) * 1.2;
+                const lx = bodyW/2 - 0.3;
+                const rx = -bodyW/2 + 0.3;
+                createLantern(lx, 4 + 0.5, 0, zPos);
+                createLantern(rx, 4 + 0.5, 0, zPos);
+            }
+        }
+
+        // 2. 配殿 (Pei Dian)
+        function buildSideHall(x, z) {
+            const wallColor = CONFIG.colors.wallRed;
+            const woodColor = CONFIG.colors.woodDark;
+            const roofColor = CONFIG.colors.roofGreen;
+
+            const bodyW = 8;
+            const bodyD = 4;
+            const bodyH = 3;
+
+            // 地基
+            for(let i=1; i<=2; i++) {
+                 addBlock(0, -i, 0, bodyW + i, 1, bodyD + i, 0x654321);
+            }
+
+            // 墙体
+            addBlock(0, -bodyH/2 - 0.5, 0, bodyW, bodyH, 1, wallColor);
+            addBlock(0, -bodyH/2 - 0.5, 0, 0.5, bodyH, bodyD, wallColor);
+            addBlock(0, bodyH/2 + 0.5, 0, 0.5, bodyH, bodyD, wallColor);
+
+            // 屋顶
+            buildChineseRoof(0, bodyW + 3, bodyD + 2, 4, roofColor);
+
+            // 灯笼
+            createLantern(bodyW/2 - 0.3, 2.5, 0, 1.5);
+            createLantern(-bodyW/2 + 0.3, 2.5, 0, 1.5);
+        }
+
+        // 3. 宝塔 (Pagoda)
+        function buildPagoda(x, z) {
+            const towerH = 12;
+            const levelTopY = 6.5;
+            
+            for (let i = 0; i < towerH; i++) {
+                const lvlY = (i + 1) * 1.5;
+                const curW = 4 - i * 0.2;
+                const curD = 3 - i * 0.15;
+                const bodyColor = i % 2 === 0 ? CONFIG.colors.wallRed : CONFIG.colors.woodDark;
+                
+                // 塔身
+                addBlock(0, lvlY - 1.5, 0, curW, 2, curD, bodyColor);
+                
+                // 塔檐 (每层都有)
+                buildChineseRoof(0, curW + 1, curD + 1, 1, CONFIG.colors.roofGreen);
+            }
+            
+            // 塔刹 (顶部装饰)
+            addBlock(0, towerH * 1.5, 0, 0.5, 1, 1, CONFIG.colors.roofGold);
+            addBlock(0, towerH * 1.5 + 1, 0, 0.3, 1, 0.3, 0xcccccc);
+            addBlock(0, towerH * 1.5 + 1.5, 0, 0.5, 1, 0.5, CONFIG.colors.roofGold);
+        }
+
+        // 4. 山门 (Mountain Gate)
+        function buildMountainGate(z) {
+            const gateW = 10;
+            const gateH = 6;
+            const gateD = 3;
+            const gateY = -0.5; // 在地面
+
+            // 门墩 (石狮位置)
+            addBlock(-gateW/2 + 2, gateY, -gateD/2, 1, 1.5, 1, CONFIG.colors.wallRed);
+            addBlock(gateW/2 - 2, gateY, -gateD/2, 1, 1.5, 1, CONFIG.colors.wallRed);
+
+            // 拱门结构 (简单的盒子组合出拱形感觉)
+            // 左立柱
+            addBlock(-gateW/2 + 1.5, gateY - 0.5, 0, 1, gateH, 1, CONFIG.colors.woodDark);
+            // 右立柱
+            addBlock(gateW/2 - 1.5, gateY - 0.5, 0, 1, gateH, 1, CONFIG.colors.woodDark);
+
+            // 横梁与斗拱
+            const archY = gateY;
+            const layerY = archY;
+            for(let h=0; h<gateH; h++) {
+                 // 模拟斗拱层
+                 if(h%2 === 0) {
+                     const beamH = 1;
+                     const beamY = archY + h;
+                     const beamW = 0.5;
+                     // 顶部横
+                     addBlock(0, beamY, -gateD/2 + 0.2, gateW - 1, 1, 1, CONFIG.colors.woodLight);
+                     // 底部横 (支撑)
+                     if(h > 0) {
+                         addBlock(0, beamY - 0.5, -gateD/2 + 0.2, gateW - 1, 0.5, 1, CONFIG.colors.woodDark);
+                     }
+                 } else {
+                     // 空隙
+                 }
+            }
+            
+            // 拱形顶部
+            addBlock(0, archY + gateH - 1.5, -gateD/2, gateW, 2, gateD, CONFIG.colors.woodDark); // 封顶
+            
+            // 灯笼 (门前)
+            createLantern(0, 2, 0, 2);
+        }
+
+        // --- 辅助功能：灯笼 ---
+        function createLantern(x, y, z, scaleZ = 1) {
+            const lanternGroup = new THREE.Group();
+            
+            // 灯笼主体
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 8), new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff4400, emissiveIntensity: 0.5 }));
+            sphere.position.set(0, 0.5, 0);
+            
+            // 绳子
+            const line = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, -0.5, 0),
+                new THREE.Vector3(0, 1, 0)
+            ]), new THREE.LineBasicMaterial({ color: 0x222222 }));
+            
+            lanternGroup.add(line);
+            lanternGroup.add(sphere);
+            lanternGroup.position.set(x, y, z);
+            
+            scene.add(lanternGroup);
+        }
+
+        // --- 环境构建 ---
+
+        // 1. 地面 (草地 + 道路)
+        const groundGeo = new THREE.PlaneGeometry(CONFIG.groundSize, CONFIG.groundSize, 60, 60);
+        const groundMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.grass, roughness: 1 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.1;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // 2. 道路 (十字路)
+        const roadGeo = new THREE.PlaneGeometry(20, CONFIG.groundSize);
+        const roadMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.road, roughness: 0.8 });
+        const roadMain = new THREE.Mesh(roadGeo, roadMat);
+        roadMain.rotation.x = -Math.PI / 2;
+        roadMain.position.y = -0.05; // 稍微垫高
+        roadMain.receiveShadow = true;
+        scene.add(roadMain);
+
+        const roadGeoCross = new THREE.PlaneGeometry(CONFIG.groundSize, 20);
+        const roadCross = new THREE.Mesh(roadGeoCross, roadMat);
+        roadCross.rotation.x = -Math.PI / 2;
+        roadCross.position.y = -0.05;
+        scene.add(roadCross);
+
+        // 3. 树木 (简单的圆柱体 + 球体)
+        function addTree(x, z) {
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 2, 6), new THREE.MeshStandardMaterial({color: 0x3d2614}));
+            trunk.position.set(x, 1, z);
+            
+            const leaves = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 2.5, 8), new THREE.MeshStandardMaterial({color: 0x1a4012}));
+            leaves.position.set(x, 3, z);
+            // 简单的树叶形状
+            const leafGeo = new THREE.SphereGeometry(2, 8, 8);
+            const leaves2 = new THREE.Mesh(leafGeo, new THREE.MeshStandardMaterial({color: 0x1a4012}));
+            leaves2.position.set(x, 4, z);
+
+            trunk.castShadow = true;
+            leaves.castShadow = true;
+            leaves2.castShadow = true;
+
+            scene.add(trunk);
+            scene.add(leaves);
+            scene.add(leaves2);
+        }
+
+        // 种植树木 (避免建筑位置)
+        addTree(-40, -40);
+        addTree(40, -40);
+        addTree(-40, 40);
+        addTree(40, 40);
+        // 庭院树木
+        addTree(0, -60);
+        addTree(0, -90);
+
+        // --- 实例化构建 ---
+
+        // 位置坐标 (Z 轴向后递增)
+        // 1. 山门 (最前)
+        buildMountainGate(-60);
+
+        // 2. 主体建筑群 (中轴线)
+        // 主殿
+        buildMainHall(0, 10);
+        
+        // 配殿 (左右)
+        buildSideHall(-30, 30);
+        buildSideHall(30, 30);
+
+        // 3. 宝塔 (后方)
+        buildPagoda(0, 90);
+
+        // 4. 远景小建筑 (增加氛围)
+        buildSideHall(-80, 110);
+        buildSideHall(80, 110);
+
+        // --- 星星粒子系统 (夜晚/晨昏背景) ---
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 500;
+        const posArray = new Float32Array(starCount * 3);
+        for(let i=0; i<starCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 400;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starMat = new THREE.PointsMaterial({size: 0.5, color: 0xffffff, transparent: true, opacity: 0.8});
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+
+        // --- 动画循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 自动缓慢旋转展示全貌 (可选，这里设为自动缓慢旋转以便观察)
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>

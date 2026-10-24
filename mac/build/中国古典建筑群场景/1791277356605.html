@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+<meta charset="UTF-8" />
+<title>VoxCelDynasty – Voxel Chinese Architecture</title>
+<style>
+  body{margin:0;overflow:hidden}
+</style>
+</head>
+<body>
+<script type="module">
+  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
+  import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.0/examples/jsm/controls/OrbitControls.js';
+
+  const scene = new THREE.Scene();
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.set(0,-40,30); camera.lookAt(new THREE.Vector3(0,0,10));
+  const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping=true;
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.3));
+  const dir = new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(10,20,10); dir.castShadow=true; dir.shadow.mapSize.set(1024,1024); scene.add(dir);
+
+  const groundGeo = new THREE.PlaneGeometry(200,200);
+  const groundMat = new THREE.MeshLambertMaterial({color:0x228B22});
+  const ground = new THREE.Mesh(groundGeo,groundMat); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+  const voxelSize=1, baseGeo=new THREE.BoxGeometry(voxelSize,voxelSize,voxelSize);
+  function voxel(pos,c){const m=new THREE.MeshLambertMaterial({color:c}); const v=new THREE.Mesh(baseGeo,m);v.position.set(pos.x,pos.y,pos.z);v.castShadow=true;v.receiveShadow=true;return v;}
+
+  function buildMainHall(){const g=new THREE.Group(); const w=0x8B0000,r=0xA52A2A;const W=10,D=6,H=4;
+    for(let i=0;i<W;i++)for(let j=0;j<D;j++){
+      g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:0},w));
+      for(let k=1;k<H;k++)g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:k},w));
+    }
+    for(let l=0;l<3;l++){
+      const L=Math.min(W,D)-2*l;
+      for(let i=0;i<L;i++)for(let j=0;j<L;j++){
+        const x=i-L/2+0.5,y=j-L/2+0.5;
+        g.add(voxel({x,y,z:H+l},r));
+      }
+    }g.position.set(0,0,0);scene.add(g);}
+  function buildSideHall(x){const g=new THREE.Group(); const w=0x8B0000,r=0xA52A2A;const W=6,D=4,H=3;
+    for(let i=0;i<W;i++)for(let j=0;j<D;j++){
+      g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:0},w));
+      for(let k=1;k<H;k++)g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:k},w));
+    }
+    for(let l=0;l<2;l++){
+      const L=Math.min(W,D)-2*l;
+      for(let i=0;i<L;i++)for(let j=0;j<L;j++){
+        const x=i-L/2+0.5,y=j-L/2+0.5;
+        g.add(voxel({x,y,z:H+l},r));
+      }
+    }g.position.set(x,0,0);scene.add(g);}
+  function buildGate(){const g=new THREE.Group(); const w=0x8B0000,r=0xA52A2A;const W=4,D=2,H=3;
+    for(let i=0;i<W;i++)for(let j=0;j<D;j++){
+      g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:0},w));
+      for(let k=1;k<H;k++)g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:k},w));
+    }
+    for(let l=0;l<2;l++){
+      const L=Math.min(W,D)-2*l;
+      for(let i=0;i<L;i++)for(let j=0;j<L;j++){
+        const x=i-L/2+0.5,y=j-L/2+0.5;
+        g.add(voxel({x,y,z:H+l},r));
+      }
+    }g.position.set(0,-20,0);scene.add(g);}
+  function buildPagoda(x,y){const g=new THREE.Group(); const w=0x8B0000,r=0xA52A2A;const W=4,D=4,H=6;
+    for(let i=0;i<W;i++)for(let j=0;j<D;j++){
+      g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:0},w));
+      for(let k=1;k<H;k++)g.add(voxel({x:i-W/2+0.5,y:j-D/2+0.5,z:k},w));
+    }
+    for(let l=0;l<3;l++){
+      const L=Math.min(W,D)-2*l;
+      for(let i=0;i<L;i++)for(let j=0;j<L;j++){
+        const x=i-L/2+0.5,y=j-L/2+0.5;
+        g.add(voxel({x,y,z:H+l},r));
+      }
+    }g.position.set(x,y,0);scene.add(g);}
+  function road(x,ys,ye){const w=4,l=Math.abs(ye-ys);const g=new THREE.PlaneGeometry(w,l);
+    const m=new THREE.MeshLambertMaterial({color:0x8B4513});
+    const r=new THREE.Mesh(g,m);r.rotation.x=-Math.PI/2;const mid=(ys+ye)/2;
+    r.position.set(x,mid,0.01);r.receiveShadow=true;scene.add(r);}
+  function roadX(xs,xe){const w=4,l=Math.abs(xe-xs);const g=new THREE.PlaneGeometry(l,w);
+    const m=new THREE.MeshLambertMaterial({color:0x8B4513});
+    const r=new THREE.Mesh(g,m);r.rotation.y=Math.PI/2;const mid=(xs+xe)/2;
+    r.position.set(mid,0,0.01);r.receiveShadow=true;scene.add(r);}
+  buildGate();buildMainHall();buildSideHall(-12);buildSideHall(12);
+  buildPagoda(-6,12);buildPagoda(6,12);
+  road(0,-20,0);roadX(-12,0);roadX(0,12);road(-6,0,12);road(6,0,12);
+  function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+  animate();
+  window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+</script>
+</body>
+</html>

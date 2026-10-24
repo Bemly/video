@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自然景观场景</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+    const canvas = document.getElementById('renderCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 初始化场景
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(10, 10, 10);
+    scene.add(light);
+
+    // 添加背景光
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    // 创建山脉模型
+    const terrainGeometry = new THREE.PlaneGeometry(100, 100);
+    const terrainMaterial = new THREE.MeshStandardMaterial({
+        color: 0x228B22,
+        side: THREE.DoubleSide,
+        map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/terrain_texture.jpg')
+    });
+    const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+    terrain.rotation.x = Math.PI / 2;
+    scene.add(terrain);
+
+    // 创建瀑布模型
+    const waterGeometry = new THREE.PlaneGeometry(100, 100);
+    const waterMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        side: THREE.DoubleSide,
+        map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/water_texture.jpg')
+    });
+    const water = new THREE.Mesh(waterGeometry, waterMaterial);
+    water.position.y = -5;
+    water.rotation.x = Math.PI / 2;
+    scene.add(water);
+
+    // 创建穿云模型
+    const cloudGeometry = new THREE.SphereGeometry(10, 32, 32);
+    const cloudMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide
+    });
+    const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+    cloud.position.set(0, 0, 5);
+    scene.add(cloud);
+
+    // 设置摄像机位置
+    camera.position.z = 5;
+
+    // 添加光源
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+    sunLight.position.set(10, 10, 10);
+    scene.add(sunLight);
+
+    // 设置光照
+    const ambient = new THREE.AmbientLight(0x404040);
+    scene.add(ambient);
+
+    // 设置视角
+    camera.angle = Math.PI / 4;
+    camera.lookAt(terrain.position);
+
+    // 添加动画
+    function animate() {
+        requestAnimationFrame(animate);
+        water.rotation.y += 0.01;
+        cloud.rotation.x += 0.01;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // 添加交互控制
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 调整窗口大小
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 设置帧率
+    const clock = new THREE.Clock();
+    let deltaTime = 0;
+    function updateFrame() {
+        deltaTime += clock.getDelta();
+        const fps = 60;
+        const time = deltaTime / 1000;
+        if (time > 1/frameRate) {
+            time = deltaTime;
+        }
+        animate();
+    }
+    setInterval(updateFrame, 1000 / 60);
+});
+
+</script>
+</body>
+</html>

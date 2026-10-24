@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pelican Riding a Bike</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f8ff;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .container {
+            position: relative;
+            width: 600px;
+            height: 400px;
+        }
+
+        svg {
+            display: block;
+        }
+
+        .road {
+            fill: none;
+            stroke: #333;
+            stroke-width: 20;
+        }
+
+        .bike {
+            transform-origin: center bottom;
+        }
+
+        .pelican {
+            transform-origin: center top;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+            <!-- 路面 -->
+            <path class="road" d="M50,200 Q150,180 250,200 T350,200 T450,200 T550,200 L550,350 L50,350 Z" />
+
+            <!-- 自行车 -->
+            <g class="bike" id="bike">
+                <!-- 车架 -->
+                <path d="M100,250 L180,250 L160,150 L90,150 Z" fill="#333" stroke="#fff" stroke-width="2"/>
+
+                <!-- 轮子 -->
+                <circle cx="140" cy="250" r="20" fill="#333"/>
+                <circle cx="60" cy="250" r="20" fill="#333"/>
+
+                <!-- 链条 -->
+                <path d="M90,180 L70,190 M90,190 L70,200 M90,200 L70,210"
+                      stroke="#333" stroke-width="2" fill="none"/>
+
+                <!-- 刹车 -->
+                <path d="M65,240 L85,240 M65,260 L85,260" stroke="#333" stroke-width="2"/>
+            </g>
+
+            <!-- 鹈鹕 -->
+            <g class="pelican" id="pelican">
+                <!-- 头部和嘴巴 -->
+                <path d="M140,100 C150,80 170,90 160,120 C150,130 130,130 120,120 Z"
+                      fill="#fff" stroke="#333" stroke-width="2"/>
+
+                <!-- 嘴巴 -->
+                <path d="M140,120 L160,150 C170,160 180,160 190,150"
+                      fill="#ff6b6b" stroke="#333" stroke-width="2"/>
+
+                <!-- 眼珠 -->
+                <circle cx="145" cy="115" r="3" fill="#000"/>
+                <circle cx="155" cy="115" r="3" fill="#000"/>
+
+                <!-- 身体 -->
+                <path d="M160,120 L180,200 C190,220 170,240 150,240 C130,240 110,220 130,200 Z"
+                      fill="#fff" stroke="#333" stroke-width="2"/>
+
+                <!-- 翅膀 -->
+                <path d="M180,150 L200,160 C210,170 210,190 200,200 L180,190 Z"
+                      fill="#fff" stroke="#333" stroke-width="2"/>
+                <path d="M140,150 L120,160 C110,170 110,190 120,200 L140,190 Z"
+                      fill="#fff" stroke="#333" stroke-width="2"/>
+
+                <!-- 腿 -->
+                <path d="M150,240 L160,280 M170,240 L180,280"
+                      stroke="#ff6b6b" stroke-width="3"/>
+            </g>
+        </svg>
+    </div>
+
+    <script>
+        const bike = document.getElementById('bike');
+        const pelican = document.getElementById('pelican');
+
+        let angle = 0;
+        let speed = 2;
+
+        function animate() {
+            // 自行车前进
+            const bikeX = 100 + Math.sin(angle * 0.05) * 30;
+            bike.setAttribute('transform', `translate(${bikeX}, 0)`);
+
+            // 鹈鹕骑自行车
+            const pelicanX = 140 + Math.sin(angle * 0.05) * 20;
+            pelican.setAttribute('transform', `translate(${pelicanX}, -30)`);
+
+            // 自行车轮子旋转
+            const wheelRotation = angle % 360;
+            bike.querySelectorAll('circle')[1].setAttribute('transform', `rotate(${wheelRotation}, 140, 250)`);
+            bike.querySelectorAll('circle')[0].setAttribute('transform', `rotate(${-wheelRotation}, 60, 250)`);
+
+            // 鹈鹕翅膀振动
+            const wingAngle = Math.sin(angle * 0.1) * 15;
+            pelican.querySelectorAll('path')[4].setAttribute('transform', `rotate(${wingAngle}, 180, 170)`);
+            pelican.querySelectorAll('path')[5].setAttribute('transform', `rotate(${-wingAngle}, 120, 130)`);
+
+            angle += speed;
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

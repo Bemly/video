@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","three/examples/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/"}}</script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassicVoxelArchitecturalScene</title>
+    <style>
+        /* 提示：样式设计示例，可以根据实际需要调整 */
+        canvas {
+            display: block;
+            margin-left: auto;
+            width: 80%;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+npm install three.js --save
+
+</script>
+</body>
+</html>
+
+<script type="module">
+// ClassicVoxelArchitecturalScene 使用示例
+import { Scene, Camera, Renderer } from 'three';
+const scene = new Scene();
+const camera = new Camera({
+    position: new Vector3(0, 150, 327),
+});
+const renderer = new Renderer({
+    canvas: document.querySelector('canvas'),
+});
+
+// 添加建筑模型等节点
+const mainPavilion = new BoxGeometry(1, 10, 8); // 这是一个示例模型，实际需要根据具体模型配置参数
+const mainPavilionMesh = new Mesh(mainPavilion, new Material({ color: 0x2e8b57 }));
+scene.add(mainPavilionMesh);
+
+// 添加建筑模型等节点
+const secondaryPavilions = [...Array(3)].map(() => new BoxGeometry(1, 4, 4)); // 这是一个示例模型，实际需要从具体模型配置中提取
+const secondaryPavilionMeshes = [];
+for (let i = 0; i < secondaryPavilions.length; i++) {
+    const secondaryPavilion = new Mesh(secondaryPavilions[i], new Material({ color: 0x6a512e }));
+    secondaryPavilionMeshes.push(secondaryPavilion);
+    scene.add(secondaryPavilionMeshes[i]);
+}
+
+// 添加道路顶铺、建筑小部件等
+const roadPavement = new BoxGeometry();
+const roadsideNodes = [...Array(5)].map(() => new PlaneGeometry());
+for (let i = 0; i < roadsideNodes.length; i++) {
+    const roadsideNode = new Mesh(roadsideNodes[i], new Material({ color: 0x3e4e85 }));
+    scene.add(roadsideNode);
+}
+
+// 添加其他需要的节点和场景对象
+
+renderer.render(scene, camera);
+
+window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// 暂停/启动任务, 以方便调试
+window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame ||
+                               window.moz_requestAnimationFrame;
+
+// 开始绘制
+setTimeout(() => {
+    // 这里可以添加其他绘图逻辑，例如计算光照或渲染场景
+}, 0);
+</script>
+</body>
+</html>
+

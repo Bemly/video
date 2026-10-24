@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Voxel Nature: Dawn of the Peaks</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050a14; font-family: sans-serif; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: #e0f7fa;
+            background: rgba(0, 20, 40, 0.7); padding: 15px; border-radius: 8px;
+            border: 1px solid #4fc3f7; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2 style="margin:0">Voxel Nature</h2>
+        <p>晨曦之巅 | 3D 体素渲染</p>
+    </div>
+
+    <!-- 加载 Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- 配置参数 ---
+        const CONFIG = {
+            voxelSize: 1,
+            mountainHeight: 40,
+            waterLevel: 5,
+            cloudCount: 12,
+            fogColor: '#1a2a4a'
+        };
+
+        // --- 初始化场景 ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a1525);
+            // 晨昏色调的雾气
+        scene.fog = new THREE.FogExp2(0x1a2a4a, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(60, 50, 120);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // --- 光影系统 (晨昏色调) ---
+        const ambientLight = new THREE.AmbientLight(0x404060, 1);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffa500, 2); // 橙色晨曦
+        sunLight.position.set(100, 50, 100);
+        scene.add(sunLight);
+
+        const moonLight = new THREE.PointLight(0x4facfe, 1); // 冷色月光
+        moonLight.position.set(-50, 80, -50);
+        scene.add(moonLight);
+
+        // --- 体素生成逻辑 ---
+        const geometry = new THREE.BoxGeometry(CONFIG.voxelSize, CONFIG.voxelSize, CONFIG.voxelSize);
+        const materialMap = {
+            mountain: new THREE.MeshLambertMaterial({ color: 0x4a5d4e }),
+            snow: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+            water: new THREE.MeshLambertMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }),
+            cloud: new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }),
+            tree: new THREE.MeshLambertMaterial({ color: 0x2d5a27 })
+        };
+
+        const mountainGroup = new THREE.Group();
+        scene.add(mountainGroup);
+
+        // 生成地形 (基于噪声的简易算法)
+        function generateTerrain() {
+            for (let x = -60; x < 60; x += 2) {
+                for (let z = -80; z < 80; z += 2) {
+                    // 生成高度曲线 (模拟山脉)
+                    let h = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 15;
+                    h += Math.sin(x * 0.3) * 5;
+                    h += (Math.random() - 0.5) * 2; // 添加随机噪点
+                    h += (60 - Math.abs(x)) * 0.5; // 中心高耸
+
+                    const finalH = Math.max(1, h + 20);
+                    
+                    // 判断材质
+                    let mat = materialMap.mountain;
+                    if (finalH > 35) mat = materialMap.snow;
+
+                    const cube = new THREE.Mesh(geometry, mat);
+                    cube.position.set(x, finalH / 2, z);
+                    mountainGroup.add(cube);
+
+                    // 添加随机植被 (树)
+                    if (finalH < 25 && Math.random() > 0.98) {
+                        const tree = new THREE.Mesh(geometry, materialMap.tree);
+                        tree.position.set(x, finalH + 1, z);
+                        mountainGroup.add(tree);
+                    }
+                }
+            }
+        }
+
+        // 生成瀑布 (从高处流向低处)
+        function generateWaterfall() {
+            for (let x = -10; x < 10; x += 2) {
+                for (let y = 35; y > CONFIG.waterLevel; y -= 2) {
+                    const cube = new THREE.Mesh(geometry, materialMap.water);
+                    cube.position.set(x, y, 40); // 固定在山脊边缘
+                    mountainGroup.add(cube);
+                }
+            }
+        }
+
+        // 生成云朵 (穿云效果)
+        const clouds = new THREE.Group();
+        scene.add(clouds);
+
+        function generateClouds() {
+            for (let i = 0; i < CONFIG.cloudCount; i++) {
+                const cloudSize = 5 + Math.random() * 10;
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(cloudSize, cloudSize * 0.6, cloudSize), materialMap.cloud);
+                cube.position.set(Math.random() * 200 - 100, 40 + Math.random() * 30, Math.random() * 200 - 100);
+                clouds.add(cube);
+            }
+        }
+
+        // --- 执行构建 ---
+        generateTerrain();
+        generateWaterfall();
+        generateClouds();
+
+        // --- 动画循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 云朵缓慢漂移 (穿云效果)
+            clouds.rotation.y += 0.001;
+            clouds.rotation.x += 0.0005;
+
+            // 简单的水流闪烁效果
+            mountainGroup.children.forEach(child => {
+                if (child.material === materialMap.water) {
+                    child.material.opacity = 0.6 + Math.sin(Date.now() * 0.01) * 0.2;
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // 处理窗口缩放
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

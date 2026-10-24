@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黑洞视界 · Black Hole Event Horizon</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+#canvas { display: block; width: 100vw; height: 100vh; }
+
+/* UI Overlay */
+.ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.header { position: absolute; top: 30px; left: 40px; }
+.header h1 { font-size: 2.5em; color: #fff; text-shadow: 0 0 30px rgba(255,180,60,0.4); letter-spacing: 0.1em; font-weight: 300; }
+.header .sub { color: #8a7f6e; font-size: 0.9em; letter-spacing: 0.3em; margin-top: 8px; }
+.header .line { width: 120px; height: 1px; background: #5a4f3d; margin-top: 12px; }
+
+.data-panel { position: absolute; bottom: 40px; left: 40px; }
+.data-row { display: flex; align-items: center; margin-bottom: 8px; }
+.data-label { width: 140px; color: #6a5f4d; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.15em; }
+.data-value { color: #e8d5b0; font-size: 0.9em; }
+.data-bar { width: 200px; height: 3px; background: #1a1510; margin-left: 8px; }
+.data-fill { height: 3px; background: #e8d5b0; }
+
+.controls-hint { position: absolute; bottom 40px; right: 40px; text-align: right; }
+.controls-hint p { color: #5a4f3d; font-size: 0.75em; margin-bottom: 6px; }
+
+/* Loading */
+#loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050302; display: flex; align-items: center; justify-content: center; z-index: 100; }
+#loading .spinner { width: 40px; height: 40px; border: 2px solid #3a2f1d; border-top-color: #e8d5b0; animation: spin 1s infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading .text { color: #5a4f3d; margin-top: 20px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+    <div class="spinner"></div>
+    <p class="text">正在计算引力透镜场...</p>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div class="ui-overlay">
+    <div class="header">
+        <h1>黑洞视界</h1>
+        <p class="sub">GRAVITATIONAL LENSING SIMULATION</p>
+        <div class="line"></div>
+    </div>
+
+    <div class="data-panel">
+        <div class="data-row">
+            <span class="data-label">质量 Mass</span>
+            <span class="data-value" id="mass-val">4.2 × 10⁶ M☉</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">吸积盘温度</span>
+            <span class="data-value" id="temp-val">4.8 × 10⁶ K</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">引力透镜强度</span>
+            <span class="data-value" id="lens-val">0.87</span>
+            <div class="data-bar"><div class="data-fill" id="lens-fill"></div></div>
+        </div>
+        <div class="data-row">
+            <span class="data-label">多普勒偏移</span>
+            <span class="data-value" id="doppler-val">λ/λ₀ = 1.03</span>
+        </div>
+    </div>
+
+    <div class="controls-hint">
+        <p>拖拽旋转视角</p>
+        <p>滚轮缩放 · 双击重置</p>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// BLACK HOLE VISUALIZATION - WebGL Gravitational Lensing
+// ============================================================
+
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+
+// Resize handling
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+// SHADER: Gravitational Lensing Simulation
+// This fragment shader simulates the bending of light around a 
+// black hole, creating the characteristic Einstein ring effect.
+// ============================================================
+
+const vertexShader = `
+precision mediump float;
+attribute vec2 a_position;
+void main() {
+    gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
+
+const fragmentShader = `
+precision highp float;
+
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec3 u_cameraPos;
+uniform vec3 u_viewDir;
+
+// Black hole parameters
+const float BH_RADIUS = 0.15;       // Event horizon radius (normalized)
+const float ACCRETION_RADIUS = 0.35; // Accretion disk radius
+
+// Camera orbit parameters
+uniform float u_orbitAngleX;
+uniform float u_orbitAngleY;
+
+// ============================================================
+// Gravitational lensing: bend light rays around the black hole
+// This simulates how background light is bent by gravity.
+// ============================================================
+
+vec3 bendLight(vec3 origin, vec3 direction) {
+    // Simplified gravitational lensing approximation
+    float r = length(direction);
+    if (r < 0.01) return vec3(0.0);
+    
+    // Deflection angle proportional to 1/r^2 (simplified)
+    float deflection = BH_RADIUS * BH_RADIUS / (r * r);
+    
+    // Bend toward the black hole center
+    vec3 toBH = -origin;
+    float bendAmount = deflection * 0.5;
+    
+    return direction + toBH * bendAmount;
+}
+
+// ============================================================
+// Accretion disk: relativistic Doppler-shifted ring of light
+// The side approaching the viewer is blue-shifted (hotter),
+// the receding side is red-shifted (cooler).
+// ============================================================
+
+float accretionDisk(vec3 pos, vec3 viewDir) {
+    // Disk is edge-on to the viewer (thin ring)
+    float diskHeight = pos.y; // y is perpendicular to disk plane
+    
+    // Only render if within the ring
+    float dist = length(pos.xz);
+    if (dist < ACCRETION_RADIUS * 0.85 || dist > ACCRETION_RADIUS) {
+        return 0.0;
+    }
+    
+    // Relativistic Doppler shift: approaching side is blue, receding is red
+    float angle = atan(pos.z, pos.x);
+    
+    // Calculate velocity direction (disk rotates)
+    vec3 velocity = vec3(-sin(angle), 0.0, cos(angle));
+    
+    // Doppler factor: approaching = blue shift (shorter wavelength)
+    float dopplerFactor = dot(velocity, viewDir);
+    
+    // Color based on temperature (hotter = blue/white, cooler = red)
+    vec3 hotColor = vec3(0.95, 0.85, 0.6);   // Hot: blue-white
+    vec3 coolColor = vec3(0.8, 0.4, 0.15);    // Cool: deep red
+    
+    float intensity = mix(0.4, 1.2, abs(dopplerFactor));
+    
+    return intensity;
+}
+
+// ============================================================
+// Background stars: procedural star field with gravitational lensing
+// Stars are bent around the black hole, creating an Einstein ring.
+// ============================================================
+
+float hash2d(vec2 p) {
+    return fract(sin(dot(p, vec2(1.0, 1.0))) * 4573.1);
+}
+
+float starField(vec2 uv) {
+    // Generate procedural stars at various scales
+    float total = 0.0;
+    
+    for (int i = 0; i < 8; i++) {
+        float scale = pow(2.0, float(i));
+        vec2 p = uv * scale;
+        
+        // Find nearest "star" position
+        float x = floor(p.x);
+        float y = floor(p.y);
+        
+        // Random star brightness and size
+        float brightness = hash2d(vec2(x, y)) * 0.5;
+        
+        // Distance to star center
+        float dist = length(vec2(x - p.x, y - p.y));
+        
+        // Star size decreases with distance (scale)
+        float size = 0.02 / scale;
+        
+        // Add star contribution
+        total += brightness * exp(-dist * dist / (size * size));
+    }
+    
+    return total;
+}
+
+// ============================================================
+// Main rendering: combine all elements with gravitational lensing
+// ============================================================
+
+void main() {
+    // Convert to normalized coordinates [-1, 1]
+    vec2 uv = (gl_FragCoord.xy - u_resolution / 2.0) / min(u_resolution.x, u_resolution.y);
+    
+    // Camera orbit: rotate the view direction based on user input
+    float cosX = cos(u_orbitAngleX);
+    float sinX = sin(u_orbitAngleX);
+    float cosY = cos(u_orbitAngleY);
+    float sinY = sin(u_orbitAngleY);
+    
+    // Apply rotation to view direction
+    vec3 viewDir = u_viewDir;
+    viewDir.x *= cosY;
+    viewDir.z *= sinY;
+    
+    // Apply gravitational lensing: bend the view direction toward the black hole
+    vec3 bentDir = bendLight(u_cameraPos, viewDir);
+    
+    // Calculate where the light ray would hit (simplified)
+    float dist = length(bentDir);
+    
+    // Determine what we're seeing: accretion disk or background stars
+    
+    float intensity = 0.0;
+    
+    // Accretion disk contribution (edge-on ring)
+    float diskIntensity = accretionDisk(bentDir, viewDir);
+    
+    // Background stars contribution (gravitationally lensed)
+    float starIntensity = starField(bentDir.xz);
+    
+    // Combine with gravitational lensing effect
+    intensity = diskIntensity + starIntensity * 0.3;
+    
+    // Add subtle pulsing animation
+    float pulse = sin(u_time * 0.5) * 0.02;
+    intensity += pulse;
+    
+    // Final color with warm tones
+    vec3 finalColor = vec3(intensity);
+    
+    // Add subtle blue tint for depth
+    finalColor += vec3(0.05, 0.02, 0.1) * (1.0 - intensity);
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+}
+`;
+
+// ============================================================
+// WebGL setup and rendering loop
+// ============================================================
+
+let program;
+let a_position;
+let u_resolution, u_time, u_cameraPos, u_viewDir, u_orbitAngleX, u_orbitAngleY;
+
+function initWebGL() {
+    // Create shader program
+    let vertex = compileShader(vertexShader, gl.VERTEX_SHADER);
+    let fragment = compileShader(fragmentShader, gl.FRAGMENT_SHADER);
+    
+    program = gl.createProgram();
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    
+    if (!gl.isProgram(program)) {
+        console.error("Program linking failed");
+        return;
+    }
+    
+    // Set up geometry (fullscreen quad)
+    let positions = [
+        -1, 1,   // top-left
+         1, 1,   // top-right
+        -1,-1,   // bottom-left
+         1,-1    // bottom-right
+    ];
+    
+    let buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    
+    a_position = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(a_position);
+    
+    // Set up uniforms
+    u_resolution = gl.getUniformLocation(program, "u_resolution");
+    u_time = gl.getUniformLocation(program, "u_time");
+    u_cameraPos = gl.getUniformLocation(program, "u_cameraPos");
+    u_viewDir = gl.getUniformLocation(program, "u_viewDir");
+    u_orbitAngleX = gl.getUniformLocation(program, "u_orbitAngleX");
+    u_orbitAngleY = gl.getUniformLocation(program, "u_orbitAngleY");
+    
+    // Hide loading screen
+    document.getElementById('loading').style.display = 'none';
+}
+
+function compileShader(source, type) {
+    let shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Shader compilation error:", gl.getShaderInfoLog(shader));
+    }
+    
+    return shader;
+}
+
+// ============================================================
+// Camera orbit controls
+// ============================================================
+
+let cameraX = 0, cameraY = 0;
+let isDragging = false;
+let lastX = 0, lastY = 0;
+
+canvas.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    let dx = e.clientX - lastX;
+    let dy = e.clientY - lastY;
+    
+    cameraX += dx * 0.01;
+    cameraY += dy * 0.01;
+    
+    lastX = e.clientX;
+    lastY = e.clientY;
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+// Zoom with scroll wheel
+canvas.addEventListener('wheel', (e) => {
+    let zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
+    // Adjust camera position based on zoom
+});
+
+// Double-click to reset view
+canvas.addEventListener('dblclick', () => {
+    cameraX = 0;
+    cameraY = 0;
+});
+
+// ============================================================
+// Animation loop
+// ============================================================
+
+let startTime = performance.now();
+
+function animate() {
+    let now = (performance.now() - startTime) / 1000;
+    
+    // Update uniforms
+    gl.uniform2f(u_resolution, canvas.width, canvas.height);
+    gl.uniform1f(u_time, now);
+    
+    // Camera orbit animation (smooth rotation)
+    let orbitX = cameraX + now * 0.1; // Slow auto-rotation
+    let orbitY = cameraY + now * 0.05;
+    
+    gl.uniform1f(u_orbitAngleX, orbitX);
+    gl.uniform1f(u_orbitAngleY, orbitY);
+    
+    // Draw fullscreen quad
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
+    // Bind geometry and draw
+    let buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    
+    let positions = [
+        -1, 1,   // top-left
+         1, 1,   // top-right
+        -1,-1,   // bottom-left
+         1,-1    // bottom-right
+    ];
+    
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    
+    // Draw the quad
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    
+    requestAnimationFrame(animate);
+}
+
+// Initialize and start animation
+initWebGL();
+animate();
+
+</script>
+</body>
+</html>
