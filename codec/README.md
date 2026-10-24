@@ -4,6 +4,7 @@
 
 - 浏览器实时渲染（WebGL 着色器 + Canvas 2D，`requestAnimationFrame` 无声时钟驱动，无需构建；录屏占位框在成片合成时叠加，网页版仅显示示意框）。
 - `index.html`：播放页（顶栏 + 16:9 舞台 + 播放/进度/时间/全屏；空格播放/暂停，←/→ 5 秒，R 重播，F 全屏；`?t=秒` 冻结单帧）；`render.html`：无头逐帧抓取用（`tools/render.mjs` + Playwright，见源目录用法注释）。
+- `rec/`：22 段 VideoAnalyzer-Qt 录屏裁剪，源 2.4G mov → AV1 `preset 2 + CRF 45 + fps15` 无声 60% 档（共 32MB），按 `timeline.json` 的 `rec` 范围与离线合成同款裁剪/缩放（`tools/build_rec_index.py` 生成 `rec_index.js` 供播放页按段取片画进 canvas 占位框）。
 - `timeline.js` / `timeline.json`：36 段（含末尾参考文献卡）顺序 + 字幕 + 章节（`voice` 字段已改写为相对路径 `voice/sXX.wav`，配音文件未入库）。
 - `scenes.js` / `shader.js`：全部场景与着色器；`script.json`：分镜脚本；`tools/`：时间线/合成/TTS/抓帧脚本。
 - `台词稿.md`：全文台词与音效/录屏标注；`压缩三十年_视频编码科普.srt`：字幕。

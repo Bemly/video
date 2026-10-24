@@ -41,6 +41,7 @@
 <script src="timeline.js"></script>
 <script src="shader.js"></script>
 <script src="scenes.js"></script>
+<script src="rec_index.js"></script>
 <script>
 'use strict';
 (function(){
@@ -72,6 +73,61 @@
 
   function hex(c){ const n = parseInt(c.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255]; }
 
+  // ---- 录屏片段叠加：canvas 占位框内画 AV1 片段（无声），与离线合成对齐 ----
+  const recv = document.createElement('video');
+  recv.muted = true; recv.playsInline = true; recv.preload = 'auto';
+  recv.style.display = 'none';
+  document.body.appendChild(recv);
+  let recKey = null, recSegId = null, recPendingSeek = 0, recSettled = true, recSeeking = false, recLastKick = null;
+  function recKick(off){
+    recLastKick = { key: recKey, off };
+    recSeeking = true;
+    try{ recv.currentTime = off; }catch(_){ recSeeking = false; }
+  }
+  function recStateAt(seg, L){
+    const e = (window.REC_IDX || {})[seg.id];
+    if(!e) return null;
+    const d = seg.dur - (seg.scene === 'outro' ? 4.0 : 0.15);
+    if(L < 0 || L >= d) return null;
+    const share = d / e.clips.length;
+    const idx = Math.min(Math.floor(L / share), e.clips.length - 1);
+    return { e, idx, off: L - idx * share, key: seg.id + '_' + idx };
+  }
+  function syncRec(seg, L){
+    const r = recStateAt(seg, L);
+    if(!r){
+      if(recKey){ recKey = null; recSegId = null; recv.pause(); recv.removeAttribute('src'); recv.load(); }
+      return;
+    }
+    if(recKey !== r.key){
+      recKey = r.key; recSegId = seg.id; recPendingSeek = r.off;
+      recSettled = false;
+      recv.src = 'rec/' + r.e.clips[r.idx].file;
+    } else if(recSettled && !recSeeking && recv.readyState >= 1){
+      const want = playing ? 0.6 : 1/30;
+      if(Math.abs(recv.currentTime - r.off) > want &&
+         !(recLastKick && recLastKick.key === recKey && Math.abs(r.off - recLastKick.off) < 1/30)){
+        recKick(r.off);
+      }
+    }
+    if(playing && recv.paused && recv.readyState >= 2){ recv.play().catch(()=>{}); }
+    if(!playing && !recv.paused){ recv.pause(); }
+  }
+  function drawRecVideo(seg){
+    const e = (window.REC_IDX || {})[seg.id];
+    if(!e || recSegId !== seg.id || recv.readyState < 2) return;
+    try{ ctx.drawImage(recv, e.rect[0], e.rect[1], e.rect[2], e.rect[3]); }catch(_){}
+  }
+  recv.addEventListener('loadedmetadata', () => {
+    if(!recSettled){ recKick(recPendingSeek); }
+    else if(playing){ recv.play().catch(()=>{}); }
+  });
+  recv.addEventListener('seeked', () => {
+    recSeeking = false; recSettled = true;
+    if(playing){ recv.play().catch(()=>{}); }
+    else paint();
+  });
+
   function renderAt(t){
     if(t < 0) t = 0; if(t >= T) t = T - 0.001;
     let si = N - 1;
@@ -84,6 +140,8 @@
     (SC.scenes[seg.scene] || SC.scenes.blank)(ctx, st);
     ctx.restore();
     SC.chrome(ctx, st);
+    syncRec(seg, L);
+    drawRecVideo(seg);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ui);
     gl.uniform2f(U.uRes, W, H); gl.uniform1f(U.uT, t); gl.uniform1f(U.uL, L); gl.uniform1f(U.uD, seg.dur);
