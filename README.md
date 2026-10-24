@@ -23,6 +23,7 @@
 | [`duowan/`](duowan/) | 魔玩我的世界盒子 · 介绍（8:49），浏览器实时渲染（无声版） | https://bili.bemly.moe/duowan/ |
 | [`mac/`](mac/) | 16G Mac Mini测试 —— 30 本地模型 × 4 道前端题，88 份答卷实测，浏览器实时渲染 | https://bili.bemly.moe/mac/ |
 | [`uefi/`](uefi/) | UEFI Player —— 开机直接在固件里播视频，介绍 + 详解双播放器，浏览器实时渲染 | https://bili.bemly.moe/uefi/ |
+| [`ternary/`](ternary/) | 三进制完备 —— 平衡三进制计算机宣传片（2:22），浏览器实时渲染（配音版） | https://bili.bemly.moe/ternary/ |
 
 `openai-math/` 与 `math-execute-me/` 不需要构建：页面直接在浏览器里实时渲染每一帧（Canvas 2D + WebGL）。
 `odyssey/` 也不需要构建：`odyssey/demo`（对应线上 `/odyssey/`）与 `odyssey/film`（对应线上 `/coding-adventure/`）都是纯静态网页（Three.js 走 CDN），直接复制到 gh-pages 同名目录即可。
@@ -32,6 +33,7 @@
 `codec/` 也不需要构建且无音频：直接把 `index.html` + `render.html` + `*.js` + `*.json` + `cover.jpg` 复制到 gh-pages 的 `codec/` 目录即可（`voice/` 配音未入库）。
 `mac/` 也不需要构建且无音频：直接把 `index.html` + `build/` + `cover.jpg` 复制到 gh-pages 的 `mac/` 目录即可（`stage.html` 为播放器源码、`shots/`/`raw/`/成片 mp4 未入库）。
 `uefi/` 也不需要构建且无音频：`index.html`（hub）+ `intro/` + `detail/` + `cover.jpg` 复制到 gh-pages 的 `uefi/` 目录即可（成片 mp4、`frames/`、音频未入库，实录段降级显示）。
+`ternary/` 也不需要构建：直接把 `index.html` + `scenes.js` + `qr.js` + `phone.png` + `timeline.json` + `audio/` + `cover.jpg` 复制到 gh-pages 的 `ternary/` 目录即可（配音按台词起点拼合，BGM/SFX 无源故仅配音）。
 `duowan/` 也不需要构建且无音频：直接把 `index.html` + `timeline.js` + `fusion-pixel.otf` + `clips/`（AV1） + `stills/`（AVIF） + `cover.jpg` 复制到 gh-pages 的 `duowan/` 目录即可（配音/`mix.wav`/音效未入库）。
 
 首页导航：https://bili.bemly.moe/
