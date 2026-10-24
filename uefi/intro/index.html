@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>UEFI Player · 介绍</title>
+<style>
+:root{--bg:#11100E;--ink:#F5EAD5;--teal:#5CC7C0;--grey:#8C877C;--card:#1A1916;--line:#2a2824}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "PingFang SC","Hiragino Sans GB",system-ui,sans-serif}
+.top{max-width:1180px;margin:0 auto;padding:20px 16px 0;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.top b{font-size:20px;letter-spacing:.04em}
+.top span{color:var(--grey);font-size:13px}
+.top nav{margin-left:auto;display:flex;gap:8px}
+.top nav a{color:var(--teal);text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:4px 12px}
+.top nav a:hover{border-color:var(--teal)}
+.wrap{max-width:1180px;margin:0 auto;padding:12px 16px 40px}
+#screenWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+#screen{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+#screen canvas{position:absolute;left:0;top:0}
+#bar{display:flex;gap:10px;align-items:center;padding:10px 2px 0;flex-wrap:wrap}
+#bar button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}
+#bar button:hover{border-color:var(--teal)}
+#track{flex:1;height:6px;background:#1a2740;border-radius:3px;cursor:pointer;position:relative;min-width:120px}
+#fill{height:100%;width:0;background:var(--teal);border-radius:3px}
+#clock{color:var(--grey);font-size:13px;font-variant-numeric:tabular-nums;min-width:130px;text-align:right}
+#start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);cursor:pointer;z-index:5}
+#start[hidden]{display:none}
+#start div{text-align:center;color:#fff}
+#start i{display:block;width:84px;height:84px;margin:0 auto 26px;border-radius:50%;background:#5CC7C0;position:relative}
+#start i::after{content:"";position:absolute;left:34px;top:27px;border:15px solid transparent;border-left:24px solid #fff;border-right:0}
+#start b{display:block;font:600 26px system-ui}
+#start span{display:block;margin-top:10px;font-size:14px;color:#9fb3c8}
+</style>
+</head>
+<body>
+<header class="top"><b>UEFI Player · 介绍</b><span>1:46 · WebGL 在线渲染</span><nav><a href="../">← 返回</a></nav></header>
+<div class="wrap"><div id="screenWrap"><div id="screen">
+<canvas id="gl" width="1920" height="1080"></canvas>
+<script src="timeline.js"></script>
+<script>
+'use strict';
+const W = 1920, H = 1080;
+const TLD = window.TL, C = TLD.cues;
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false, alpha: false });
+
+// ---------- 工具 ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, d = 0.5) => clamp((t - a) / d);           // 线性进度
+const eo = x => 1 - Math.pow(1 - x, 3);                    // ease out cubic
+const eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eob = x => { const c1 = 1.70158, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const age = (t, c) => t - c;                               // 距离某个配音词的时间
+const lerp = (a, b, x) => a + (b - a) * x;
+
+// ---------- GLSL ----------
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }`;
+const HEAD = `#version 300 es
+precision highp float;
+uniform vec2 R; uniform float T, L; uniform float K[16];
+out vec4 o;
+#define PI 3.14159265
+float h21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+vec2 h22(vec2 p){ float n = h21(p); return vec2(n, h21(p+n*17.13)); }
+float n2(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+1.),f.x), f.y); }
+float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<5;i++){ s+=a*n2(p); p=mat2(1.6,1.2,-1.2,1.6)*p; a*=.5; } return s; }
+mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+vec3 hue(float h){ return .5+.5*cos(6.2832*(h+vec3(0.,.33,.67))); }
+vec2 UV(){ return (gl_FragCoord.xy-.5*R)/R.y; }
+vec2 PX(){ return vec2(gl_FragCoord.x, R.y-gl_FragCoord.y)*(1080./R.y); }   // 左上原点像素坐标
+float boxd(vec2 p, vec2 b){ vec2 d=abs(p)-b; return length(max(d,0.))+min(max(d.x,d.y),0.); }
+`;
+
+const FS = {};
+// 01 开机：合成器网格地平线 + 标题冲击波
+FS.boot = `
+void main(){
+  vec2 uv = UV(); float pw = K[0], tA = K[1];
+  vec3 col = mix(vec3(.01,.008,.03), vec3(.10,.02,.16), smoothstep(-.1,.6,uv.y)) * pw;
+  float hz = -.08;
+  // 太阳
+  float sr = .26*smoothstep(0.,1.,K[2]);
+  vec2 sp = uv - vec2(0., .14);
+  float sd = length(sp) - sr;
+  float stripes = step(.5, fract((sp.y+.3)*22.)) + step(.12, sp.y);
+  float sun = smoothstep(.004, -.004, sd) * clamp(stripes,0.,1.);
+  vec3 sunc = mix(vec3(1.,.25,.55), vec3(1.,.85,.3), smoothstep(-.2,.25,sp.y));
+  col += sun*sunc*1.1 + exp(-max(sd,0.)*9.)*sunc*.35*smoothstep(0.,1.,K[2]);
+  if (uv.y < hz) {
+    float d = hz - uv.y; float z = .35/d;
+    vec2 g = vec2(uv.x*z, z + L*1.4);
+    vec2 gw = fwidth(g);
+    vec2 gg = abs(fract(g-.5)-.5)/gw;
+    float line = 1. - min(min(gg.x, gg.y), 1.);
+    vec3 gc = mix(vec3(0.,.9,1.), vec3(1.,.2,.8), smoothstep(-.6,.6,uv.x));
+    col = mix(col, vec3(.0,.0,.02), .85);
+    col += gc*line*exp(-z*.12)*pw*1.2;
+  }
+  col += vec3(.6,.2,1.)*exp(-abs(uv.y-hz)*60.)*pw*.6;
+  // 冲击波
+  if (tA > 0.) {
+    float r = tA*1.4;
+    float ring = exp(-abs(length(uv*vec2(1.,1.3))-r)*28.)*exp(-tA*1.3);
+    col += ring*vec3(.5,.8,1.)*1.5;
+    col += exp(-length(uv)*6.)*exp(-tA*3.)*vec3(1.,.9,1.)*1.5;
+  }
+  // 星点
+  vec2 sg = floor(uv*90.); float st = step(.996, h21(sg)) * smoothstep(hz, .2, uv.y);
+  col += st*(.5+.5*sin(T*3.+h21(sg+3.)*40.))*pw*.7;
+  o = vec4(col, 1.);
+}`;
+
+// 02 固件：Truchet 电路走线 + 能量沿线流动 + UEFI 层高亮带
+FS.firmware = `
+void main(){
+  vec2 uv = UV(); vec2 p = uv*9. + vec2(0., -L*.15);
+  vec2 id = floor(p); vec2 f = fract(p)-.5;
+  float r = h21(id);
+  if (r > .5) f.x = -f.x;
+  vec2 c = (f.x+f.y > 0.) ? vec2(.5) : vec2(-.5);
+  float d = abs(length(f-c)-.5);
+  float tr = smoothstep(.07, .02, d);
+  float ang = atan(f.y-c.y, f.x-c.x);
+  float flow = pow(fract(ang/1.5708 + r*7. - L*.9), 8.);
+  vec3 col = vec3(.005,.02,.03);
+  col += tr*vec3(.0,.18,.2);
+  col += tr*flow*vec3(.2,1.,.9)*.8*(.4+.6*step(.75, h21(id+5.)));
+  float vias = smoothstep(.09,.06, length(fract(p)-.5)) * step(.85, h21(id+9.));
+  col += vias*vec3(.2,.6,.6);
+  // UEFI 层高亮
+  float band = exp(-abs(uv.y-K[1])*14.)*K[0];
+  col = mix(col*.6, col*1.6 + vec3(.0,.35,.45)*band, band);
+  col *= .55 + .45*smoothstep(1.1, .2, length(uv));
+  o = vec4(col, 1.);
+}`;
+
+// 03 Rust：光线步进齿轮
+FS.rust = `
+float gear(vec3 p){
+  float r = length(p.xy), a = atan(p.y, p.x);
+  float teeth = smoothstep(-.25, .25, cos(a*14.))*.075;
+  float d = r - (.52 + teeth);
+  d = max(d, -(r - .2));
+  float holes = length(vec2(mod(a+PI/6., PI/3.)-PI/6., 0.)*r - vec2(0.)) ;
+  vec2 hp = rot(floor((a+PI/6.)/(PI/3.))*(PI/3.)) * p.xy; // 辐板开孔
+  float hd = length(p.xy*rot(-floor((a+PI/6.)/(PI/3.))*(PI/3.)) - vec2(.36,0.)) - .075;
+  d = max(d, -hd);
+  float dz = abs(p.z) - .1 + .02*smoothstep(.3,.5,r);
+  return max(d*.5, dz);
+}
+float map(vec3 p){
+  float s = mix(.001, 1., K[0]);
+  p /= s;
+  p.yz *= rot(.35); p.xz *= rot(-.5 + .25*sin(L*.4));
+  p.xy *= rot(L*.6);
+  return gear(p)*s;
+}
+void main(){
+  vec2 uv = UV();
+  vec3 col = mix(vec3(.04,.015,.01), vec3(.0), length(uv)*.9);
+  // 背景二进制栅格
+  vec2 g = floor(uv*40. + vec2(0., L*2.));
+  col += vec3(.25,.08,.02)*step(.93, h21(g))*(.4+.6*sin(T*2.+h21(g)*30.))*.35;
+  vec3 ro = vec3(0., 0., 2.2), rd = normalize(vec3(uv - vec2(-.42, 0.), -1.6));
+  float t = 0.; float hit = 0.;
+  for (int i = 0; i < 160; i++) { float d = map(ro + rd*t); if (d < .0005) { hit = 1.; break; } t += d; if (t > 5.) break; }
+  if (hit > 0.) {
+    vec3 p = ro + rd*t; vec2 e = vec2(.001, 0.);
+    vec3 n = normalize(vec3(map(p+e.xyy)-map(p-e.xyy), map(p+e.yxy)-map(p-e.yxy), map(p+e.yyx)-map(p-e.yyx)));
+    vec3 l = normalize(vec3(.6,.7,.8));
+    float dif = max(dot(n,l), 0.), fr = pow(1.-max(dot(n,-rd),0.), 3.);
+    float spec = pow(max(dot(reflect(rd,n), l), 0.), 40.);
+    vec3 base = vec3(.85,.33,.1);
+    col = base*(.12 + .8*dif) + spec*vec3(1.,.8,.6) + fr*vec3(1.,.5,.2)*.6;
+  }
+  col += vec3(.9,.35,.1)*exp(-length(uv-vec2(-.42,0.))*3.)*.25*K[0];
+  o = vec4(col, 1.);
+}`;
+
+// 04 编解码：DCT 基函数宏块墙
+FS.codecs = `
+void main(){
+  vec2 px = PX() + vec2(L*18., L*6.);
+  vec2 blk = floor(px/96.); vec2 cell = floor(mod(px, 96.)/12.);
+  vec2 uvf = h22(blk + floor(L*.6 + h21(blk)*3.));
+  float u = floor(uvf.x*6.), v = floor(uvf.y*6.);
+  float val = cos((2.*cell.x+1.)*u*PI/16.)*cos((2.*cell.y+1.)*v*PI/16.);
+  float on = step(1. - K[0]*.9 - .1, h21(blk+3.7));
+  vec3 c = hue(h21(blk)*.5 + .55 + T*.02);
+  vec3 col = vec3(.015,.015,.03) + c*(val*.5+.5)*.16*on;
+  vec2 f = mod(px, 96.); float edge = step(f.x, 1.) + step(f.y, 1.);
+  col += edge*.03;
+  vec2 uv = UV();
+  col *= .35 + .65*smoothstep(1.2, .2, length(uv));
+  o = vec4(col, 1.);
+}`;
+
+// 05 多核：16 核阵列 + 1080p 帧被各核分带/分块/动态加权填满
+FS.cores = `
+vec3 coreCol(float i){ return hue(i/16.*.85 + .5); }
+void main(){
+  vec2 px = PX();
+  vec3 col = vec3(.01,.012,.02);
+  vec2 bg = mod(px, 40.); col += (step(bg.x,1.)+step(bg.y,1.))*.012;
+  float wake = K[0], mode = K[1], mAge = K[2], onT = K[3];
+  // 核阵列 160..640 x 220..700
+  vec2 gp = (px - vec2(160., 220.))/120.;
+  if (gp.x >= 0. && gp.y >= 0. && gp.x < 4. && gp.y < 4.) {
+    vec2 ci = floor(gp); vec2 cf = fract(gp) - .5;
+    float idx = ci.y*4. + ci.x;
+    float lit = smoothstep(0., .25, wake - idx*.045);
+    float d = boxd(cf, vec2(.38)) - .04;
+    float pulse = .6 + .4*sin(T*6. - idx*.7);
+    if (mode > .5) pulse = .65 + .35*step(.5, fract(T*2.5 + h21(ci)*1.));
+    vec3 cc = coreCol(idx);
+    col += smoothstep(.01, -.01, d)*mix(vec3(.05,.06,.08), cc*.65*pulse, lit);
+    col += smoothstep(.03, 0., abs(d))*mix(vec3(.15), cc, lit)*.9;
+    col += exp(-max(d,0.)*20.)*cc*lit*.25;
+    // 晶粒纹理
+    col += smoothstep(.01,-.01,d)*step(.5, fract((cf.x+cf.y)*14.))*.03*lit;
+  }
+  // 帧缓冲 760..1760 x 180..742
+  vec2 fp = (px - vec2(760., 180.)) / vec2(1000., 562.);
+  if (fp.x >= 0. && fp.y >= 0. && fp.x < 1. && fp.y < 1.) {
+    vec2 q = fp*vec2(3.,1.7);
+    float f = fbm(q + vec2(T*.15, 0.) + fbm(q*2. - T*.1));
+    vec3 img = mix(vec3(.05,.1,.3), vec3(1.,.5,.2), f);
+    img = mix(img, vec3(.9,.9,1.), smoothstep(.7,.9,f));
+    vec3 outc = img*.18;
+    float band = -1.; float fill = 1.;
+    float cyc = fract(T*1.25);
+    if (mode > .5 && mode < 1.5) {          // static：16 等分行带并行
+      band = floor(fp.y*16.); fill = step(fp.x, cyc*1.2);
+    } else if (mode > 1.5 && mode < 2.5) {  // tile：64 行一块，共享游标领活
+      float row = floor(fp.y*17.);
+      float order = h21(vec2(row, floor(T*1.25)));
+      fill = step(order, cyc*1.15);
+      band = floor(h21(vec2(row, floor(T*1.25)+7.))*16.);
+    } else if (mode > 2.5) {                // dynamic：按核速加权分行
+      float acc = 0., tot = 0.;
+      for (int i=0;i<16;i++){ tot += .45 + h21(vec2(float(i),3.)) + .25*sin(T*1.7+float(i)); }
+      for (int i=0;i<16;i++){ float w=(.45 + h21(vec2(float(i),3.)) + .25*sin(T*1.7+float(i)))/tot;
+        if (fp.y >= acc && fp.y < acc+w) band = float(i); acc += w; }
+      fill = step(fp.x, cyc*1.2);
+    } else {
+      fill = step(.0, onT) ;
+      outc = mix(img*.18, img, fill*smoothstep(0.,1.,onT));
+    }
+    if (band >= 0.) {
+      vec3 bc = coreCol(band);
+      outc = mix(img*.38 + bc*.12, img*.8 + bc*.4, fill);
+      float edgeX = (mode > 1.5 && mode < 2.5) ? 9. : abs(fp.x - cyc*1.2);
+      outc += bc*exp(-edgeX*120.)*1.2;
+      float rows = (mode > 1.5 && mode < 2.5) ? 17. : 16.;
+      if (mode < 2.5) outc *= .8 + .2*smoothstep(0., .04, abs(fract(fp.y*rows)-.5)*2.);
+      float lines = smoothstep(.004, 0., abs(fract(fp.y*(mode>1.5&&mode<2.5?17.:16.))-.0)) ;
+      outc += bc*.0*lines;
+    }
+    col = outc;
+    float fd = boxd(fp-.5, vec2(.5)) ;
+  }
+  float fb = boxd(px - vec2(1260., 461.), vec2(500., 281.));
+  col += smoothstep(2.5, 0., abs(fb))*vec3(.4,.7,1.)*.8;
+  o = vec4(col, 1.);
+}`;
+
+// 06 SIMD：紫水晶 Voronoi
+FS.simd = `
+void main(){
+  vec2 uv = UV(); vec2 p = uv*5. + vec2(L*.08, 0.);
+  vec2 ip = floor(p), fp = fract(p);
+  float d1 = 9., d2 = 9.; vec2 cid;
+  for (int y=-1;y<=1;y++) for (int x=-1;x<=1;x++) {
+    vec2 g = vec2(x,y); vec2 r = g + .5 + .4*sin(T*.5 + 6.2832*h22(ip+g)) - fp;
+    float d = dot(r,r);
+    if (d < d1) { d2 = d1; d1 = d; cid = ip+g; } else if (d < d2) d2 = d;
+  }
+  float edge = sqrt(d2) - sqrt(d1);
+  float lv = K[0];
+  vec3 c = mix(vec3(.25,.06,.45), vec3(.6,.35,1.), h21(cid));
+  vec3 col = c*(.08 + .12*h21(cid+1.)) * (1. + lv*.5);
+  col += smoothstep(.06, .0, edge)*vec3(.7,.5,1.)*(.25 + .6*lv);
+  col += exp(-sqrt(d1)*4.)*c*.12*(.5+.5*sin(T*2.+h21(cid)*20.))*lv;
+  col *= .4 + .6*smoothstep(1.3, .1, length(uv));
+  col += K[1]*exp(-length(uv - vec2(.62,.0))*4.)*vec3(.6,.4,1.)*.5;
+  o = vec4(col, 1.);
+}`;
+
+// 07 引导：隧道（链式启动时冲刺）
+FS.boot_loader = `
+void main(){
+  vec2 uv = UV(); float warp = K[0];
+  float r = length(uv), a = atan(uv.y, uv.x);
+  float z = .25/(r+.001) + L*(.6 + warp*9.);
+  vec2 tc = vec2(a/6.2832*16., z);
+  vec2 gw = fwidth(tc);
+  vec2 gg = abs(fract(tc-.5)-.5)/max(gw, 1e-4);
+  float line = 1. - min(min(gg.x, gg.y), 1.);
+  vec3 c = mix(vec3(.1,.5,1.), vec3(.9,.3,1.), .5+.5*sin(z*.3));
+  vec3 col = vec3(.005,.008,.02);
+  col += line*c*smoothstep(0., .5, r)*(.25 + warp*.9)*exp(-.02/r);
+  // 星光拉丝
+  vec2 sid = vec2(floor(a/6.2832*180.), 0.);
+  float sz = fract(h21(sid)*10. + L*(.2+warp*3.)*(.5+h21(sid+1.)));
+  float streak = exp(-abs(r - sz*1.2)*(60. - warp*45.)) * step(.6, h21(sid+2.));
+  col += streak*vec3(.7,.85,1.)*(.3+warp*1.5)*smoothstep(.0,.2,r);
+  col += exp(-r*5.)*vec3(.4,.6,1.)*warp*1.5;
+  col *= smoothstep(0., .08, r) + warp*1.2;
+  o = vec4(col, 1.);
+}`;
+
+// 08 动态壁纸：域扭曲 FBM 极光（台词说到“壁纸”才开始流动）
+FS.wallpaper = `
+void main(){
+  vec2 uv = UV(); float tt = K[1]; float live = K[0];
+  vec2 p = uv*1.6;
+  vec2 q = vec2(fbm(p + tt*.06), fbm(p + vec2(5.2,1.3) - tt*.05));
+  vec2 r = vec2(fbm(p + 3.5*q + vec2(1.7,9.2) + tt*.12), fbm(p + 3.5*q + vec2(8.3,2.8) - tt*.1));
+  float f = fbm(p + 3.5*r);
+  vec3 col = mix(vec3(.02,.05,.15), vec3(.1,.6,.7), clamp(f*f*2.,0.,1.));
+  col = mix(col, vec3(.6,.15,.7), clamp(length(q)*.6,0.,1.));
+  col = mix(col, vec3(1.,.8,.5), clamp(r.x*r.x*.9,0.,1.)*.6);
+  col *= f*2.1 + .3;
+  col = pow(col, vec3(.85))*1.15;
+  float g = dot(col, vec3(.3,.59,.11));
+  col = mix(vec3(g)*.45, col, live);
+  col *= .6 + .4*smoothstep(1.3, .2, length(uv));
+  o = vec4(col, 1.);
+}`;
+
+// 09 工具：玻璃背板色块
+FS.tools = `
+void main(){
+  vec2 uv = UV(); vec3 col = vec3(.02,.025,.05);
+  for (int i=0;i<6;i++){
+    float fi = float(i);
+    vec2 c = vec2(sin(L*.3 + fi*1.7)*.75, cos(L*.25 + fi*2.3)*.38);
+    vec3 cc = hue(fi/6. + .55);
+    col += cc*exp(-dot(uv-c, uv-c)*5.)*.33;
+  }
+  col += K[0]*exp(-dot(uv-vec2(.45,0.), uv-vec2(.45,0.))*4.)*vec3(.1,.8,.4)*.35;
+  float g = h21(gl_FragCoord.xy + T); col += (g-.5)*.015;
+  o = vec4(col, 1.);
+}`;
+
+// 10 片尾：烟花粒子（每簇在配音词时刻起爆）
+FS.outro = `
+void main(){
+  vec2 uv = UV();
+  vec3 col = mix(vec3(.0,.0,.02), vec3(.05,.02,.12), smoothstep(-.6,.6,uv.y));
+  col += exp(-length(uv*vec2(.6,1.2) - vec2(0.,.05))*2.5)*vec3(.25,.15,.6)*K[8];
+  for (int b=0;b<6;b++){
+    float a = K[b]; if (a <= 0. || a > 3.2) continue;
+    float fb = float(b);
+    vec2 c = vec2((h21(vec2(fb,1.))-.5)*1.4, .05 + h21(vec2(fb,2.))*.3);
+    vec3 bc = hue(h21(vec2(fb,4.)));
+    float ex = 1. - exp(-a*2.8);
+    float fade = smoothstep(3.2, 1.2, a);
+    for (int i=0;i<70;i++){
+      float fi = float(i);
+      float ang = fi/70.*6.2832 + h21(vec2(fi,fb))*.2;
+      float sp = .22 + .12*h21(vec2(fi, fb+9.));
+      vec2 pp = c + vec2(cos(ang), sin(ang))*sp*ex - vec2(0., .06*a*a);
+      float d = length(uv - pp);
+      float tw = .6 + .4*sin(a*25. + fi);
+      col += bc*.00006/(d*d + .00002)*fade*tw;
+    }
+  }
+  o = vec4(col, 1.);
+}`;
+
+// 合成：场景转场（故障块溶解）+ 文字层辉光 + 色差脉冲 + CRT
+const FS_COMP = `#version 300 es
+precision highp float;
+uniform vec2 R; uniform float T, mixv, pulse, fade, glitch;
+uniform sampler2D A, B, X;
+out vec4 o;
+float h21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/R;
+  vec2 blk = floor(uv*vec2(24., 13.5));
+  float r = h21(blk + floor(T*20.)*.0);
+  float tr = step(r, mixv*1.25 - .12);
+  float mid = 1. - abs(mixv*2. - 1.);
+  float slice = (h21(vec2(floor(uv.y*60.), floor(T*30.))) - .5) * .05 * mid * step(.0001, 1.-mixv) * step(.0001, mixv) + glitch*(h21(vec2(floor(uv.y*40.), floor(T*24.)))-.5)*.03;
+  vec2 u2 = uv + vec2(slice, 0.);
+  float ca = .0015 + pulse*.006 + mid*.006;
+  vec3 a = vec3(texture(A, u2+vec2(ca,0.)).r, texture(A, u2).g, texture(A, u2-vec2(ca,0.)).b);
+  vec3 b = texture(B, u2).rgb;
+  vec3 sc = mix(b, a, tr);
+  // 文字层
+  vec4 x = texture(X, u2);
+  vec4 xr = texture(X, u2 + vec2(ca*.6, 0.)), xb = texture(X, u2 - vec2(ca*.6, 0.));
+  vec3 glow = vec3(0.);
+  for (int i=0;i<12;i++){
+    float an = float(i)*.5236;
+    vec2 d = vec2(cos(an), sin(an))/R;
+    vec4 s1 = texture(X, uv + d*7.), s2 = texture(X, uv + d*16.);
+    glow += s1.rgb*s1.a*.06 + s2.rgb*s2.a*.035;
+  }
+  vec3 xc = vec3(xr.r, x.g, xb.b);
+  vec3 col = sc*(1. - x.a) + xc*x.a + glow*(.8 + pulse*.8);
+  // CRT：扫描线 + 暗角 + 颗粒
+  col *= .955 + .045*sin(gl_FragCoord.y*PI_);
+  vec2 q = uv - .5; col *= 1. - dot(q,q)*.55;
+  col += (h21(gl_FragCoord.xy + fract(T)*100.) - .5)*.03;
+  col = col/(1. + col*.12);
+  o = vec4(col*fade, 1.);
+}`.replace('PI_', '3.14159265');
+
+// ---------- WebGL 管线 ----------
+function sh(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + '\n' + src.split('\n').map((l, i) => (i + 1) + ': ' + l).join('\n'));
+  return s;
+}
+function program(fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; for (const n of ['R', 'T', 'L', 'K', 'mixv', 'pulse', 'fade', 'glitch', 'A', 'B', 'X']) u[n] = gl.getUniformLocation(p, n);
+  return { p, u };
+}
+const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.getExtension('EXT_color_buffer_float');
+function target() {
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, W, H, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  return { tex, fb };
+}
+const RT = [target(), target()];
+const PROG = {}; for (const k in FS) PROG[k] = program(HEAD + FS[k]);
+const COMP = program(FS_COMP);
+const xTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, xTex);
+for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+
+const xc = document.createElement('canvas'); xc.width = W; xc.height = H;
+const X = xc.getContext('2d');
+
+// ---------- 2D 文字层工具 ----------
+const SANS = '"PingFang SC", "Hiragino Sans GB", sans-serif';
+const MONO = '"SF Mono", Menlo, monospace';
+function font(px, w = 600, fam = SANS) { X.font = `${w} ${px}px ${fam}`; }
+function rr(x, y, w, h, r) { X.beginPath(); X.roundRect(x, y, w, h, r); }
+function glass(x, y, w, h, r = 22, a = 1, tint = 'rgba(255,255,255,0.07)') {
+  X.save(); X.globalAlpha *= a;
+  rr(x, y, w, h, r); X.fillStyle = tint; X.fill();
+  const g = X.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0.08)');
+  X.lineWidth = 1.5; X.strokeStyle = g; X.stroke();
+  X.restore();
+}
+function text(s, x, y, px, col = '#fff', w = 600, fam = SANS, align = 'left', a = 1) {
+  X.save(); X.globalAlpha *= a; font(px, w, fam); X.textAlign = align; X.textBaseline = 'middle'; X.fillStyle = col; X.fillText(s, x, y); X.restore();
+}
+function scaleAt(cx, cy, s, fn) { X.save(); X.translate(cx, cy); X.scale(s, s); X.translate(-cx, -cy); fn(); X.restore(); }
+function heading(num, title, L, a) {
+  const p = eo(P(L, .15, .6));
+  X.save(); X.globalAlpha *= a * p;
+  text(num, 120, 118, 30, '#7fe7ff', 700, MONO, 'left');
+  text(title, 120 + 70, 118, 46, '#fff', 700);
+  X.fillStyle = '#7fe7ff'; X.fillRect(120, 150, 300 * p, 3);
+  X.restore();
+}
+
+// ---------- 场景定义（K 数组 + 2D 层；所有时间点都来自配音词时间）----------
+const SC = {};
+SC.boot = {
+  k: (t, L) => [P(t, 0, 1.2), C.title > t ? -1 : t - C.title, eo(P(t, C.title - .4, 1.1))],
+  d: (t, L, a) => {
+    const lines = ['UEFI v2.70  ·  GOP 1920x1080  BGRA', 'Loading \\EFI\\BOOT\\BOOTX64.EFI ...', 'uefi-player 26.10.21   [x86_64-unknown-uefi · no_std]', 'accel: auto -> avx2   cores: 16/16   watchdog: off'];
+    const tf = 1 - P(t, C.title - .3, .4);
+    lines.forEach((s, i) => {
+      const n = Math.floor(clamp((t - .3 - i * .42) / .38) * s.length);
+      if (n > 0) text(s.slice(0, n) + (n < s.length && Math.floor(t * 8) % 2 ? '█' : ''), 120, 140 + i * 46, 30, i == 2 ? '#7fe7ff' : '#c8d2e0', 500, MONO, 'left', a * tf);
+    });
+    const p = P(t, C.title, .9);
+    if (p > 0) {
+      const s = lerp(1.25, 1, eo(p));
+      scaleAt(960, 470, s, () => {
+        X.save(); X.globalAlpha *= a * eo(p);
+        font(170, 800); X.textAlign = 'center'; X.textBaseline = 'middle';
+        const g = X.createLinearGradient(560, 0, 1360, 0); g.addColorStop(0, '#7fe7ff'); g.addColorStop(.5, '#ffffff'); g.addColorStop(1, '#ff7fd8');
+        X.fillStyle = g; X.fillText('UEFI Player', 960, 470);
+        X.restore();
+      });
+      text('开机即播 · 固件级视频播放器', 960, 610, 44, '#e6e9ff', 500, SANS, 'center', a * eo(P(t, C.title + .5, .7)));
+    }
+  }
+};
+
+const FW_LAYERS = [
+  ['应用程序', '普通播放器都在这一层'],
+  ['操作系统', null],
+  ['显卡驱动', ''],
+  ['UEFI 固件', '← uefi-player 在这里'],
+  ['硬件', 'CPU · GPU · 显存'],
+];
+SC.firmware = {
+  k: (t, L) => [eo(P(t, C.uefi2, .6)), -0.0556],
+  d: (t, L, a) => {
+    heading('01', '不在系统里，在固件里', L, a);
+    const dim = eo(P(t, C.linux + .55, .6));
+    FW_LAYERS.forEach(([name, sub], i) => {
+      const y = 230 + i * 108, p = eo(P(L, .25 + i * .1, .5));
+      const isU = i === 3, up = isU ? eo(P(t, C.uefi2, .5)) : 0;
+      const la = a * p * (i < 3 ? 1 - dim * .65 : 1);
+      const s = 1 + up * .05;
+      scaleAt(960, y + 46, s, () => {
+        glass(510, y, 900, 92, 18, la, isU ? `rgba(60,220,255,${.07 + up * .2})` : 'rgba(255,255,255,0.06)');
+        X.save(); X.globalAlpha *= la;
+        text(name, 550, y + 46, 38, isU ? (up > 0 ? '#7fffff' : '#fff') : '#fff', 700);
+        font(30, 500);
+        if (i === 1) {
+          let x = 760; const parts = [['Windows', C.win], [' / ', null], ['Linux', C.linux]];
+          for (const [w, c] of parts) {
+            font(32, 600); const ww = X.measureText(w).width;
+            text(w, x, y + 46, 32, '#cdd6e6', 600);
+            if (c) { const sp = eo(P(t, c + .15, .3)); X.strokeStyle = '#ff5a6e'; X.lineWidth = 5; X.beginPath(); X.moveTo(x - 6, y + 48); X.lineTo(x - 6 + (ww + 12) * sp, y + 44); X.stroke(); }
+            x += ww;
+          }
+        } else if (i === 2) {
+          const sp = eo(P(t, C.linux + .55, .4));
+          if (sp > 0) text('跳过', 760, y + 46, 30, '#ff8a98', 600, SANS, 'left', sp);
+        } else if (sub) text(sub, 760, y + 46, 30, isU && up > 0 ? '#bff' : '#aab4c6', 500, SANS, 'left', isU ? up : 1);
+        if (isU) {
+          const pp = eo(P(t, C.play2, .4));
+          if (pp > 0) {
+            X.globalAlpha *= pp;
+            X.fillStyle = '#7fffff'; X.beginPath(); X.moveTo(1290, y + 30); X.lineTo(1290, y + 62); X.lineTo(1318, y + 46); X.fill();
+            X.fillStyle = 'rgba(127,255,255,.25)'; X.fillRect(1330, y + 42, 50, 8);
+            X.fillStyle = '#7fffff'; X.fillRect(1330, y + 42, 50 * ((t - C.play2) * .4 % 1), 8);
+          }
+        }
+        X.restore();
+      });
+      // 开机：电源键
+    });
+    const bp = P(t, C.boot, .5);
+    if (bp > 0 && bp < 1 || t > C.boot) {
+      const k = eo(clamp(bp)) * (1 - P(t, C.uefi2 + .3, .5));
+      X.save(); X.globalAlpha *= a * k; X.strokeStyle = '#7fe7ff'; X.lineWidth = 7; X.lineCap = 'round';
+      X.beginPath(); X.arc(1600, 620, 44, -Math.PI / 2 + .6, Math.PI * 1.5 - .6); X.stroke();
+      X.beginPath(); X.moveTo(1600, 566); X.lineTo(1600, 616); X.stroke(); X.restore();
+      text('开机', 1600, 700, 30, '#7fe7ff', 600, SANS, 'center', a * k);
+    }
+  }
+};
+
+SC.rust = {
+  k: (t, L) => [eob(P(t, C.rust - .2, .9))],
+  d: (t, L, a) => {
+    heading('02', 'Rust · no_std 裸机', L, a);
+    const p = eo(P(t, C.rust, .6));
+    text('Rust', 1000, 300, 130, '#ff8a3d', 800, SANS, 'left', a * p);
+    text('x86_64-unknown-uefi', 1005, 390, 32, '#ffc39a', 500, MONO, 'left', a * p);
+    const tags = [['no_std', '裸机环境', C.nostd, '#ffd27f'], ['✕', '操作系统', C.noos, '#ff6b7c'], ['✕', '显卡驱动', C.nodrv, '#ff6b7c'], ['✓', 'GOP 帧缓冲', C.gop, '#7fffb0'], ['✓', 'CPU', C.cpu3, '#7fffb0']];
+    tags.forEach(([ic, s, c, col], i) => {
+      const q = eo(P(t, c, .4)); if (q <= 0) return;
+      const x = 1000 + (1 - q) * 80, y = 470 + i * 82;
+      glass(x, y - 32, 560, 64, 16, a * q);
+      text(ic, x + 28, y, 30, col, 700, MONO, 'left', a * q);
+      text(s, x + (ic.length > 1 ? 160 : 80), y, 34, '#fff', 600, SANS, 'left', a * q);
+    });
+  }
+};
+
+const CODECS = [['QOI', 'u32le+QOI 帧 · 预解码'], ['RAW', 'BGRA 直存 · 零解码'], ['H.264', 'MP4 · rusty_h264'], ['H.265', 'MP4/Annex-B · rusty_h265'], ['VP9', 'MP4/IVF · vp9dec'], ['H.263', '裸流 · h263-rs'], ['MPEG-2', 'm2v · filmcraft'], ['Theora', 'OGV · oxideav-theora']];
+SC.codecs = {
+  k: (t, L) => [C.codecs.filter(c => t >= c).length / 8],
+  d: (t, L, a) => {
+    heading('03', '八种格式 · 纯 Rust 软解', L, a);
+    CODECS.forEach(([n, s], i) => {
+      const q = P(t, C.codecs[i] - .05, .45); if (q <= 0) return;
+      const x = 195 + (i % 4) * 390, y = 250 + Math.floor(i / 4) * 210;
+      const hue = 190 + i * 22;
+      scaleAt(x + 180, y + 85, eob(q), () => {
+        glass(x, y, 360, 170, 22, a, `hsla(${hue},90%,60%,0.10)`);
+        text(n, x + 30, y + 68, 58, `hsl(${hue},100%,78%)`, 800, SANS, 'left', a);
+        text(s, x + 30, y + 128, 24, '#c9d2e4', 500, SANS, 'left', a);
+      });
+    });
+    const b = eo(P(t, C.eight, .5));
+    if (b > 0) {
+      glass(460, 700, 1000, 100, 50, a * b, 'rgba(255,255,255,0.09)');
+      X.save(); X.globalAlpha *= a * b; font(48, 800); X.textBaseline = 'middle';
+      const s1 = '8 种格式  ·  全部 ', s2 = '纯 Rust', s3 = ' 软件解码';
+      const w1 = X.measureText(s1).width, w2 = X.measureText(s2).width, w3 = X.measureText(s3).width;
+      let x = 960 - (w1 + w2 + w3) / 2;
+      X.fillStyle = '#fff'; X.fillText(s1, x, 750); x += w1;
+      X.fillStyle = t >= C.pure ? '#ff8a3d' : '#fff'; X.fillText(s2, x, 750); x += w2;
+      X.fillStyle = '#fff'; X.fillText(s3, x, 750);
+      X.restore();
+    }
+  }
+};
+
+SC.cores = {
+  k: (t, L) => {
+    const mode = t >= C.dynamic ? 3 : t >= C.tile ? 2 : t >= C.static ? 1 : 0;
+    const ma = mode == 3 ? t - C.dynamic : mode == 2 ? t - C.tile : mode == 1 ? t - C.static : 0;
+    return [Math.max(0, t - C.wake) * 1.6, mode, ma, t >= C.onscreen ? t - C.onscreen : -1];
+  },
+  d: (t, L, a) => {
+    heading('04', '全核并行上屏', L, a);
+    text(t >= C.wake ? '16 核全部唤醒' : 'CPU · 16 核', 160, 196, 30, '#cfe3ff', 600, SANS, 'left', a * eo(P(L, .3, .5)));
+    text('BSP', 220, 280, 26, '#fff', 700, MONO, 'center', a * eo(P(t, C.wake, .4)));
+    text('1920 × 1080 帧缓冲', 760, 160, 30, '#cfe3ff', 600, SANS, 'left', a * eo(P(t, C.p1080, .5)));
+    const modes = [['static', '静态分区', C.static], ['tile', '分块抢活', C.tile], ['dynamic', '动态加权', C.dynamic]];
+    const cur = t >= C.dynamic ? 2 : t >= C.tile ? 1 : t >= C.static ? 0 : -1;
+    modes.forEach(([en, zh, c], i) => {
+      const q = eo(P(t, c, .4)); if (q <= 0) return;
+      const x = 160 + i * 420, on = i === cur;
+      glass(x, 770, 390, 84, 42, a * q, on ? 'rgba(127,231,255,0.22)' : 'rgba(255,255,255,0.05)');
+      text(en, x + 34, 812, 28, on ? '#7fe7ff' : '#9aa6bb', 700, MONO, 'left', a * q);
+      text(zh, x + 170, 812, 34, on ? '#fff' : '#aab3c4', 700, SANS, 'left', a * q);
+    });
+    const pk = eo(P(t, C.pick, .4));
+    if (pk > 0) text('[schedule] dist = ?', 1500, 812, 30, '#ffd27f', 600, MONO, 'left', a * pk);
+  }
+};
+
+const SIMD = [['scalar', 'u64', 64], ['SSE', '128-bit · movdqu', 128], ['AVX2', '256-bit · vmovdqu', 256], ['AVX-512', '512-bit · vmovdqu8', 512]];
+SC.simd = {
+  k: (t, L) => [C.simd.filter(c => t >= c).length / 4, eo(P(t, C.m31, .6))],
+  d: (t, L, a) => {
+    heading('05', 'SIMD 矩阵 · 手写汇编', L, a);
+    const ap = eo(P(t, C.asm, .5));
+    text('asm!("vmovdqu ymm0, [rsi]")', 120, 205, 28, '#c9a7ff', 500, MONO, 'left', a * ap);
+    SIMD.forEach(([n, s, bits], i) => {
+      const q = eo(P(t, C.simd[i], .55)); if (q <= 0) return;
+      const y = 270 + i * 120, len = 1100 * bits / 512 * q;
+      text(n, 120, y + 36, 36, '#fff', 800, SANS, 'left', a * q);
+      const lanes = bits / 32;
+      for (let j = 0; j < lanes; j++) {
+        const lw = 1100 / 16, x = 330 + j * lw;
+        if (x - 330 > len) break;
+        X.save(); X.globalAlpha *= a * q;
+        X.fillStyle = `hsla(${270 - i * 25 + j * 2},90%,${55 + (j % 2) * 8}%,0.85)`;
+        X.fillRect(x + 2, y + 6, Math.min(lw - 4, len - (x - 330)), 60);
+        X.restore();
+      }
+      text(s, 340, y + 36, 26, '#140022', 700, MONO, 'left', a * eo(P(t, C.simd[i] + .25, .3)));
+    });
+    const pp = eo(P(t, C.probe, .4));
+    if (pp > 0) { glass(1480, 250, 330, 70, 35, a * pp, 'rgba(160,120,255,0.18)'); text('CPUID / XCR0 → auto', 1645, 286, 26, '#e3d4ff', 600, MONO, 'center', a * pp); }
+    const m = P(t, C.m31, .9);
+    if (m > 0) {
+      const n = Math.max(1, Math.round(eo(m) * 31));
+      text(String(n), 1645, 520, 220, '#ffffff', 800, SANS, 'center', a * eo(P(t, C.m31, .3)));
+      text('档 · 一键切换', 1645, 680, 40, '#d8c8ff', 700, SANS, 'center', a * eo(P(t, C.m31 + .2, .4)));
+      // 滑杆
+      const sw = eo(P(t, C.switch, .7));
+      X.save(); X.globalAlpha *= a * eo(P(t, C.m31, .4));
+      X.fillStyle = 'rgba(255,255,255,0.18)'; rr(1490, 740, 310, 10, 5); X.fill();
+      const kx = 1490 + 310 * (sw > 0 ? lerp(.15, .9, Math.sin(sw * Math.PI * 1.5) * .5 + .5) : .15);
+      X.fillStyle = '#e3d4ff'; X.beginPath(); X.arc(kx, 745, 18, 0, 7); X.fill();
+      X.restore();
+    }
+  }
+};
+
+const ENTRIES = [['Linux', 'BLS · vmlinuz + initrd + options'], ['Windows', '跨盘 chainload · bootmgfw.efi'], ['UKI', '.osrel / .cmdline / .profile'], ['OpenCore', '\\EFI\\OC\\OpenCore.efi']];
+SC.boot_loader = {
+  k: (t, L) => [eio(P(t, C.chain, 1.3))],
+  d: (t, L, a) => {
+    heading('06', '它还是一个引导加载器', L, a);
+    const wp = eo(P(t, C.loader - .2, .6)), z = eio(P(t, C.chain + .25, 1.0));
+    if (wp <= 0) return;
+    scaleAt(960, 480, lerp(.92, 1, wp) * (1 + z * 1.6), () => {
+      const wa = a * wp * (1 - z);
+      glass(560, 220, 800, 520, 26, wa, 'rgba(10,20,40,0.55)');
+      text('uefi-player · 启动选项', 600, 268, 30, '#cfe3ff', 700, SANS, 'left', wa);
+      const sp = eo(P(t, C.sprout, .4));
+      if (sp > 0) { glass(1130, 245, 200, 46, 23, wa * sp, 'rgba(120,255,170,0.15)'); text('based on sprout', 1230, 268, 22, '#a8ffcc', 600, MONO, 'center', wa * sp); }
+      const cur = C.oses.filter(c => t >= c).length - 1;
+      ENTRIES.forEach(([n, s], i) => {
+        const q = eo(P(t, C.oses[i], .35)); if (q <= 0) return;
+        const y = 320 + i * 92;
+        X.save(); X.globalAlpha *= wa * q;
+        if (i === cur) { X.fillStyle = 'rgba(127,200,255,0.22)'; rr(590, y, 740, 76, 14); X.fill(); X.fillStyle = '#7fe7ff'; X.fillRect(590, y + 12, 5, 52); }
+        X.restore();
+        text(n, 620 + (1 - q) * 40, y + 38, 36, i === cur ? '#fff' : '#c6d0e0', 700, SANS, 'left', wa * q);
+        text(s, 820 + (1 - q) * 40, y + 38, 24, '#9fb0c8', 500, MONO, 'left', wa * q);
+      });
+      text('p 播放器   f 固件设置   s 关机   r 重启', 960, 705, 24, '#8ea0ba', 500, MONO, 'center', wa * eo(P(t, C.oses[3] + .3, .4)));
+    });
+    const cp = eo(P(t, C.chain + .1, .4)) * (1 - P(t, C.chain + 2.2, .6));
+    if (cp > 0) text('chainload  →', 960, 860, 48, '#ffffff', 800, MONO, 'center', a * cp);
+  }
+};
+
+SC.wallpaper = {
+  k: (t, L) => { const live = eo(P(t, C.wall, 1.0)); return [live, Math.max(0, t - C.wall) * 1.0 + 3.0]; },
+  d: (t, L, a) => {
+    heading('07', '动态壁纸', L, a);
+    const wp = eo(P(t, C.wall, .5));
+    if (wp > 0) { glass(120, 190, 420, 56, 28, a * wp, 'rgba(0,0,0,0.25)'); text('wallpaper/wall.mp4  ▶ 循环', 150, 218, 24, '#e0f7ff', 600, MONO, 'left', a * wp); }
+    const mp = eo(P(t, C.menu8, .5));
+    if (mp > 0) {
+      scaleAt(1440, 500, lerp(.9, 1, mp), () => {
+        glass(1180, 300, 520, 400, 26, a * mp, 'rgba(8,12,28,0.62)');
+        text('启动选项', 1220, 350, 30, '#fff', 700, SANS, 'left', a * mp);
+        ['Linux', 'Windows', 'UKI', 'OpenCore', '纯播放器'].forEach((n, i) => {
+          const on = i === Math.floor((t - C.menu8) * 1.5) % 5;
+          X.save(); X.globalAlpha *= a * mp;
+          if (on) { X.fillStyle = 'rgba(255,255,255,0.16)'; rr(1205, 382 + i * 60, 470, 50, 12); X.fill(); }
+          X.restore();
+          text(n, 1230, 407 + i * 60, 28, on ? '#fff' : '#c2cbe0', 600, SANS, 'left', a * mp);
+        });
+      });
+    }
+  }
+};
+
+const CASES = ['menu-smoke', 'video-mp', 'video-blt', 'video-nano', 'video-dynamic', 'playlist-once', 'video-display-fit', 'video-display-cover', 'matrix-tiny', 'matrix-buffers', 'matrix-blt-op', 'boot-menu', 'boot-chainload', 'boot-uki', 'boot-sort', 'boot-linux-detect', 'boot-windows-crossvol', 'boot-bls-secondvol', 'wallpaper-on', 'wallpaper-live', 'wallpaper-gallery-list', 'avc-probe', 'hevc-probe', 'async-exec'];
+SC.tools = {
+  k: (t, L) => [eo(P(t, C.verify, .5))],
+  d: (t, L, a) => {
+    heading('08', '配置工具 + QEMU 黑盒矩阵', L, a);
+    const gp = eo(P(t, C.gui - .3, .6));
+    if (gp > 0) {
+      glass(120, 200, 760, 560, 28, a * gp, 'rgba(255,255,255,0.10)');
+      text('player.toml', 160, 250, 32, '#fff', 700, MONO, 'left', a * gp);
+      text('config-gui · egui_glass', 520, 250, 22, '#c8d4ea', 500, MONO, 'left', a * gp);
+      const rows = [['accel.level', 'auto'], ['render.mode', 'direct'], ['schedule.dist', 'dynamic'], ['play.fps', '120'], ['wallpaper.enable', 'true']];
+      rows.forEach(([k, v], i) => {
+        const y = 330 + i * 86, ph = (t - C.gui) * .8 + i * .9;
+        text(k, 160, y, 28, '#e4ebf7', 600, MONO, 'left', a * gp);
+        X.save(); X.globalAlpha *= a * gp;
+        X.fillStyle = 'rgba(255,255,255,0.18)'; rr(470, y - 5, 260, 10, 5); X.fill();
+        const kx = 470 + 260 * (.5 + .4 * Math.sin(ph));
+        X.fillStyle = 'rgba(127,231,255,0.7)'; rr(470, y - 5, kx - 470, 10, 5); X.fill();
+        X.fillStyle = '#fff'; X.beginPath(); X.arc(kx, y, 15, 0, 7); X.fill();
+        X.restore();
+        text(v, 760, y, 24, '#7fe7ff', 600, MONO, 'left', a * gp);
+      });
+    }
+    const qp = eo(P(t, C.qemu - .2, .5));
+    if (qp > 0) {
+      glass(960, 200, 840, 560, 28, a * qp, 'rgba(0,0,0,0.3)');
+      text('qemu-matrix', 1000, 250, 32, '#fff', 700, MONO, 'left', a * qp);
+      const done = clamp((t - C.qemu - .25) / (C.verify - C.qemu - .25)) * CASES.length;
+      CASES.forEach((n, i) => {
+        const x = 1000 + (i % 3) * 262, y = 300 + Math.floor(i / 3) * 54;
+        const ok = i < done;
+        X.save(); X.globalAlpha *= a * qp;
+        X.fillStyle = ok ? 'rgba(80,255,150,0.22)' : 'rgba(255,255,255,0.06)'; rr(x, y, 248, 44, 10); X.fill();
+        X.restore();
+        text((ok ? '✓ ' : '· ') + n, x + 12, y + 22, 18, ok ? '#a8ffcc' : '#8f9bb0', 600, MONO, 'left', a * qp);
+      });
+      const vp = P(t, C.verify, .45);
+      if (vp > 0) scaleAt(1380, 480, lerp(1.6, 1, eo(vp)), () => {
+        X.save(); X.globalAlpha *= a * eo(vp); X.translate(1380, 480); X.rotate(-.12);
+        X.strokeStyle = '#5dff9a'; X.lineWidth = 8; rr(-230, -70, 460, 140, 20); X.stroke();
+        X.restore();
+        text('ALL PASS ✓', 1380, 480, 66, '#5dff9a', 800, MONO, 'center', a * eo(vp));
+      });
+    }
+  }
+};
+
+SC.outro = {
+  k: (t, L) => {
+    const bursts = [C.logo + .45, C.logo + .9, C.movie, C.movie + .5, C.end + .2, C.end + .55];
+    const k = bursts.map(b => t - b); k[8] = eo(P(t, C.logo, 1)); return k;
+  },
+  d: (t, L, a) => {
+    const p = P(t, C.logo, .8);
+    if (p > 0) scaleAt(960, 400, lerp(.85, 1, eob(p)), () => {
+      X.save(); X.globalAlpha *= a * eo(p);
+      font(160, 800); X.textAlign = 'center'; X.textBaseline = 'middle';
+      const g = X.createLinearGradient(560, 0, 1360, 0); g.addColorStop(0, '#7fe7ff'); g.addColorStop(.5, '#fff'); g.addColorStop(1, '#ff7fd8');
+      X.fillStyle = g; X.fillText('UEFI Player', 960, 400); X.restore();
+    });
+    text('在进系统之前，就开始放电影', 960, 540, 50, '#eef', 600, SANS, 'center', a * eo(P(t, C.movie - .4, .6)));
+    const gh = eo(P(t, C.github, .5));
+    if (gh > 0) {
+      glass(560, 640, 800, 96, 48, a * gh, 'rgba(255,255,255,0.10)');
+      text('github.com/Bemly/uefi-palyer', 960, 690, 40, '#fff', 700, MONO, 'center', a * gh);
+    }
+  }
+};
+
+// ---------- 字幕（逐字卡拉OK，字的点亮时间 = 配音发音时间）----------
+function subtitles(t) {
+  const l = TLD.lines.find(l => t >= l.start - .25 && t < l.end + .45); if (!l) return;
+  const a = P(t, l.start - .25, .25) * (1 - P(t, l.end + .2, .25));
+  font(42, 600);
+  const chars = [...l.text]; const ws = chars.map(c => X.measureText(c).width);
+  // 过长分两行（在最靠近中间的标点处断）
+  const total = ws.reduce((s, w) => s + w, 0);
+  let rows = [[0, chars.length]];
+  if (total > 1500) {
+    let best = -1, bd = 1e9, acc = 0;
+    for (let i = 0; i < chars.length; i++) { acc += ws[i]; if ('，、：；—'.includes(chars[i]) && Math.abs(acc - total / 2) < bd) { bd = Math.abs(acc - total / 2); best = i + 1; } }
+    if (best < 0) best = Math.ceil(chars.length / 2);
+    rows = [[0, best], [best, chars.length]];
+  }
+  const lh = 58, y0 = 1000 - (rows.length - 1) * lh;
+  const maxw = Math.max(...rows.map(([s, e]) => ws.slice(s, e).reduce((x, w) => x + w, 0)));
+  X.save(); X.globalAlpha = a;
+  X.fillStyle = 'rgba(0,0,0,0.45)'; rr(960 - maxw / 2 - 36, y0 - 40, maxw + 72, rows.length * lh + 22, 22); X.fill();
+  X.textBaseline = 'middle';
+  rows.forEach(([s, e], r) => {
+    const rw = ws.slice(s, e).reduce((x, w) => x + w, 0); let x = 960 - rw / 2;
+    for (let i = s; i < e; i++) {
+      const on = t >= l.ctime[i];
+      X.fillStyle = on ? '#ffffff' : 'rgba(255,255,255,0.42)';
+      X.fillText(chars[i], x, y0 + r * lh); x += ws[i];
+    }
+  });
+  X.restore();
+}
+
+// OSD 致敬（固件 OSD 里的 FPS/FT/Margin）
+function osd(t) {
+  const a = P(t, C.title + 1.2, .6) * (1 - P(t, C.logo - .5, .5)); if (a <= 0) return;
+  const fps = 120 - (Math.sin(t * 3.1) > .97 ? 1 : 0), ft = (1000 / 120 + Math.sin(t * 7) * .05).toFixed(2), mg = (1.4 + Math.sin(t * 2.3) * .3).toFixed(2);
+  text(`FPS ${fps}  FT ${ft}ms  Margin ${mg}ms`, 1800, 60, 22, '#9fffd0', 600, MONO, 'right', a * .85);
+  text('uefi-player', 120, 60, 22, '#8fa3c0', 600, MONO, 'left', a * .85);
+  X.save(); X.globalAlpha = a * .6; X.fillStyle = '#7fe7ff'; X.fillRect(0, H - 4, W * t / TLD.total, 4); X.restore();
+}
+
+// ---------- 帧 ----------
+const TRANS = .6;
+function sceneAt(t) { let i = TLD.lines.findIndex(l => t >= l.s0 && t < l.s1); return i < 0 ? TLD.lines.length - 1 : i; }
+function pulseAt(t) { let p = 0; for (const s of TLD.sfx) { const d = t - s.t; if (d >= 0 && d < .6) p = Math.max(p, Math.exp(-d * 9) * s.v); } return p; }
+function drawScene(name, rt, t, L) {
+  const pr = PROG[name]; gl.bindFramebuffer(gl.FRAMEBUFFER, rt.fb); gl.viewport(0, 0, W, H); gl.useProgram(pr.p);
+  const k = new Float32Array(16); SC[name].k(t, L).forEach((v, i) => k[i] = v || 0);
+  gl.uniform2f(pr.u.R, W, H); gl.uniform1f(pr.u.T, t); gl.uniform1f(pr.u.L, L); gl.uniform1fv(pr.u.K, k);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+function frame(t) {
+  const i = sceneAt(t), l = TLD.lines[i], L = t - l.s0;
+  const mixv = i === 0 ? 1 : clamp(L / TRANS);
+  drawScene(l.scene, RT[0], t, L);
+  const prev = i > 0 ? TLD.lines[i - 1] : null;
+  if (prev && mixv < 1) drawScene(prev.scene, RT[1], t, t - prev.s0);
+  X.clearRect(0, 0, W, H);
+  if (prev && mixv < 1) { X.save(); X.globalAlpha = 1 - eo(mixv); SC[prev.scene].d(t, t - prev.s0, 1); X.restore(); }
+  X.save(); X.globalAlpha = i === 0 ? 1 : eo(mixv); SC[l.scene].d(t, L, 1); X.restore();
+  subtitles(t); osd(t);
+  gl.bindTexture(gl.TEXTURE_2D, xTex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, xc);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); gl.useProgram(COMP.p);
+  gl.uniform2f(COMP.u.R, W, H); gl.uniform1f(COMP.u.T, t); gl.uniform1f(COMP.u.mixv, mixv);
+  gl.uniform1f(COMP.u.pulse, pulseAt(t));
+  gl.uniform1f(COMP.u.glitch, Math.max(0, 1 - Math.abs(t - C.chain - .6) * 1.5) * .8 + Math.max(0, 1 - Math.abs(t - C.title) * 3));
+  gl.uniform1f(COMP.u.fade, Math.min(P(t, 0, .6), 1 - P(t, TLD.total - 1.4, 1.3)));
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, RT[0].tex); gl.uniform1i(COMP.u.A, 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, RT[1].tex); gl.uniform1i(COMP.u.B, 1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, xTex); gl.uniform1i(COMP.u.X, 2);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.activeTexture(gl.TEXTURE0);
+}
+window.renderAt = t => { frame(t); gl.finish(); return true; };
+window.GLINFO = () => { const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); };
+
+</script>
+</div><div id="start"><div><i></i><b>UEFI Player · 介绍</b><span>点击播放（无声在线渲染）</span></div></div></div>
+<div id="bar"><button id="play">▶</button><div id="track"><div id="fill"></div></div><span id="clock">0:00 / 1:46</span><button id="fsbtn">⛶</button></div></div>
+</body>
+<script>
+'use strict';
+(function(){
+const TOTAL=106.102, TITLE='UEFI Player · 介绍';
+const wrap=document.getElementById('screenWrap'),scr=document.getElementById('screen');
+function fit(){scr.style.transform='scale('+(wrap.clientWidth/1920)+')';}
+addEventListener('resize',fit);fit();
+document.addEventListener('fullscreenchange',()=>setTimeout(fit,60));
+const btn=document.getElementById('play'),trk=document.getElementById('track'),
+      fil=document.getElementById('fill'),clk=document.getElementById('clock'),
+      ov=document.getElementById('start'),fsb=document.getElementById('fsbtn');
+const qs=new URLSearchParams(location.search);
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const paint=t=>{fil.style.width=(100*t/TOTAL)+'%';clk.textContent=fmt(t)+' / '+fmt(TOTAL);};
+let base=0,playing=false,raf=0,gen=0,ended=false,t0=0;
+async function draw(t){try{await window.renderAt(Math.min(t,TOTAL-0.05));}catch(e){}paint(Math.min(t,TOTAL));}
+function loop(now){
+  if(!playing)return;
+  const t=base+(now-t0)/1000;
+  if(t>=TOTAL){stop();ended=true;btn.textContent='\u21bb';ov.hidden=false;
+    ov.querySelector('b').textContent='\u64ad\u653e\u5b8c\u6bd5';return;}
+  const g=++gen;
+  Promise.resolve(draw(t)).then(()=>{if(playing&&g===gen)raf=requestAnimationFrame(loop);});
+}
+function play(){if(ended){ended=false;base=0;ov.querySelector('b').textContent=TITLE;}
+  playing=true;ov.hidden=true;btn.textContent='\u23f8';t0=performance.now();raf=requestAnimationFrame(loop);}
+function stop(){playing=false;cancelAnimationFrame(raf);btn.textContent='\u25b6';}
+function cur(){return playing?base+(performance.now()-t0)/1000:base;}
+btn.onclick=()=>{if(playing){base=cur();stop();}else play();};
+ov.onclick=btn.onclick;
+trk.onclick=e=>{const r=trk.getBoundingClientRect();base=TOTAL*(e.clientX-r.left)/r.width;
+  if(base>=TOTAL)base=TOTAL-0.05;ended=false;ov.querySelector('b').textContent=TITLE;
+  if(playing)t0=performance.now();else draw(base);};
+fsb.onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else wrap.requestFullscreen().catch(()=>{});};
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();btn.onclick();}
+  else if(e.key==='ArrowRight'){base=Math.min(TOTAL-0.05,cur()+5);if(playing)t0=performance.now();else draw(base);}
+  else if(e.key==='ArrowLeft'){base=Math.max(0,cur()-5);if(playing)t0=performance.now();else draw(base);}
+  else if(e.key==='f'||e.key==='F')fsb.onclick();
+  else if(e.key==='r'||e.key==='R'){base=0;ended=false;ov.querySelector('b').textContent=TITLE;if(playing)t0=performance.now();else draw(0);}
+});
+if(qs.has('t')){base=Math.min(parseFloat(qs.get('t'))||0,TOTAL-0.05);ov.hidden=true;draw(base);}
+else draw(0);
+window.__uefi={seek:t=>{base=t;draw(t);}};
+})();
+</script>
+
+</html>

@@ -2,11 +2,14 @@
 
 开机那一瞬间直接在 UEFI 固件里播视频。在线看：https://bili.bemly.moe/uefi/
 
-- 双播放器：上面 `介绍`（1:46），下面 `详解`（12:00），各自独立控制条（播放/暂停、进度、时间、全屏）。
-- 视频留空：`intro.mp4` / `detail.mp4` 未入库，页面显示待上传占位；把转好的文件放进目录即自动生效（`HEAD` 探测）。
-- `index.html`：双播放器 + 空状态 + 控制条逻辑。
+- 上面 `intro/`（介绍 1:46）下面 `detail/`（详解 12:00），hub 页两个 iframe 上下排布，各自独立播放。
+- 两个都是浏览器实时渲染（WebGL + 2D 字幕，rAF 时钟驱动，无声版），无需构建。
+- `index.html`：hub 页（双 iframe + 标题简介）。
+- `intro/index.html + timeline.js`：介绍播放器（播放/暂停、进度、时间、全屏；空格、←/→ 5 秒、F 全屏、R 重播；`?t=秒` 定格）。源自 `工程/web/`，仅把 `?play`（需 `../out/mix.m4a`，不存在）换成 rAF 时钟驱动。
+- `detail/index.html + timeline.js + shaders_v1.js`：详解播放器（同上操作）。源自 `工程2/web/`；`frames/` 实录帧（2GB）未上传，clip 段降级为背景 + 字幕 + “实录素材未收录”提示，不断线。
 - `cover.jpg`：首页卡片用（1920×1080，取自介绍片第 12 秒）。
+- `tools/build_site.py`：从本地原目录生成 `intro/`/`detail/`（`UEFILM_SRC` 可改源路径）。
 
-`工程/`（介绍片时间线 + TTS 音频）、`工程2/`（详解片时间线 + 实录帧 + 132MB 混音）、成片 mp4（463MB / 1.5GB / 分享版 96MB / 245MB）与台词稿均未入库。
+成片 mp4（463MB / 1.5GB / 分享版）、`frames/`、`mix.wav`/`mix.m4a`、TTS、`raw/`、台词稿均未入库。目录内无音频文件。
 
-本地原目录：`/Volumes//影片/uefi播放器/`。
+本地原目录：`/Volumes//影片/uefi播放器/`（`工程/` = 介绍，`工程2/` = 详解）。

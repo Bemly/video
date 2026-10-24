@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>UEFI Player · 详解</title>
+<style>
+:root{--bg:#11100E;--ink:#F5EAD5;--teal:#5CC7C0;--grey:#8C877C;--card:#1A1916;--line:#2a2824}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "PingFang SC","Hiragino Sans GB",system-ui,sans-serif}
+.top{max-width:1180px;margin:0 auto;padding:20px 16px 0;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.top b{font-size:20px;letter-spacing:.04em}
+.top span{color:var(--grey);font-size:13px}
+.top nav{margin-left:auto;display:flex;gap:8px}
+.top nav a{color:var(--teal);text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:4px 12px}
+.top nav a:hover{border-color:var(--teal)}
+.wrap{max-width:1180px;margin:0 auto;padding:12px 16px 40px}
+#screenWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+#screen{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+#screen canvas{position:absolute;left:0;top:0}
+#bar{display:flex;gap:10px;align-items:center;padding:10px 2px 0;flex-wrap:wrap}
+#bar button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}
+#bar button:hover{border-color:var(--teal)}
+#track{flex:1;height:6px;background:#1a2740;border-radius:3px;cursor:pointer;position:relative;min-width:120px}
+#fill{height:100%;width:0;background:var(--teal);border-radius:3px}
+#clock{color:var(--grey);font-size:13px;font-variant-numeric:tabular-nums;min-width:130px;text-align:right}
+#start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);cursor:pointer;z-index:5}
+#start[hidden]{display:none}
+#start div{text-align:center;color:#fff}
+#start i{display:block;width:84px;height:84px;margin:0 auto 26px;border-radius:50%;background:#5CC7C0;position:relative}
+#start i::after{content:"";position:absolute;left:34px;top:27px;border:15px solid transparent;border-left:24px solid #fff;border-right:0}
+#start b{display:block;font:600 26px system-ui}
+#start span{display:block;margin-top:10px;font-size:14px;color:#9fb3c8}
+</style>
+</head>
+<body>
+<header class="top"><b>UEFI Player · 详解</b><span>12:00 · WebGL+实录 在线渲染</span><nav><a href="../">← 返回</a></nav></header>
+<div class="wrap"><div id="screenWrap"><div id="screen">
+<canvas id="gl" width="1920" height="1080"></canvas>
+<script src="timeline.js"></script>
+<script src="shaders_v1.js"></script>
+<script>
+'use strict';
+const W = 1920, H = 1080, TLD = window.TL;
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false, alpha: false });
+
+// ---------- 工具 ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, d = 0.5) => clamp((t - a) / d);
+const eo = x => 1 - Math.pow(1 - x, 3);
+const eob = x => { const c1 = 1.70158, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+const LINE = {}; for (const l of TLD.lines) LINE[l.key] = l;
+// 某句里第 n 个（精确/包含）匹配词的发音时刻 —— 画面动作全部挂在配音词上
+function WT(key, tok, n = 0, exact = false) {
+  const l = LINE[key]; const hits = l.words.filter(w => exact ? w.w === tok : w.w.toUpperCase().includes(tok.toUpperCase()));
+  return hits.length > n ? hits[n].t : l.start;
+}
+const LS = key => LINE[key].start, LE = key => LINE[key].end;
+
+// ---------- GLSL ----------
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }`;
+FS.clipbg = `
+void main(){
+  vec2 uv = UV(); vec3 col = vec3(.012,.014,.03);
+  for (int i=0;i<5;i++){
+    float fi = float(i);
+    vec2 c = vec2(sin(T*.07 + fi*1.9)*.9, cos(T*.05 + fi*2.6)*.45);
+    col += hue(fi/5. + .58)*exp(-dot(uv-c, uv-c)*3.)*.10;
+  }
+  vec2 g = abs(fract(uv*14.) - .5); col += smoothstep(.49,.5,max(g.x,g.y))*.012;
+  o = vec4(col, 1.);
+}`;
+const FS_COMP = `#version 300 es
+precision highp float;
+uniform vec2 R; uniform float T, pulse, fade, dip, glitch, fon;
+uniform vec4 FR;
+uniform sampler2D A, X, F;
+out vec4 o;
+float h21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+float rbox(vec2 p, vec2 b, float r){ vec2 q = abs(p)-b+r; return length(max(q,0.)) + min(max(q.x,q.y),0.) - r; }
+void main(){
+  vec2 uv = gl_FragCoord.xy/R;
+  float g = max(glitch, dip);
+  float slice = (h21(vec2(floor(uv.y*50.), floor(T*30.))) - .5) * .04 * g;
+  vec2 u2 = uv + vec2(slice, 0.);
+  float ca = .0012 + pulse*.004 + g*.008;
+  vec3 col = vec3(texture(A, u2+vec2(ca,0.)).r, texture(A, u2).g, texture(A, u2-vec2(ca,0.)).b);
+  if (fon > .5) {
+    vec2 px = vec2(u2.x*R.x, (1.-uv.y)*R.y);
+    vec2 c = FR.xy + FR.zw*.5;
+    float d = rbox(px - c, FR.zw*.5, 18.);
+    col *= 1. - .55*exp(-max(d, 0.)/26.);
+    if (d < 0.) {
+      vec2 fu = (px - FR.xy)/FR.zw;
+      vec2 f2 = fu;
+      vec3 fc = vec3(texture(F, f2 + vec2(ca*.5,0.)).r, texture(F, f2).g, texture(F, f2 - vec2(ca*.5,0.)).b);
+      col = mix(col, fc, smoothstep(0., -1.5, d));
+    }
+    col += smoothstep(2., 0., abs(d))*vec3(.45,.75,1.)*.35;
+  }
+  vec4 x = texture(X, u2);
+  vec3 glow = vec3(0.);
+  for (int i=0;i<12;i++){
+    float an = float(i)*.5236; vec2 dd = vec2(cos(an), sin(an))/R;
+    vec4 s1 = texture(X, uv + dd*6.), s2 = texture(X, uv + dd*14.);
+    glow += s1.rgb*s1.a*.05 + s2.rgb*s2.a*.03;
+  }
+  col = col*(1. - x.a) + x.rgb*x.a + glow*(.7 + pulse*.6);
+  col *= .97 + .03*sin(gl_FragCoord.y*3.14159);
+  vec2 q = uv - .5; col *= 1. - dot(q,q)*.35;
+  col += (h21(gl_FragCoord.xy + fract(T)*100.) - .5)*.02;
+  col *= 1. - dip*.65;
+  o = vec4(col*fade, 1.);
+}`;
+
+function sh(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function program(fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; for (const n of ['R', 'T', 'L', 'K', 'pulse', 'fade', 'dip', 'glitch', 'fon', 'FR', 'A', 'X', 'F']) u[n] = gl.getUniformLocation(p, n);
+  return { p, u };
+}
+const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.getExtension('EXT_color_buffer_float');
+function texParams() { for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v); }
+const rtTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, rtTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, W, H, 0, gl.RGBA, gl.HALF_FLOAT, null); texParams();
+const rtFb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, rtFb);
+gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rtTex, 0);
+const PROG = {}; for (const k in FS) PROG[k] = program(HEAD + FS[k]);
+const COMP = program(FS_COMP);
+const xTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, xTex); texParams();
+const fTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, fTex); texParams();
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+
+const xc = document.createElement('canvas'); xc.width = W; xc.height = H;
+const X = xc.getContext('2d');
+
+// ---------- 2D 工具 ----------
+const SANS = '"PingFang SC", "Hiragino Sans GB", sans-serif', MONO = '"SF Mono", Menlo, monospace';
+function font(px, w = 600, fam = SANS) { X.font = `${w} ${px}px ${fam}`; }
+function rr(x, y, w, h, r) { X.beginPath(); X.roundRect(x, y, w, h, r); }
+function glass(x, y, w, h, r = 22, a = 1, tint = 'rgba(255,255,255,0.08)') {
+  if (a <= 0) return;
+  X.save(); X.globalAlpha *= a; rr(x, y, w, h, r); X.fillStyle = tint; X.fill();
+  const g = X.createLinearGradient(x, y, x, y + h); g.addColorStop(0, 'rgba(255,255,255,0.38)'); g.addColorStop(1, 'rgba(255,255,255,0.08)');
+  X.lineWidth = 1.5; X.strokeStyle = g; X.stroke(); X.restore();
+}
+function text(s, x, y, px, col = '#fff', w = 600, fam = SANS, align = 'left', a = 1) {
+  if (a <= 0) return;
+  X.save(); X.globalAlpha *= a; font(px, w, fam); X.textAlign = align; X.textBaseline = 'middle'; X.fillStyle = col; X.fillText(s, x, y); X.restore();
+}
+function tw(s, px, w = 600, fam = SANS) { font(px, w, fam); return X.measureText(s).width; }
+function scaleAt(cx, cy, s, fn) { X.save(); X.translate(cx, cy); X.scale(s, s); X.translate(-cx, -cy); fn(); X.restore(); }
+function arrow(x1, y1, x2, y2, col, a = 1, lw = 4, prog = 1) {
+  if (a <= 0 || prog <= 0) return;
+  const x = lerp(x1, x2, prog), y = lerp(y1, y2, prog);
+  X.save(); X.globalAlpha *= a; X.strokeStyle = col; X.fillStyle = col; X.lineWidth = lw; X.lineCap = 'round';
+  X.beginPath(); X.moveTo(x1, y1); X.lineTo(x, y); X.stroke();
+  const an = Math.atan2(y2 - y1, x2 - x1); X.beginPath(); X.moveTo(x, y);
+  X.lineTo(x - 16 * Math.cos(an - .45), y - 16 * Math.sin(an - .45)); X.lineTo(x - 16 * Math.cos(an + .45), y - 16 * Math.sin(an + .45)); X.fill(); X.restore();
+}
+function heading(num, title, t, t0, a) {
+  const p = eo(P(t, t0 + .1, .6));
+  X.save(); X.globalAlpha *= a * p;
+  text(num, 110, 100, 28, '#7fe7ff', 700, MONO); text(title, 175, 100, 42, '#fff', 700);
+  X.fillStyle = '#7fe7ff'; X.fillRect(110, 130, 280 * p, 3); X.restore();
+}
+function chip(s, x, y, a, col = '#e8f6ff', tint = 'rgba(20,40,70,0.55)', px = 26, fam = MONO, align = 'left') {
+  if (a <= 0) return;
+  const w = tw(s, px, 600, fam) + 44, x0 = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x;
+  glass(x0, y - px * .95, w, px * 1.9, px * .95, a, tint); text(s, x0 + 22, y, px, col, 600, fam, 'left', a);
+  return w;
+}
+
+// ---------- 场景 2D ----------
+const COREC = i => `hsl(${190 + i * 11},85%,${58 + (i % 2) * 6}%)`;
+const SC = {};
+SC.intro = {
+  bg: 'boot', k: (t) => [P(t, 0, 1.2), t < WT('intro_00', 'U') ? -1 : t - WT('intro_00', 'U'), eo(P(t, WT('intro_00', 'U') - .4, 1.1))],
+  d(t, a) {
+    const tt = WT('intro_00', 'U'), p = P(t, tt, .9);
+    if (p > 0) scaleAt(960, 400, lerp(1.25, 1, eo(p)), () => {
+      X.save(); X.globalAlpha *= a * eo(p); font(170, 800); X.textAlign = 'center'; X.textBaseline = 'middle';
+      const g = X.createLinearGradient(560, 0, 1360, 0); g.addColorStop(0, '#7fe7ff'); g.addColorStop(.5, '#fff'); g.addColorStop(1, '#ff7fd8');
+      X.fillStyle = g; X.fillText('UEFI Player', 960, 400); X.restore();
+    });
+    const P3 = [['播放器', WT('intro_01', '播')], ['动态壁纸', WT('intro_01', '壁纸')], ['引导器', WT('intro_01', '引导')]];
+    P3.forEach(([s, c], i) => { const q = eo(P(t, c, .4)); if (q > 0) scaleAt(560 + i * 400, 560, eob(q), () => chip(s, 560 + i * 400, 560, a, '#fff', 'rgba(127,231,255,0.18)', 40, SANS, 'center')); });
+    const c3 = LS('intro_02');
+    ['真机', 'QEMU', '配置工具'].forEach((s, i) => { const q = eo(P(t, WT('intro_02', s) , .4)); chip(s, 660 + i * 300, 690, a * q, '#ffd9f2', 'rgba(255,127,216,0.16)', 30, SANS, 'center'); });
+  }
+};
+
+SC.primer = {
+  bg: 'firmware', k: (t) => [eo(P(t, LS('primer_02'), .8)), -0.07],
+  d(t, a) {
+    const t0 = TLD.blocks.find(b => b.id === 'primer').T0;
+    heading('02', '基础概念 · BSP / AP / GOP / Blt', t, t0, a);
+    const bspT = WT('primer_00', 'B', 0, true), wake = WT('primer_01', '唤醒'), gopT = WT('primer_02', 'G', 0, true), lockT = WT('primer_02', '独占');
+    const dirT = WT('primer_03', '直写'), bltT = LS('primer_04'), apX = WT('primer_04', '永远');
+    const opsT = [WT('primer_05', 'B', 0, true), WT('primer_05', 'V', 0, true), WT('primer_05', 'V', 1, true), WT('primer_05', '填充')];
+    const bufT = LS('primer_06'), pushT = WT('primer_06', '推'), mbT = WT('primer_06', '8');
+    const opsOn = t >= opsT[0] - .3 && t < bufT - .2;
+    // CPU 核阵列
+    const cx0 = 150, cy0 = 200, cs = 110;
+    text('CPU', cx0, cy0 - 30, 28, '#cfe3ff', 700, MONO, 'left', a * eo(P(t, bspT - .6, .5)));
+    for (let i = 0; i < 16; i++) {
+      const x = cx0 + (i % 4) * cs, y = cy0 + Math.floor(i / 4) * cs;
+      const lit = i === 0 ? eo(P(t, bspT, .4)) : eo(P(t, wake + i * .05, .35));
+      const blocked = i > 0 && t >= apX && t < bufT ? eo(P(t, apX, .3)) * (t < opsT[0] - .3 ? 1 : .5) : 0;
+      X.save(); X.globalAlpha = a * eo(P(t, t0 + .4 + i * .02, .4));
+      rr(x, y, cs - 18, cs - 18, 14); X.fillStyle = lit > 0 ? `rgba(${i ? '90,200,255' : '255,200,90'},${.12 + .35 * lit})` : 'rgba(255,255,255,0.05)'; X.fill();
+      X.lineWidth = 2; X.strokeStyle = lit > 0 ? (i ? '#7fd8ff' : '#ffd27f') : 'rgba(255,255,255,0.2)'; X.stroke(); X.restore();
+      text(i ? 'AP' : 'BSP', x + (cs - 18) / 2, y + (cs - 18) / 2, i ? 22 : 26, i ? '#bfeaff' : '#ffe2a8', 700, MONO, 'center', a * Math.max(.25, lit));
+      if (blocked > 0) { X.save(); X.globalAlpha = a * blocked; X.strokeStyle = '#ff5a6e'; X.lineWidth = 5; X.beginPath(); X.moveTo(x + 18, y + 18); X.lineTo(x + cs - 36, y + cs - 36); X.moveTo(x + cs - 36, y + 18); X.lineTo(x + 18, y + cs - 36); X.stroke(); X.restore(); }
+    }
+    text('引导处理器', cx0, cy0 + 4 * cs + 10, 26, '#ffd27f', 600, SANS, 'left', a * eo(P(t, WT('primer_00', '引导'), .4)));
+    text('其余 = 应用处理器（MP 服务唤醒）', cx0, cy0 + 4 * cs + 50, 24, '#9fdcff', 600, SANS, 'left', a * eo(P(t, wake, .4)));
+    // GOP 帧缓冲
+    const gx = 1200, gy = 230, gw = 580, gh = 326, ga = eo(P(t, gopT, .5));
+    if (ga > 0) {
+      glass(gx, gy, gw, gh, 16, a * ga, 'rgba(10,30,50,0.55)');
+      text('GOP 帧缓冲', gx + 20, gy - 28, 30, '#7fffff', 700, SANS, 'left', a * ga);
+      const la = eo(P(t, lockT, .4));
+      if (la > 0) chip('独占 · Exclusive', gx + gw, gy - 28, a * la, '#ffd27f', 'rgba(255,200,90,0.15)', 22, MONO, 'right');
+      // 直写：多核分带填充
+      const dp = P(t, dirT + .2, 2.2);
+      if (dp > 0 && t < bltT + .3) {
+        for (let b = 0; b < 16; b++) {
+          const fill = clamp(dp * 1.3 - b * .01);
+          X.save(); X.globalAlpha = a * .75; X.fillStyle = COREC(b); X.fillRect(gx + 8, gy + 8 + b * (gh - 16) / 16, (gw - 16) * fill, (gh - 16) / 16 - 2); X.restore();
+        }
+        for (let i = 0; i < 16; i += 3) arrow(cx0 + (i % 4) * cs + 92, cy0 + Math.floor(i / 4) * cs + 46, gx - 10, gy + 30 + i * 18, 'rgba(127,231,255,0.7)', a * eo(P(t, dirT, .4)) * (1 - P(t, bltT, .3)), 3, eo(P(t, dirT, .7)));
+        text('direct 直写 · 多核一起写', gx + gw / 2, gy + gh + 50, 32, '#7fe7ff', 700, SANS, 'center', a * eo(P(t, dirT, .4)) * (1 - P(t, bltT, .3)));
+      }
+      // Blt：单线程引擎
+      const ba = eo(P(t, bltT, .5)) * (1 - P(t, bufT - .3, .4));
+      if (ba > 0) {
+        glass(770, 330, 320, 110, 18, a * ba, 'rgba(255,170,60,0.16)');
+        text('固件 Blt 引擎', 930, 370, 32, '#ffd27f', 700, SANS, 'center', a * ba);
+        text('单线程 · 非线程安全', 930, 410, 22, '#ffe8c0', 500, SANS, 'center', a * ba);
+        arrow(cx0 + 92, cy0 + 46, 765, 385, '#ffd27f', a * ba, 4, eo(P(t, bltT, .6)));
+        arrow(1095, 385, gx - 8, gy + gh / 2, '#ffd27f', a * ba, 4, eo(P(t, bltT + .3, .6)));
+        if (!opsOn) { X.save(); X.globalAlpha = a * ba * .8; X.fillStyle = 'rgba(255,210,127,0.25)'; X.fillRect(gx + 8, gy + 8, gw - 16, gh - 16); X.restore(); }
+      }
+      // Blt 四种操作
+      const OPS = [['B2V', 'buffer → video', '唯一能播视频'], ['V2V', 'video → video', '屏幕内搬运'], ['V2B', 'video → buffer', '读回内存'], ['Fill', 'video_fill', '纯色填充']];
+      OPS.forEach(([n, s, z], i) => {
+        const q = eo(P(t, opsT[i] - .05, .4)) * (1 - P(t, bufT - .3, .4)); if (q <= 0) return;
+        const x = 150 + i * 420, y = 760, hi = i === 0;
+        scaleAt(x + 190, y + 60, eob(clamp(q * 1.2)), () => {
+          glass(x, y, 380, 120, 20, a, hi ? 'rgba(127,255,180,0.18)' : 'rgba(255,255,255,0.07)');
+          text(n, x + 26, y + 42, 44, hi ? '#8dffc0' : '#fff', 800, MONO, 'left', a);
+          text(s, x + 150, y + 42, 22, '#c9d6ea', 500, MONO, 'left', a);
+          text(z, x + 26, y + 90, 26, hi ? '#c8ffe0' : '#aab4c6', 600, SANS, 'left', a);
+        });
+      });
+      // 影子缓冲
+      const sa = eo(P(t, bufT, .5));
+      if (sa > 0) {
+        for (let k = 1; k >= 0; k--) glass(780 + k * 22, 300 - k * 22, 300, 170, 16, a * sa, 'rgba(160,120,255,0.20)');
+        text('影子缓冲 ×2', 930, 385, 32, '#e3d4ff', 700, SANS, 'center', a * sa);
+        for (let i = 0; i < 16; i += 5) arrow(cx0 + (i % 4) * cs + 92, cy0 + Math.floor(i / 4) * cs + 46, 772, 330 + i * 8, 'rgba(200,170,255,0.7)', a * sa, 3, eo(P(t, bufT + .4, .6)));
+        const pp = eo(P(t, pushT, .5));
+        arrow(1086, 385, gx - 8, gy + gh / 2, '#c9a7ff', a * pp, 6, pp);
+        if (pp > 0) { X.save(); X.globalAlpha = a * pp * .55; const g = X.createLinearGradient(gx, 0, gx + gw, 0); g.addColorStop(0, '#7f8cff'); g.addColorStop(1, '#ff7fd8'); X.fillStyle = g; X.fillRect(gx + 8, gy + 8, gw - 16, gh - 16); X.restore(); }
+        text('BSP 整帧一次推上屏 · 无撕裂', gx + gw / 2, gy + gh + 50, 30, '#e3d4ff', 700, SANS, 'center', a * pp);
+        chip('buffers = 0 → 直写前台    buffers > 0 → 影子环', 150, 800, a * sa, '#e3d4ff', 'rgba(120,80,220,0.22)', 26);
+        chip('1080p BGRA ≈ 8MB / 帧', 150, 880, a * eo(P(t, mbT, .4)), '#ffd27f', 'rgba(255,200,90,0.14)', 26);
+      }
+    }
+  }
+};
+
+const CODE = [
+  ['// 简化自 src/video/exec.rs · nano_pump', '#6f8aa8'],
+  ['let pump = async move {', '#e6edf7'],
+  ['    loop {', '#e6edf7'],
+  ['        let f = clip.next_frame();', '#e6edf7'],
+  ['        screen.upload_frame(w, h, f);', '#e6edf7'],
+  ['        pace_or_drop(&mut clip, ..);', '#e6edf7'],
+  ['        Yield.await; // 一帧一调度', '#ffd27f'],
+  ['    }', '#e6edf7'],
+  ['};', '#e6edf7'],
+  ['exec.add(&mut node);', '#9fdcff'],
+  ['loop { exec.run_step(tick(), &mut cx); }', '#9fdcff'],
+];
+SC.async = {
+  bg: 'tools', k: (t) => [eo(P(t, LS('async_05'), .6))],
+  d(t, a) {
+    const t0 = TLD.blocks.find(b => b.id === 'async').T0;
+    heading('04', 'uefi-async · await 是灵魂', t, t0, a);
+    const cue = k => LS('async_0' + k);
+    // 代码面板
+    const ca = eo(P(t, t0 + .5, .6));
+    glass(110, 190, 800, 560, 24, a * ca, 'rgba(8,14,28,0.72)');
+    CODE.forEach(([s, c], i) => {
+      const y = 245 + i * 46, hl = i === 6 && t >= WT('async_03', 'Yield') - .1;
+      if (hl) { X.save(); X.globalAlpha = a * ca * (0.6 + .4 * Math.sin(t * 6)); X.fillStyle = 'rgba(255,210,127,0.18)'; rr(124, y - 21, 772, 42, 10); X.fill(); X.restore(); }
+      text(s, 140, y, 25, c, i === 6 ? 700 : 500, MONO, 'left', a * ca * eo(P(t, t0 + .6 + i * .06, .4)));
+    });
+    // 右侧图解：按句切换
+    const R0 = 980, act = k => clamp(P(t, cue(k) - .2, .4) - P(t, (k < 6 ? cue(k + 1) : 1e9) - .3, .3));
+    // 0 标题
+    let q = act(0);
+    if (q > 0) {
+      text('uefi-async', 1380, 360, 90, '#fff', 800, MONO, 'center', a * q);
+      ['nano', 'dynamic', 'static'].forEach((s, i) => chip(s, 1180 + i * 200, 480, a * q * eo(P(t, cue(0) + .4 + i * .2, .4)), '#cfe8ff', 'rgba(127,231,255,0.15)', 30, MONO, 'center'));
+      text('作者自研 · 无标准库的协作式执行器', 1380, 580, 28, '#cfd8ea', 500, SANS, 'center', a * q);
+    }
+    // 1 无线程
+    q = act(1);
+    if (q > 0) {
+      text('一条执行流', R0, 300, 36, '#fff', 700, SANS, 'left', a * q);
+      const segs = ['解码', '上屏', '限速', '输入', '解码', '上屏'];
+      segs.forEach((s, i) => { const x = R0 + i * 132, on = P(t, cue(1) + i * .3, .3); glass(x, 350, 124, 70, 12, a * q * on, `hsla(${200 + i * 25},80%,60%,0.2)`); text(s, x + 62, 385, 26, '#fff', 600, SANS, 'center', a * q * on); });
+      ['✕ 线程', '✕ 抢占', '✕ 操作系统'].forEach((s, i) => chip(s, R0 + i * 250, 520, a * q * eo(P(t, WT('async_01', ['操作系统', '线程', '抢占'][i]), .3)), '#ff9aa8', 'rgba(255,90,110,0.15)', 30, SANS));
+    }
+    // 2 await 状态机
+    q = act(2);
+    if (q > 0) {
+      const st = ['开始', '等 I/O', '等下一帧', '完成'];
+      const k = Math.floor(clamp((t - WT('async_02', 'await', 1)) * 1.5, 0, 3.99));
+      st.forEach((s, i) => {
+        const x = R0 + 60 + i * 210, on = t >= WT('async_02', '状') - .2;
+        X.save(); X.globalAlpha = a * q * (on ? 1 : .3); X.beginPath(); X.arc(x, 360, 64, 0, 7);
+        X.fillStyle = i === k ? 'rgba(255,210,127,0.35)' : 'rgba(255,255,255,0.07)'; X.fill(); X.lineWidth = 2; X.strokeStyle = i === k ? '#ffd27f' : 'rgba(255,255,255,0.35)'; X.stroke(); X.restore();
+        text(s, x, 360, 24, '#fff', 600, SANS, 'center', a * q * (on ? 1 : .3));
+        if (i < 3) arrow(x + 68, 360, x + 140, 360, 'rgba(255,255,255,0.6)', a * q, 3);
+      });
+      text('.await  →  Poll::Pending  →  交还执行器', R0 + 380, 500, 30, '#ffd27f', 700, MONO, 'center', a * q * eo(P(t, WT('async_02', 'await', 1), .4)));
+      text('执行器去推进下一个任务', R0 + 380, 560, 30, '#cfe8ff', 600, SANS, 'center', a * q * eo(P(t, WT('async_02', '推进'), .4)));
+    }
+    // 3 Yield：执行器轮
+    q = act(3);
+    if (q > 0) {
+      const cx = R0 + 400, cy = 420, r = 170, tasks = ['播放泵', '输入', 'OSD', '计时'];
+      const step = Math.floor((t - cue(3)) * 2.5);
+      tasks.forEach((s, i) => { const an = -Math.PI / 2 + i * Math.PI / 2, x = cx + Math.cos(an) * r, y = cy + Math.sin(an) * r, on = step % 4 === i;
+        glass(x - 80, y - 36, 160, 72, 36, a * q, on ? 'rgba(255,210,127,0.3)' : 'rgba(255,255,255,0.08)'); text(s, x, y, 28, on ? '#ffd27f' : '#fff', 700, SANS, 'center', a * q); });
+      const an = -Math.PI / 2 + (step % 4) * Math.PI / 2; arrow(cx, cy, cx + Math.cos(an) * (r - 70), cy + Math.sin(an) * (r - 70), '#ffd27f', a * q, 5);
+      text('执行器', cx, cy + 4, 26, '#cfe8ff', 700, SANS, 'center', a * q);
+      const dead = eo(P(t, WT('async_03', '卡死'), .4));
+      if (dead > 0) chip('没有 await → 首次 poll 卡死在 loop 里', cx, cy + 260, a * q * dead, '#ff9aa8', 'rgba(255,90,110,0.18)', 26, SANS, 'center');
+    }
+    // 4 计时器
+    q = act(4);
+    if (q > 0) ['WaitTimer::from_ms(500).await', '20.fps().await', 'pacer.throttle().await'].forEach((s, i) =>
+      chip(s, R0, 330 + i * 110, a * q * eo(P(t, WT('async_04', ['WaitTimer', '帧率', 'Pacer'][i]), .4)), '#ffe8c0', 'rgba(255,200,90,0.14)', 30));
+    // 5 dynamic：工作窃取
+    q = act(5);
+    if (q > 0) {
+      const gx = R0 + 40, gy = 240;
+      for (let i = 0; i < 8; i++) {
+        const x = gx + (i % 4) * 190, y = gy + Math.floor(i / 4) * 150, isB = i === 0;
+        glass(x, y, 160, 110, 16, a * q, isB ? 'rgba(255,200,90,0.2)' : 'rgba(90,200,255,0.14)');
+        text(isB ? 'BSP' : 'AP' + i, x + 80, y + 36, 28, isB ? '#ffd27f' : '#bfeaff', 800, MONO, 'center', a * q);
+        if (!isB) { const ph = (t * 1.6 + i * .37) % 1, got = t >= WT('async_05', '偷') && ph > .5; text(got ? '◼ 分带' : '…', x + 80, y + 78, 22, got ? COREC(i * 2) : '#6f8aa8', 600, SANS, 'center', a * q); }
+      }
+      if (t >= WT('async_05', '派发')) for (let i = 1; i < 8; i++) { const ph = (t * 1.6 + i * .37) % 1; if (ph < .5) arrow(gx + 160, gy + 55, gx + (i % 4) * 190 + 20, gy + Math.floor(i / 4) * 150 + 55, COREC(i * 2), a * q * .8, 3, eo(ph * 2)); }
+      chip('掉帧 / OSD 只由 BSP 判 → 确定性', gx + 360, 600, a * q * eo(P(t, WT('async_05', '掉帧'), .4)), '#ffd27f', 'rgba(255,200,90,0.14)', 26, SANS, 'center');
+    }
+    // 6 诊断
+    q = act(6);
+    if (q > 0) {
+      chip('[async] executor = all | nano | dynamic', R0, 380, a * q, '#e3d4ff', 'rgba(160,120,255,0.18)', 30);
+      chip('只管诊断项 a · 不切正式播放调度', R0, 480, a * q * eo(P(t, WT('async_06', '诊断'), .4)), '#fff', 'rgba(255,255,255,0.08)', 30, SANS);
+    }
+  }
+};
+
+SC.outro = {
+  bg: 'outro', k: (t) => {
+    const s0 = LS('outro_00'), e2 = LE('outro_02');
+    const bursts = [s0 + .5, s0 + 1.0, LS('outro_01'), LS('outro_01') + .6, e2 + .3, e2 + .7];
+    const k = bursts.map(b => t - b); k[8] = eo(P(t, s0, 1)); return k;
+  },
+  d(t, a) {
+    const s0 = LS('outro_00'), p = P(t, s0, .8);
+    if (p > 0) scaleAt(960, 330, lerp(.85, 1, eob(p)), () => {
+      X.save(); X.globalAlpha *= a * eo(p); font(150, 800); X.textAlign = 'center'; X.textBaseline = 'middle';
+      const g = X.createLinearGradient(560, 0, 1360, 0); g.addColorStop(0, '#7fe7ff'); g.addColorStop(.5, '#fff'); g.addColorStop(1, '#ff7fd8');
+      X.fillStyle = g; X.fillText('UEFI Player', 960, 330); X.restore();
+    });
+    ['播放器', '动态壁纸', '引导器'].forEach((s, i) => chip(s, 660 + i * 300, 470, a * eo(P(t, WT('outro_00', ['播放器', '壁纸', '引导'][i]), .4)), '#fff', 'rgba(127,231,255,0.16)', 34, SANS, 'center'));
+    const ks = ['直写', 'Blt', '缓冲区', '垂直同步', '多核分工', 'SIMD', '异步执行器'];
+    let x = 960 - 7 * 120; ks.forEach((s, i) => { const w = chip(s, x + 115, 570, a * eo(P(t, WT('outro_01', s), .35)), '#ffe0f4', 'rgba(255,127,216,0.14)', 26, SANS, 'center'); x += 240; });
+    const gh = eo(P(t, WT('outro_02', 'GitHub'), .5));
+    if (gh > 0) { glass(560, 650, 800, 96, 48, a * gh, 'rgba(255,255,255,0.10)'); text('github.com/Bemly/uefi-palyer', 960, 698, 40, '#fff', 700, MONO, 'center', a * gh); }
+  }
+};
+
+// ---------- 素材块 ----------
+const CHAP = { real: '01', gui: '03', tui: '05', play: '06', boot: '07' };
+function clipLayout(part) { const s = .94, w = part.w * s, h = 1080 * s; return [(W - w) / 2, 14, w, h]; }
+function clipOverlay(b, t, a) {
+  const lt = t - b.T0;
+  // 章节卡（开头 3.5 秒）
+  const ca = eo(P(lt, .2, .5)) * (1 - P(lt, 3.6, .6));
+  if (ca > 0) {
+    const s1 = CHAP[b.id] + '  ' + b.title, w = tw(s1, 40, 700) + 70;
+    glass(150, 60, w, 84, 26, a * ca, 'rgba(6,12,24,0.78)');
+    text(CHAP[b.id], 180, 102, 30, '#7fe7ff', 700, MONO, 'left', a * ca);
+    text(b.title, 240, 102, 40, '#fff', 700, SANS, 'left', a * ca);
+  }
+  // 当前句的角标
+  const l = TLD.lines.find(l => l.block === b.id && t >= l.start - .1 && t < l.end + .6) ||
+            [...TLD.lines].reverse().find(l => l.block === b.id && t >= l.start);
+  if (l && l.tag) {
+    const q = eo(P(t, l.start - .1, .35));
+    scaleAt(1770, 90, lerp(.92, 1, q), () => chip(l.tag, 1770, 90, a * q * (1 - ca * .0), '#fff', 'rgba(6,12,24,0.74)', 28, SANS, 'right'));
+  }
+}
+
+// ---------- 字幕：逐字点亮 = 配音发音时刻 ----------
+function subtitles(t) {
+  const l = TLD.lines.find(l => t >= l.start - .2 && t < l.end + .35); if (!l) return;
+  const a = P(t, l.start - .2, .2) * (1 - P(t, l.end + .15, .2));
+  font(40, 600);
+  const chars = [...l.text], ws = chars.map(c => X.measureText(c).width), total = ws.reduce((s, w) => s + w, 0);
+  // 贪心折行：每行不超过 1500px，优先在标点处断
+  const rows = []; let s = 0;
+  while (s < chars.length) {
+    let acc = 0, e = s, lastP = -1;
+    while (e < chars.length && acc + ws[e] <= 1500) { acc += ws[e]; if ('，、：；。！？'.includes(chars[e])) lastP = e + 1; e++; }
+    if (e < chars.length) {
+      const rest = ws.slice(e).reduce((q, w) => q + w, 0);
+      if (lastP > s && ws.slice(s, lastP).reduce((q, w) => q + w, 0) > 500) e = lastP;
+      else if (rest < 300) { const mid = Math.floor((s + chars.length) / 2); e = mid; }
+    }
+    rows.push([s, e]); s = e;
+  }
+  // 最多显示两行：跟着发音位置滚动
+  let cur = rows.findIndex(([s, e]) => t < l.ctime[e - 1]); if (cur < 0) cur = rows.length - 1;
+  const r0 = Math.max(0, Math.min(cur, rows.length - 2)); rows.splice(0, r0); rows.splice(2);
+  const lh = 54, y0 = 1012 - (rows.length - 1) * lh;
+  const maxw = Math.max(...rows.map(([s, e]) => ws.slice(s, e).reduce((x, w) => x + w, 0)));
+  X.save(); X.globalAlpha = a;
+  X.fillStyle = 'rgba(0,0,0,0.62)'; rr(960 - maxw / 2 - 30, y0 - 36, maxw + 60, rows.length * lh + 18, 18); X.fill();
+  X.textBaseline = 'middle';
+  rows.forEach(([s, e], r) => {
+    let x = 960 - ws.slice(s, e).reduce((q, w) => q + w, 0) / 2;
+    for (let i = s; i < e; i++) { X.fillStyle = t >= l.ctime[i] ? '#ffffff' : 'rgba(255,255,255,0.45)'; X.fillText(chars[i], x, y0 + r * lh); x += ws[i]; }
+  });
+  X.restore();
+}
+function hud(t) {
+  X.save(); X.globalAlpha = .6; X.fillStyle = '#7fe7ff'; X.fillRect(0, H - 4, W * t / TLD.total, 4); X.restore();
+}
+
+// ---------- 帧 ----------
+const imgCache = { key: '' };
+async function _loadFrameRaw(path) {
+  if (imgCache.key === path) return;
+  const img = new Image(); img.src = path; await img.decode();
+  gl.bindTexture(gl.TEXTURE_2D, fTex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  imgCache.key = path;
+}
+function pulseAt(t) { let p = 0; for (const s of TLD.sfx) { const d = t - s.t; if (d >= 0 && d < .6) p = Math.max(p, Math.exp(-d * 9) * s.v * (s.f.includes('click') ? 0 : 1)); } return p; }
+function drawBg(name, t, L, k) {
+  const pr = PROG[name]; gl.bindFramebuffer(gl.FRAMEBUFFER, rtFb); gl.viewport(0, 0, W, H); gl.useProgram(pr.p);
+  const K = new Float32Array(16); (k || []).forEach((v, i) => K[i] = v || 0);
+  gl.uniform2f(pr.u.R, W, H); gl.uniform1f(pr.u.T, t); gl.uniform1f(pr.u.L, L); gl.uniform1fv(pr.u.K, K);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+async function frame(t) {
+  const bi = Math.max(0, TLD.blocks.findIndex(b => t >= b.T0 && t < b.T1)) || (t >= TLD.total ? TLD.blocks.length - 1 : 0);
+  const b = TLD.blocks[bi], L = t - b.T0;
+  X.clearRect(0, 0, W, H);
+  let fon = 0, FR = [0, 0, 1, 1];
+  if (b.type === 'clip') {
+    drawBg('clipbg', t, L, []);
+    let part = b.parts[b.parts.length - 1];
+    for (const p of b.parts) if (L < p.off + p.dur) { part = p; break; }
+    try{
+      const idx = clamp(Math.floor((L - part.off) * TLD.fps) + 1, 1, part.n);
+      await loadFrameSafe(`frames/${part.dir}/${String(idx).padStart(5, '0')}.jpg`);
+      FR = clipLayout(part); fon = 1;
+      clipOverlay(b, t, 1);
+    }catch(err){fon = 0;missingNote(b);}
+  } else {
+    const sc = SC[b.id]; drawBg(sc.bg, t, L, sc.k(t));
+    sc.d(t, eo(P(L, 0, .4)) * (1 - P(t, b.T1 - .35, .35)));
+  }
+  subtitles(t); hud(t);
+  gl.bindTexture(gl.TEXTURE_2D, xTex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, xc);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  let dip = 0; for (const bb of TLD.blocks) if (bb.T0 > 0) dip = Math.max(dip, 1 - Math.abs(t - bb.T0) / .3);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); gl.useProgram(COMP.p);
+  gl.uniform2f(COMP.u.R, W, H); gl.uniform1f(COMP.u.T, t); gl.uniform1f(COMP.u.pulse, b.type === 'clip' ? 0 : pulseAt(t));
+  gl.uniform1f(COMP.u.dip, clamp(dip)); gl.uniform1f(COMP.u.glitch, 0); gl.uniform1f(COMP.u.fon, fon);
+  gl.uniform4f(COMP.u.FR, ...FR);
+  gl.uniform1f(COMP.u.fade, Math.min(P(t, 0, .6), 1 - P(t, TLD.total - 1.4, 1.3)));
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, rtTex); gl.uniform1i(COMP.u.A, 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, xTex); gl.uniform1i(COMP.u.X, 1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, fTex); gl.uniform1i(COMP.u.F, 2);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.activeTexture(gl.TEXTURE0);
+}
+window.renderAt = async t => { await frame(t); gl.finish(); return true; };
+window.GLINFO = () => gl.getParameter(gl.RENDERER);
+
+const MISSING={};
+async function loadFrameSafe(path){
+  if(MISSING[path])throw new Error('missing-frame');
+  try{await _loadFrameRaw(path);}catch(e){MISSING[path]=true;throw e;}
+}
+function missingNote(b){
+  X.save();X.textBaseline='middle';X.textAlign='center';
+  X.fillStyle='rgba(0,0,0,0.55)';X.fillRect(360,470,1200,140);
+  X.fillStyle='#7fe7ff';X.font='700 44px "PingFang SC",system-ui,sans-serif';
+  X.fillText('\u5b9e\u673a\u5f55\u50cf\u7d20\u6750\u672a\u6536\u5f55',960,520);
+  X.font='400 28px "PingFang SC",system-ui,sans-serif';X.fillStyle='#8a8a90';
+  X.fillText('(frames/ \u672a\u4e0a\u4f20)',960,572);
+  X.restore();
+}
+</script>
+</div><div id="start"><div><i></i><b>UEFI Player · 详解</b><span>点击播放（无声在线渲染）</span></div></div></div>
+<div id="bar"><button id="play">▶</button><div id="track"><div id="fill"></div></div><span id="clock">0:00 / 11:60</span><button id="fsbtn">⛶</button></div></div>
+</body>
+<script>
+'use strict';
+(function(){
+const TOTAL=719.778, TITLE='UEFI Player · 详解';
+const wrap=document.getElementById('screenWrap'),scr=document.getElementById('screen');
+function fit(){scr.style.transform='scale('+(wrap.clientWidth/1920)+')';}
+addEventListener('resize',fit);fit();
+document.addEventListener('fullscreenchange',()=>setTimeout(fit,60));
+const btn=document.getElementById('play'),trk=document.getElementById('track'),
+      fil=document.getElementById('fill'),clk=document.getElementById('clock'),
+      ov=document.getElementById('start'),fsb=document.getElementById('fsbtn');
+const qs=new URLSearchParams(location.search);
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const paint=t=>{fil.style.width=(100*t/TOTAL)+'%';clk.textContent=fmt(t)+' / '+fmt(TOTAL);};
+let base=0,playing=false,raf=0,gen=0,ended=false,t0=0;
+async function draw(t){try{await window.renderAt(Math.min(t,TOTAL-0.05));}catch(e){}paint(Math.min(t,TOTAL));}
+function loop(now){
+  if(!playing)return;
+  const t=base+(now-t0)/1000;
+  if(t>=TOTAL){stop();ended=true;btn.textContent='\u21bb';ov.hidden=false;
+    ov.querySelector('b').textContent='\u64ad\u653e\u5b8c\u6bd5';return;}
+  const g=++gen;
+  Promise.resolve(draw(t)).then(()=>{if(playing&&g===gen)raf=requestAnimationFrame(loop);});
+}
+function play(){if(ended){ended=false;base=0;ov.querySelector('b').textContent=TITLE;}
+  playing=true;ov.hidden=true;btn.textContent='\u23f8';t0=performance.now();raf=requestAnimationFrame(loop);}
+function stop(){playing=false;cancelAnimationFrame(raf);btn.textContent='\u25b6';}
+function cur(){return playing?base+(performance.now()-t0)/1000:base;}
+btn.onclick=()=>{if(playing){base=cur();stop();}else play();};
+ov.onclick=btn.onclick;
+trk.onclick=e=>{const r=trk.getBoundingClientRect();base=TOTAL*(e.clientX-r.left)/r.width;
+  if(base>=TOTAL)base=TOTAL-0.05;ended=false;ov.querySelector('b').textContent=TITLE;
+  if(playing)t0=performance.now();else draw(base);};
+fsb.onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else wrap.requestFullscreen().catch(()=>{});};
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();btn.onclick();}
+  else if(e.key==='ArrowRight'){base=Math.min(TOTAL-0.05,cur()+5);if(playing)t0=performance.now();else draw(base);}
+  else if(e.key==='ArrowLeft'){base=Math.max(0,cur()-5);if(playing)t0=performance.now();else draw(base);}
+  else if(e.key==='f'||e.key==='F')fsb.onclick();
+  else if(e.key==='r'||e.key==='R'){base=0;ended=false;ov.querySelector('b').textContent=TITLE;if(playing)t0=performance.now();else draw(0);}
+});
+if(qs.has('t')){base=Math.min(parseFloat(qs.get('t'))||0,TOTAL-0.05);ov.hidden=true;draw(base);}
+else draw(0);
+window.__uefi={seek:t=>{base=t;draw(t);}};
+})();
+</script>
+
+</html>
