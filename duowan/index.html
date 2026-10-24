@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>魔玩我的世界盒子 · 介绍</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#e8ecf3;font:14px "PingFang SC","Hiragino Sans GB",system-ui,sans-serif}
+  #wrap{position:fixed;inset:0;display:flex;flex-direction:column}
+  #top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px 4px}
+  #top b{letter-spacing:.1em}#status{color:#8a91a0}#top a{color:#5CC7C0;text-decoration:none}
+  #note{color:#5a6272;font-size:12px}
+  #stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+  #viewport{width:1600px;height:1200px;position:relative;flex:none;transform-origin:center center;background:#000;overflow:hidden}
+  #gl{width:1600px;height:1200px;display:block}
+  #ui{padding:10px 16px 14px;background:linear-gradient(transparent,rgba(0,0,0,.85));transition:opacity .4s}
+  #ui.playing{opacity:0}#ui.playing:hover{opacity:1}
+  #row{display:flex;align-items:center;gap:12px}
+  button{background:none;border:1px solid #5CC7C0;color:#5CC7C0;border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+  button:disabled{opacity:.35;cursor:default}
+  #bar{flex:1;height:6px;background:#1a2740;border-radius:3px;cursor:pointer;position:relative}
+  #fill{height:100%;width:0;background:#5CC7C0;border-radius:3px}
+  #time{font-variant-numeric:tabular-nums;color:#7fa8ff;min-width:160px;text-align:right;font-size:12px}
+  #start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);cursor:pointer;z-index:5}
+  #start[hidden]{display:none}
+  #start div{text-align:center;color:#fff}
+  #start i{display:block;width:84px;height:84px;margin:0 auto 26px;border-radius:50%;background:#5CC7C0;position:relative}
+  #start i::after{content:"";position:absolute;left:34px;top:27px;border:15px solid transparent;border-left:24px solid #fff;border-right:0}
+  #start b{display:block;font:600 26px system-ui;letter-spacing:.02em}
+  #start span{display:block;margin-top:10px;font-size:14px;color:#9fb3c8}
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="top"><b>魔玩我的世界盒子</b><span id="status">插件介绍 · 加载中…</span><span id="note">空格播放/暂停，←/→ 5 秒，R 重播，F 全屏（无声版，音效未入库）</span><a href="../">← 返回</a></div>
+<div id="stage"><div id="viewport"><canvas id="gl" width="1600" height="1200"></canvas><div id="start"><div><i></i><b>魔玩我的世界盒子 · 介绍</b><span>44 镜 · 8:49 · 浏览器实时渲染 · 点击播放（无声）</span></div></div></div></div>
+<div id="ui"><div id="row"><button id="play" disabled>▶</button><div id="bar"><div id="fill"></div></div><span id="time">0:00 / 0:00</span><button id="fsbtn">⛶</button></div></div>
+</div>
+<script src="timeline.js"></script>
+<script>
+"use strict";
+const W=1600,H=1200,TL=window.TL;
+const cl=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const eo=x=>1-Math.pow(1-cl(x),3);
+const eob=x=>{x=cl(x);const c1=1.9,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const pr=(t,t0,d)=>cl((t-t0)/d);
+const lerp=(a,b,k)=>a+(b-a)*k;
+
+// ---------- WebGL ----------
+const cv=document.getElementById('gl');
+const gl=cv.getContext('webgl2',{preserveDrawingBuffer:true,antialias:false});
+const oc=document.createElement('canvas');oc.width=W;oc.height=H;
+const ctx=oc.getContext('2d');
+const VS=`#version 300 es
+in vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
+// 素材原样铺满；只在转场时做像素化、在提示点做轻微闪白，不缩放画面
+const FS=`#version 300 es
+precision highp float;
+uniform sampler2D uVid,uOv;uniform vec2 uRes;uniform float uPix,uFlash,uFade,uDim,uTime;
+out vec4 o;
+void main(){
+ vec2 fc=gl_FragCoord.xy;
+ if(uPix>1.)fc=(floor(fc/uPix)+.5)*uPix;
+ vec2 uv=vec2(fc.x/uRes.x,1.-fc.y/uRes.y);
+ vec3 c=texture(uVid,uv).rgb;
+ c*=1.-uDim;
+ vec4 ov=texture(uOv,uv);
+ c=mix(c,ov.rgb,ov.a);
+ c+=uFlash;
+ c*=uFade;
+ o=vec4(c,1);
+}`;
+function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x;}
+const P=gl.createProgram();gl.attachShader(P,sh(gl.VERTEX_SHADER,VS));gl.attachShader(P,sh(gl.FRAGMENT_SHADER,FS));gl.bindAttribLocation(P,0,'p');gl.linkProgram(P);
+const U={};for(const n of ['uVid','uOv','uRes','uPix','uFlash','uFade','uDim','uTime'])U[n]=gl.getUniformLocation(P,n);
+const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+function mkTex(){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+ for(const [k,v] of [[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]])gl.texParameteri(gl.TEXTURE_2D,k,v);return t;}
+const vidTex=mkTex(),ovTex=mkTex();
+// ---------- 素材帧（在线渲染：AV1 片段 + AVIF 静帧，音频未入库） ----------
+// clips/{id}.mp4 = 该镜头所需段落（SVT-AV1 preset2 + CRF45 + fps15 无声 60% 档）
+// stills/{n}.avif = 静帧（AVIF preset0 + CRF32 60% 档），timeline.js shots 里 src 为 img:{n}.ext
+function shotAt(t){let s=TL.shots[0];for(const x of TL.shots)if(t>=x.start)s=x;return s;}
+function lineAt(t){let s=null;for(const x of TL.lines)if(t>=x.start)s=x;return s;}
+const stillCache={};
+const clipV=document.createElement('video');
+clipV.muted=true;clipV.playsInline=true;clipV.preload='auto';
+let clipId=null;
+function stillFor(s){
+  const name=s.src.slice(4).split('.')[0]+'.avif';
+  if(!stillCache[name])stillCache[name]=fetch('stills/'+name).then(r=>{if(!r.ok)throw new Error('no still '+name);return r.blob();}).then(b=>createImageBitmap(b));
+  return stillCache[name];
+}
+function waitEv(el,ev,ms){return new Promise(res=>{const h=()=>{el.removeEventListener(ev,h);res();};el.addEventListener(ev,h);setTimeout(()=>{el.removeEventListener(ev,h);res();},ms);});}
+async function frameFor(s,t){
+  if(s.still)return stillCache[s.src.slice(4).split('.')[0]+'.avif']||stillFor(s);
+  const off=Math.max(0,t-s.start);
+  if(clipId!==s.id){clipId=s.id;clipV.src=`clips/${s.id}.mp4`;}
+  if(clipV.readyState<1)await waitEv(clipV,'loadedmetadata',5000);
+  if(playing){
+    if(clipV.paused&&clipV.readyState>=1)clipV.play().catch(()=>{});
+    if(clipV.readyState>=1&&Math.abs(clipV.currentTime-off)>0.4){try{clipV.currentTime=off;}catch(_){}}
+  }else if(clipV.readyState>=1&&Math.abs(clipV.currentTime-off)>1/30){
+    const p=waitEv(clipV,'seeked',1500);try{clipV.currentTime=off;}catch(_){}
+    await p;
+  }
+  return clipV.readyState>=2?clipV:null;
+}
+
+// ---------- MC 风格 2D ----------
+function txt(s,x,y,size,color='#fff',align='left',alpha=1){
+ ctx.save();ctx.globalAlpha*=alpha;ctx.font=`${size}px FP`;ctx.textAlign=align;ctx.textBaseline='middle';
+ const o=size/12;ctx.fillStyle=shadowOf(color);ctx.fillText(s,x+o,y+o);ctx.fillStyle=color;ctx.fillText(s,x,y);ctx.restore();}
+function shadowOf(c){const m={'#ffffff':'#3f3f3f','#fff':'#3f3f3f','#ffff55':'#3f3f15','#55ffff':'#153f3f','#55ff55':'#153f15','#ff5555':'#3f1515','#aaaaaa':'#2a2a2a','#ffaa00':'#3f2a00','#ff55ff':'#3f153f'};return m[c]||'#222';}
+const tw=(s,size)=>{ctx.font=`${size}px FP`;return ctx.measureText(s).width;};
+// 物品提示框（原版 tooltip 配色：深紫底 + 紫色渐变边）
+function tooltip(lines,x,y,size=36,alpha=1,anchor='left'){
+ const u=size/12,pad=4*u,lh=size*1.25;
+ const w=Math.max(...lines.map(l=>tw(l[0],size)))+pad*2,h=lines.length*lh+pad*2-size*.25+u*2;
+ if(anchor==='center')x-=w/2;if(anchor==='right')x-=w;
+ x=Math.round(x);y=Math.round(y);
+ ctx.save();ctx.globalAlpha=alpha;
+ ctx.fillStyle='rgba(16,0,16,.94)';ctx.fillRect(x+u,y,w-2*u,h);ctx.fillRect(x,y+u,w,h-2*u);
+ const g=ctx.createLinearGradient(0,y+u,0,y+h-u);g.addColorStop(0,'rgba(80,0,255,.55)');g.addColorStop(1,'rgba(40,0,127,.55)');
+ ctx.fillStyle=g;ctx.fillRect(x+u,y+u,w-2*u,u);ctx.fillRect(x+u,y+h-2*u,w-2*u,u);ctx.fillRect(x+u,y+u,u,h-2*u);ctx.fillRect(x+w-2*u,y+u,u,h-2*u);
+ ctx.restore();
+ lines.forEach((l,i)=>txt(l[0],x+pad,y+pad+size*.5+i*lh+u,size,l[1]||'#ffffff','left',alpha));
+ return {x,y,w,h};}
+// 原版按钮
+function mcButton(s,x,y,w,h,size=40,alpha=1){ctx.save();ctx.globalAlpha=alpha;
+ ctx.fillStyle='#000';ctx.fillRect(x-4,y-4,w+8,h+8);ctx.fillStyle='#6f6f6f';ctx.fillRect(x,y,w,h);
+ ctx.fillStyle='#a5a5a5';ctx.fillRect(x,y,w,4);ctx.fillRect(x,y,4,h);ctx.fillStyle='#4a4a4a';ctx.fillRect(x,y+h-6,w,6);ctx.restore();
+ txt(s,x+w/2,y+h/2,size,'#e0e0e0','center',alpha);}
+// 像素箭头
+function arrow(x,y,dir,s=6,color='#ffff55',alpha=1){const A=["....x....","...xxx...","..xxxxx..",".xxxxxxx.","xxxxxxxxx","...xxx...","...xxx...","...xxx...","...xxx..."];
+ ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.rotate({up:0,right:Math.PI/2,down:Math.PI,left:-Math.PI/2}[dir]);
+ A.forEach((r,j)=>{for(let i=0;i<9;i++)if(r[i]==='x'){ctx.fillStyle='#000';ctx.fillRect((i-4.5)*s-2,(j-4.5)*s-2,s+4,s+4);}});
+ A.forEach((r,j)=>{for(let i=0;i<9;i++)if(r[i]==='x'){ctx.fillStyle=color;ctx.fillRect((i-4.5)*s,(j-4.5)*s,s,s);}});ctx.restore();}
+function pop(t,t0,d=.3){return t<t0?0:eob(pr(t,t0,d));}
+function fadeWin(t,a,b,fi=.18,fo=.25){return Math.min(pr(t,a,fi),1-pr(t,b-fo,fo));}
+
+// ---------- 字幕：按配音逐字点亮 ----------
+function subtitle(t,l){
+ if(t<l.vo-.12||t>l.voEnd+.35)return;
+ const a=Math.min(pr(t,l.vo-.12,.12),1-pr(t,l.voEnd+.2,.15));
+ const known=l.charT.filter(x=>x!==null);const nSay=known.length;
+ const spoken=known.filter(x=>x<=t).length;const frac=nSay?spoken/nSay:0;
+ const text=l.text;const size=48;ctx.font=`${size}px FP`;
+ // 太长就在最靠近中间的标点处断成两行
+ const split=r=>{let best=-1,bd=1e9;const full=ctx.measureText(r).width;
+  for(let i=1;i<r.length-1;i++)if('，、。,'.includes(r[i])){const d=Math.abs(ctx.measureText(r.slice(0,i+1)).width-full/2);if(d<bd){bd=d;best=i;}}
+  return best>0?[r.slice(0,best+1),r.slice(best+1)]:[r];};
+ let rows=[text];
+ for(let k=0;k<3;k++){const i=rows.findIndex(r=>ctx.measureText(r).width>W-160);if(i<0)break;const sp=split(rows[i]);if(sp.length<2)break;rows.splice(i,1,...sp);}
+ const nVis=[...text].filter(c=>/[\w\u4e00-\u9fff]/.test(c)).length;
+ const lit=Math.round(frac*nVis);let seen=0;
+ const rh=66,yb=1012-(rows.length-1)*rh;
+ const maxW=Math.max(...rows.map(r=>ctx.measureText(r).width));
+ ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(Math.round(W/2-maxW/2)-24,yb-38,maxW+48,76+(rows.length-1)*rh);ctx.restore();
+ rows.forEach((r,ri)=>{ctx.font=`${size}px FP`;let x=Math.round(W/2-ctx.measureText(r).width/2);const y=yb+ri*rh;
+  for(const ch of r){ctx.font=`${size}px FP`;const cw=ctx.measureText(ch).width;if(/[\w\u4e00-\u9fff]/.test(ch))seen++;
+   txt(ch,x,y+2,size,seen<=lit?'#ffffff':'#aaaaaa','left',a);x+=cw;}});
+}
+
+// ---------- 每句的叠加内容（锚在台词关键词上） ----------
+function cue(l,key){const i=l.say.indexOf(key);if(i<0)return 1e9;let j=i;while(l.charT[j]===null)j++;return l.charT[j];}
+const L=id=>TL.lines.find(x=>x.id===id);
+const OVER={
+ l02(t,l){const c=cue(l,'零点十');const p=pop(t,c);if(p>0)tooltip([['Minecraft PE','#ffff55'],['v0.10.0 alpha · 2014','#aaaaaa']],60,820,40,cl(p)*fadeWin(t,c,l.end));},
+ l03(t,l){const c=cue(l,'全是英文');if(t>c)tooltip([['原版','#ffffff'],['界面全英文，没有中文','#ff5555']],W-40,150,40,fadeWin(t,c,l.end),'right');},
+ l04(t,l){const c=cue(l,'第三人称');if(t>c)tooltip([['原版第三人称','#ffffff'],['只有背后这一个视角','#ff5555']],W-40,150,40,fadeWin(t,c,l.end),'right');},
+ l05(t,l){const c=cue(l,'魔玩');const p=pop(t,c-.05,.45);if(p<=0)return;const a=fadeWin(t,c-.05,l.end+.1,.15,.3);
+  const s='魔玩我的世界盒子',size=120;const w=tw(s,size);const y=330-(1-p)*60;
+  ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(W/2-w/2-60,y-120,w+120,250);ctx.restore();
+  txt(s,W/2,y,size,'#ffffff','center',a);txt('mowanbox-mc',W/2,y+95,48,'#aaaaaa','center',a);
+  const sc=1+.06*Math.sin((t-c)*9);ctx.save();ctx.translate(W/2+w/2-10,y+30);ctx.rotate(-.35);ctx.scale(sc*p,sc*p);txt('有中文了！',0,0,52,'#ffff55','center',a);ctx.restore();},
+ l07(t,l){const c=cue(l,'左上角');if(t>c){const a=fadeWin(t,c,l.end);arrow(500+Math.sin((t-c)*8)*10,330,'left',7,'#ffff55',a);tooltip([['小地图','#ffff55']],560,290,40,a);}
+  const k=cue(l,'坐标');if(t>k){const a=fadeWin(t,k,l.end);arrow(280,600+Math.sin((t-k)*8)*8,'up',6,'#55ffff',a);tooltip([['x, y, z 坐标','#55ffff']],200,650,36,a);}},
+ l10(t,l){const c=cue(l,'夜视');if(t>c)tooltip([['夜视 ON','#55ff55']],W-40,150,40,fadeWin(t,c,l.end),'right');},
+ l13(t,l){const c=cue(l,'点燃');if(t>c&&t<cue(l,'Active'))tooltip([['世界 › 反应核 › 点燃','#ffaa00']],W-40,150,40,fadeWin(t,c,cue(l,'Active')+.2),'right');},
+ l14(t,l){const c=cue(l,'诶');const p=pop(t,c-.05,.3);if(p>0){const a=fadeWin(t,c-.05,l.end+.2);ctx.save();ctx.translate(W/2,430);ctx.scale(p,p);txt('！',0,0,192,'#ffff55','center',a);ctx.restore();}},
+ l15(t,l){const c=cue(l,'Open');if(t>c)tooltip([['OpenYSM 模组','#ff55ff'],['→ 移植成 4D 皮肤','#ffffff']],W-40,150,40,fadeWin(t,c,l.end),'right');},
+ l16(t,l){const c=cue(l,'大肥鱼');if(t>c-.1)tooltip([['当前模型','#aaaaaa'],['大肥鱼','#55ffff']],W-40,150,40,fadeWin(t,c-.1,l.end+.1),'right');},
+ l17(t,l){const c=cue(l,'六十一');if(t>c)tooltip([['YSM 原始关键帧','#aaaaaa'],['61 个动画','#ffff55']],W-40,150,40,fadeWin(t,c,l.end),'right');
+  const k=cue(l,'手里');if(t>k)tooltip([['手持物品 → 挂到右手','#ffffff']],W-40,300,36,fadeWin(t,k,l.end),'right');},
+ l18(t,l){const c=cue(l,'正面');if(t>c)tooltip([['新增：正面视角','#55ff55']],W-40,150,40,fadeWin(t,c,l.end),'right');},
+ l20(t,l){const c=cue(l,'下载');if(t<c)return;const a=fadeWin(t,c,l.end+.2);
+  const b=tooltip([['下载方式','#ffff55'],['看简介 / 评论区','#ffffff']],W/2,560,48,a,'center');arrow(W/2,b.y+b.h+60+Math.abs(Math.sin((t-c)*6))*18,'down',8,'#ffff55',a);},
+ l23(t,l){const c=l.vo;const a=pr(t,c,.4);txt('魔玩我的世界盒子',W/2,520,72,'#ffffff','center',a*(1-pr(t,TL.total-1.2,.8)));txt('积极开发中',W/2,600,40,'#ffff55','center',a*(1-pr(t,TL.total-1.2,.8)));},
+};
+const VERS=[
+ ['0.10.0',null,['2014-11-18','加入 64 位支持']],
+ ['1.1.7','l22b',['2017-09-15 · 仅 iOS','携带版在 iOS 上的最后一版','新增 IPv6 支持']],
+ ['1.2.15','l22c',['2018-04-12 · 仅 iOS','修复 7 个漏洞','经典界面触屏拖物品能正确堆叠']],
+ ['1.4.3','l22d',['2018-06-05 · 仅 iOS','开发者：没改代码','为宣传《王国生存》地图限免']],
+ ['1.13.3','l22e',['2019-11-20 · 仅 iOS','热修复：iOS 上的闪退']],
+ ['1.20.62','l22f',['2024-02-15 · 全平台','最后一个支持 iOS 11 / 12 的版本']]];
+const VLINES=['l21','l22a','l22b','l22c','l22d','l22e','l22f','l22g'];
+function versions(t){const l21=L('l21'),lg=L('l22g');const t0=cue(l21,'零点十')-.2;
+ const a=pr(t,t0,.25)*(1-pr(t,lg.end-.25,.25));if(a<=0)return;
+ const cur=lineAt(t).id;const x=60,y=210,w=720,rh=92;
+ ctx.save();ctx.globalAlpha=a*.92;ctx.fillStyle='rgba(16,0,16,.88)';ctx.fillRect(x,y-120,w,120+VERS.length*rh+20);ctx.restore();
+ tooltip([['支持版本','#ffff55']],x,y-120,48,a);
+ const la=L('l22a');
+ VERS.forEach(([v,lid,info],i)=>{
+  const appear=i===0?cue(l21,'零点十'):la.vo+.15*i;const p=pop(t,appear-.05,.3);if(p<=0)return;
+  const yy=y+20+i*rh+rh/2;const on=lid===cur;
+  if(on){ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgba(80,0,255,.35)';ctx.fillRect(x+8,yy-rh/2+6,w-16,rh-12);ctx.restore();arrow(x+w+34,yy,'left',5,'#ffff55',a);}
+  txt(v,x+40,yy,48,on?'#ffff55':'#ffffff','left',a*cl(p));
+  let tag,c;
+  if(i===0){tag='✓ 完美支持';c='#55ff55';}
+  else if(t>=lg.vo){tag='陆续支持中'+['.  ','.. ','...'][Math.floor(t*4)%3];c='#ffaa00';}
+  else if(lid&&t>=L(lid).vo){tag=lid==='l22f'?'末代 iOS 12':'仅 iOS';c=lid==='l22f'?'#55ffff':'#ffff55';}
+  else{tag='';c='#aaaaaa';}
+  if(tag)txt(tag,x+w-36,yy,44,c,'right',a*cl(p));
+  if(on){const L2=L(lid);const q=fadeWin(t,L2.vo-.1,L2.end+.05,.2,.15);
+   tooltip(info.map((s,k)=>[s,k===0?'#aaaaaa':'#ffffff']),x+w+70,Math.max(120,yy-60),40,a*q);}
+ });
+}
+for(const id of VLINES)OVER[id]=(t,l)=>versions(t);
+// ---------- 渲染 ----------
+const PIXCUTS=TL.pixcuts||[];
+async function renderAt(t){
+ const s=shotAt(t),l=lineAt(t);
+ const img=await frameFor(s,t);
+ if(img){
+  gl.bindTexture(gl.TEXTURE_2D,vidTex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+  if(img.close)img.close();
+ }
+ ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.clearRect(0,0,W,H);ctx.imageSmoothingEnabled=false;
+ const lv=l&&t<l.end?l:null;
+ if(lv&&OVER[lv.id])OVER[lv.id](t,lv);
+ // 前一句的提示框在下一句前 0.3 秒内允许收尾
+ if(s.label){const a=Math.min(pr(t,s.start,.2),1-pr(t,s.end-.15,.15));tooltip([[s.label,'#ffff55']],40,40,48,a);}
+ if(l)subtitle(t,l);
+ gl.bindTexture(gl.TEXTURE_2D,ovTex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,oc);
+ let m=0;for(const b of PIXCUTS)m=Math.max(m,1-Math.abs(t-b)/.12);
+ const pix=m>0?1+Math.round(m*m*40):1;
+ let flash=0;const l13=L('l13'),l14=L('l14');
+ for(const ft of [cue(l13,'Active'),cue(l14,'诶')])if(t>ft)flash=Math.max(flash,Math.exp(-(t-ft)*9)*.35);
+ const dim=l&&VLINES.includes(l.id)?.3*pr(t,cue(L('l21'),'零点十')-.2,.3):(l&&l.id==='l20'&&t<l.end?.2*pr(t,cue(l,'下载'),.3)*(1-pr(t,l.end-.3,.3)):0);
+ const fade=Math.min(pr(t,0,.35),1-pr(t,TL.total-.9,.9));
+ gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,W,H);gl.useProgram(P);
+ gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,vidTex);gl.uniform1i(U.uVid,0);
+ gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,ovTex);gl.uniform1i(U.uOv,1);gl.activeTexture(gl.TEXTURE0);
+ gl.uniform2f(U.uRes,W,H);gl.uniform1f(U.uPix,pix);gl.uniform1f(U.uFlash,flash);gl.uniform1f(U.uFade,fade);gl.uniform1f(U.uDim,dim);gl.uniform1f(U.uTime,t);
+ gl.drawArrays(gl.TRIANGLES,0,3);gl.finish();
+ return s.id;
+}
+
+// ---------- 播放驱动（无声时钟） ----------
+const qs=new URLSearchParams(location.search);
+const T=TL.total,NS=TL.shots.length;
+const status=document.getElementById('status');
+const playBtn=document.getElementById('play');
+const bar=document.getElementById('bar'),fill=document.getElementById('fill'),timeEl=document.getElementById('time');
+const viewport=document.getElementById('viewport');
+const startOv=document.getElementById('start');
+const glc=document.getElementById('gl');
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+let tCur=0,playing=false,lastTs=0,seq=0;
+async function paint(){
+  const my=++seq;
+  const s=shotAt(tCur),l=lineAt(tCur);
+  const id=await renderAt(tCur);
+  if(my!==seq)return;
+  status.textContent=`${id+1}/${NS} · ${l?l.id:''} · ${fmt(tCur)} / ${fmt(T)}`;
+  fill.style.width=(100*tCur/Math.max(T,1e-6))+'%';
+  timeEl.textContent=`${fmt(tCur)} / ${fmt(T)}`;
+  window.__duowanReady=true;
+}
+function tick(ts){
+  if(!playing)return;
+  const dt=Math.min(0.25,(ts-lastTs)/1000);lastTs=ts;
+  tCur+=dt;
+  if(tCur>=T){tCur=T;setPlaying(false);startOv.hidden=false;paint();return;}
+  paint();
+  requestAnimationFrame(tick);
+}
+function setPlaying(p){
+  playing=p;
+  playBtn.textContent=p?'⏸':'▶';
+  document.getElementById('ui').classList.toggle('playing',p);
+  if(clipV){if(p){if(clipV.readyState>=1)clipV.play().catch(()=>{});}else if(!clipV.paused)clipV.pause();}
+  if(p){lastTs=performance.now();requestAnimationFrame(tick);startOv.hidden=true;}
+}
+function toggle(){if(tCur>=T){tCur=0;}setPlaying(!playing);if(playing)paint();}
+playBtn.onclick=e=>{e.stopPropagation();toggle();};
+startOv.onclick=()=>toggle();
+glc.onclick=()=>{if(playing)setPlaying(false);};
+bar.onclick=e=>{const r=bar.getBoundingClientRect();tCur=Math.min(T,Math.max(0,(e.clientX-r.left)/r.width*T));paint();};
+document.getElementById('fsbtn').onclick=e=>{e.stopPropagation();if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});};
+addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();toggle();}
+  else if(e.key==='ArrowRight'){tCur=Math.min(T,tCur+5);paint();}
+  else if(e.key==='ArrowLeft'){tCur=Math.max(0,tCur-5);paint();}
+  else if(e.key==='r'||e.key==='R'){tCur=0;setPlaying(true);paint();}
+  else if(e.key==='f'||e.key==='F'){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});}
+});
+function fit(){
+  const r=document.getElementById('stage').getBoundingClientRect();
+  const s=Math.min(r.width/1600,r.height/1200);
+  viewport.style.transform=`scale(${s})`;
+}
+addEventListener('resize',fit);fit();
+window.ready=(async()=>{await document.fonts.load('48px FP');return true;})();
+window.ready.then(async()=>{
+  playBtn.disabled=false;fit();
+  if(qs.has('t')){
+    tCur=Math.min(Math.max(parseFloat(qs.get('t')),0),T-0.001);
+    await paint();setPlaying(false);startOv.hidden=true;
+  }else{await paint();}
+});
+window.__duowan={seek:t=>{tCur=t;return paint();},render:renderAt,T:()=>T};
+</script></body></html>
